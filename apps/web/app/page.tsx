@@ -1,11 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 import type { Show, Venue } from "@repo/types";
 
 import ChatInput from "@/components/ChatInput";
-import VenueCard from "@/components/VenueCard";
 import { MOCK_SHOWS, MOCK_VENUES } from "@/data/mockVenues";
 
 export default function Home() {
@@ -96,9 +96,9 @@ export default function Home() {
 
   return (
     <>
-      <main className="min-h-screen bg-black pb-28">
+      <main className="min-h-screen bg-gray-950 text-gray-100 p-8 pb-28">
         <section className="px-4 pt-12 text-center">
-          <h1 className="text-3xl font-bold text-white">OpenMic Delhi</h1>
+          <h1 className="text-4xl font-bold text-center mb-8">OpenMic Delhi</h1>
           <p className="mt-2 text-zinc-400">Find your next spot.</p>
         </section>
 
@@ -133,7 +133,60 @@ export default function Home() {
             ) : (
               results.map((venue) => {
                 const venueShows = MOCK_SHOWS.filter((show) => show.venue_id === venue.id);
-                return <VenueCard key={venue.id} venue={venue} shows={venueShows} />;
+
+                const hasFreeShow = venueShows.some((show) => show.charge === 0);
+                const lowestCharge = venueShows.reduce<number>((min, show) => {
+                  return show.charge < min ? show.charge : min;
+                }, Number.POSITIVE_INFINITY);
+
+                const chargeLabel = hasFreeShow
+                  ? "Free"
+                  : Number.isFinite(lowestCharge)
+                    ? "From ₹" + lowestCharge
+                    : "No upcoming shows";
+
+                return (
+                  <article
+                    key={venue.id}
+                    className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-lg max-w-sm mx-auto mb-6"
+                  >
+                    <Image
+                      src={venue.photos[0] ?? "https://picsum.photos/seed/fallback/600/400"}
+                      alt={venue.name + " venue photo"}
+                      width={600}
+                      height={400}
+                      unoptimized
+                      className="w-full h-48 object-cover"
+                    />
+
+                    <div className="p-5">
+                      <h2 className="text-xl font-bold text-white">{venue.name}</h2>
+                      <p className="mt-1 text-sm text-zinc-400">{venue.address}</p>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {venueShows.map((show) => {
+                          const chipClass =
+                            show.spot_type === "busking"
+                              ? "bg-amber-400/20 text-amber-300"
+                              : "bg-purple-500/20 text-purple-300";
+
+                          return (
+                            <span
+                              key={show.id}
+                              className={
+                                "rounded-full px-3 py-1 text-xs font-medium " + chipClass
+                              }
+                            >
+                              {show.start_time}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      <p className="mt-4 text-sm font-semibold text-zinc-200">{chargeLabel}</p>
+                    </div>
+                  </article>
+                );
               })
             )}
           </section>

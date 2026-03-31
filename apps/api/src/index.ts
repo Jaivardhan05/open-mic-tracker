@@ -2,7 +2,7 @@ import cors from 'cors';
 import express from 'express';
 
 import type { Request, Response } from 'express';
-import { MOCK_SHOWS, MOCK_VENUES } from './data/mockData';
+import { MOCK_SHOWS, MOCK_VENUES } from './data/mockData.js';
 import { filterShows, ShowFilters } from './utils/filterShows';
 
 const app = express();
