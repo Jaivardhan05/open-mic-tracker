@@ -1,102 +1,153 @@
-import Image, { type ImageProps } from "next/image";
-import { Button } from "@repo/ui/button";
-import styles from "./page.module.css";
+"use client";
 
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
+import { useState } from "react";
 
-const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
+import type { Show, Venue } from "@repo/types";
+
+import ChatInput from "@/components/ChatInput";
+import VenueCard from "@/components/VenueCard";
+import { MOCK_SHOWS, MOCK_VENUES } from "@/data/mockVenues";
+
+export default function Home() {
+  const [query, setQuery] = useState<string>("");
+  const [results, setResults] = useState<Venue[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
+
+  const handleSearch = async (input?: string) => {
+    const effectiveQuery = (input ?? query).trim();
+    if (!effectiveQuery) {
+      return;
+    }
+
+    const normalizedQuery = effectiveQuery.toLowerCase();
+
+    setIsLoading(true);
+    setHasSearched(true);
+
+    await new Promise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 1200);
+    });
+
+    const wantsBusking =
+      normalizedQuery.includes("busking") &&
+      !normalizedQuery.includes("non-busking") &&
+      !normalizedQuery.includes("non busking");
+    const wantsNonBusking =
+      normalizedQuery.includes("non-busking") || normalizedQuery.includes("non busking");
+    const wantsEightPm =
+      normalizedQuery.includes("8pm") ||
+      normalizedQuery.includes("20:00") ||
+      normalizedQuery.includes("after 8pm");
+    const wantsFree = normalizedQuery.includes("free");
+
+    const hasSpecificFilter =
+      wantsBusking ||
+      wantsNonBusking ||
+      wantsEightPm ||
+      wantsFree ||
+      MOCK_VENUES.some((venue) => {
+        return (
+          normalizedQuery.includes(venue.name.toLowerCase()) ||
+          normalizedQuery.includes(venue.city.toLowerCase())
+        );
+      });
+
+    const filteredVenues = MOCK_VENUES.filter((venue) => {
+      const venueShows: Show[] = MOCK_SHOWS.filter((show) => show.venue_id === venue.id);
+      const matchNameOrCity =
+        normalizedQuery.includes(venue.name.toLowerCase()) ||
+        normalizedQuery.includes(venue.city.toLowerCase());
+
+      const matchBusking = wantsBusking
+        ? venueShows.some((show) => show.spot_type === "busking")
+        : false;
+
+      const matchNonBusking = wantsNonBusking
+        ? venueShows.some((show) => show.spot_type === "non_busking")
+        : false;
+
+      const matchEightPm = wantsEightPm
+        ? venueShows.some((show) => {
+            return show.start_time === "20:00" || show.start_time === "21:00";
+          })
+        : false;
+
+      const matchFree = wantsFree ? venueShows.some((show) => show.charge === 0) : false;
+
+      if (!hasSpecificFilter) {
+        return true;
+      }
+
+      return matchNameOrCity || matchBusking || matchNonBusking || matchEightPm || matchFree;
+    });
+
+    setResults(filteredVenues);
+    setIsLoading(false);
+  };
+
+  const suggestions = [
+    "Busking spots tonight",
+    "Free spots this week",
+    "Spots after 8pm",
+  ];
 
   return (
     <>
-      <Image {...rest} src={srcLight} className="imgLight" />
-      <Image {...rest} src={srcDark} className="imgDark" />
-    </>
-  );
-};
+      <main className="min-h-screen bg-black pb-28">
+        <section className="px-4 pt-12 text-center">
+          <h1 className="text-3xl font-bold text-white">OpenMic Delhi</h1>
+          <p className="mt-2 text-zinc-400">Find your next spot.</p>
+        </section>
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <ThemeImage
-          className={styles.logo}
-          srcLight="turborepo-dark.svg"
-          srcDark="turborepo-light.svg"
-          alt="Turborepo logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>apps/web/app/page.tsx</code>
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+        {!hasSearched ? (
+          <section className="mt-6 flex flex-wrap justify-center gap-2 px-4">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => {
+                  setQuery(suggestion);
+                  void handleSearch(suggestion);
+                }}
+                className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-400"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </section>
+        ) : null}
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new/clone?demo-description=Learn+to+implement+a+monorepo+with+a+two+Next.js+sites+that+has+installed+three+local+packages.&demo-image=%2F%2Fimages.ctfassets.net%2Fe5382hct74si%2F4K8ZISWAzJ8X1504ca0zmC%2F0b21a1c6246add355e55816278ef54bc%2FBasic.png&demo-title=Monorepo+with+Turborepo&demo-url=https%3A%2F%2Fexamples-basic-web.vercel.sh%2F&from=templates&project-name=Monorepo+with+Turborepo&repository-name=monorepo-turborepo&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fturborepo%2Ftree%2Fmain%2Fexamples%2Fbasic&root-directory=apps%2Fdocs&skippable-integrations=1&teamSlug=vercel&utm_source=create-turbo"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://turborepo.dev/docs?utm_source"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-        <Button appName="web" className={styles.secondary}>
-          Open alert
-        </Button>
+        {isLoading ? (
+          <p className="mt-10 px-4 text-center text-zinc-400">Finding spots…</p>
+        ) : null}
+
+        {hasSearched && !isLoading ? (
+          <section className="mt-6 px-4">
+            {results.length === 0 ? (
+              <p className="mt-10 text-center text-zinc-500">
+                No spots found. Try a different search.
+              </p>
+            ) : (
+              results.map((venue) => {
+                const venueShows = MOCK_SHOWS.filter((show) => show.venue_id === venue.id);
+                return <VenueCard key={venue.id} venue={venue} shows={venueShows} />;
+              })
+            )}
+          </section>
+        ) : null}
       </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com/templates?search=turborepo&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://turborepo.dev?utm_source=create-turbo"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to turborepo.dev →
-        </a>
-      </footer>
-    </div>
+
+      <ChatInput
+        value={query}
+        onChange={setQuery}
+        onSubmit={() => {
+          void handleSearch();
+        }}
+        isLoading={isLoading}
+      />
+    </>
   );
 }
