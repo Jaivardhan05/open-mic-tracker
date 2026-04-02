@@ -1,5 +1,11 @@
 import type { Show, Venue } from "@repo/types";
 
+function daysFromNow(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 export const MOCK_VENUES: Venue[] = [
   {
     id: "venue-1",
@@ -97,7 +103,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-1",
     venue_id: "venue-1",
-    date: "2026-04-01",
+    date: daysFromNow(0),
     start_time: "20:00",
     end_time: "21:30",
     spot_type: "non_busking",
@@ -108,7 +114,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-2",
     venue_id: "venue-1",
-    date: "2026-04-04",
+    date: daysFromNow(0),
     start_time: "22:30",
     end_time: "00:00",
     spot_type: "busking",
@@ -119,7 +125,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-3",
     venue_id: "venue-1",
-    date: "2026-04-10",
+    date: daysFromNow(2),
     start_time: "18:00",
     end_time: "19:30",
     spot_type: "busking",
@@ -130,7 +136,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-4",
     venue_id: "venue-2",
-    date: "2026-04-02",
+    date: daysFromNow(0),
     start_time: "21:00",
     end_time: "22:30",
     spot_type: "non_busking",
@@ -141,7 +147,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-5",
     venue_id: "venue-2",
-    date: "2026-04-06",
+    date: daysFromNow(0),
     start_time: "23:00",
     end_time: "00:30",
     spot_type: "busking",
@@ -152,7 +158,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-6",
     venue_id: "venue-3",
-    date: "2026-04-03",
+    date: daysFromNow(3),
     start_time: "18:00",
     end_time: "19:30",
     spot_type: "busking",
@@ -163,7 +169,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-7",
     venue_id: "venue-3",
-    date: "2026-04-09",
+    date: daysFromNow(1),
     start_time: "20:00",
     end_time: "21:30",
     spot_type: "non_busking",
@@ -174,7 +180,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-8",
     venue_id: "venue-4",
-    date: "2026-04-04",
+    date: daysFromNow(3),
     start_time: "17:00",
     end_time: "18:30",
     spot_type: "busking",
@@ -185,7 +191,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-9",
     venue_id: "venue-4",
-    date: "2026-04-11",
+    date: daysFromNow(1),
     start_time: "21:00",
     end_time: "22:30",
     spot_type: "non_busking",
@@ -196,7 +202,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-10",
     venue_id: "venue-5",
-    date: "2026-04-05",
+    date: daysFromNow(1),
     start_time: "20:00",
     end_time: "21:30",
     spot_type: "non_busking",
@@ -207,7 +213,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-11",
     venue_id: "venue-5",
-    date: "2026-04-12",
+    date: daysFromNow(1),
     start_time: "22:30",
     end_time: "00:00",
     spot_type: "busking",
@@ -218,7 +224,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-12",
     venue_id: "venue-6",
-    date: "2026-04-06",
+    date: daysFromNow(4),
     start_time: "18:00",
     end_time: "19:30",
     spot_type: "busking",
@@ -229,7 +235,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-13",
     venue_id: "venue-6",
-    date: "2026-04-13",
+    date: daysFromNow(5),
     start_time: "21:00",
     end_time: "22:30",
     spot_type: "non_busking",
@@ -240,7 +246,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-14",
     venue_id: "venue-7",
-    date: "2026-04-07",
+    date: daysFromNow(6),
     start_time: "20:00",
     end_time: "21:30",
     spot_type: "non_busking",
@@ -251,7 +257,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-15",
     venue_id: "venue-7",
-    date: "2026-04-14",
+    date: daysFromNow(7),
     start_time: "23:00",
     end_time: "00:30",
     spot_type: "busking",
@@ -262,7 +268,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-16",
     venue_id: "venue-8",
-    date: "2026-04-08",
+    date: daysFromNow(6),
     start_time: "17:00",
     end_time: "18:30",
     spot_type: "busking",
@@ -273,7 +279,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-17",
     venue_id: "venue-8",
-    date: "2026-04-10",
+    date: daysFromNow(8),
     start_time: "21:00",
     end_time: "22:30",
     spot_type: "non_busking",
@@ -284,7 +290,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-18",
     venue_id: "venue-9",
-    date: "2026-04-09",
+    date: daysFromNow(9),
     start_time: "18:00",
     end_time: "19:30",
     spot_type: "non_busking",
@@ -295,7 +301,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-19",
     venue_id: "venue-9",
-    date: "2026-04-12",
+    date: daysFromNow(10),
     start_time: "20:00",
     end_time: "21:30",
     spot_type: "busking",
@@ -306,7 +312,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-20",
     venue_id: "venue-10",
-    date: "2026-04-11",
+    date: daysFromNow(11),
     start_time: "22:30",
     end_time: "00:00",
     spot_type: "non_busking",
@@ -317,7 +323,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-21",
     venue_id: "venue-10",
-    date: "2026-04-13",
+    date: daysFromNow(12),
     start_time: "18:00",
     end_time: "19:30",
     spot_type: "busking",
@@ -328,7 +334,7 @@ export const MOCK_SHOWS: Show[] = [
   {
     id: "show-22",
     venue_id: "venue-10",
-    date: "2026-04-14",
+    date: daysFromNow(13),
     start_time: "20:00",
     end_time: "21:30",
     spot_type: "non_busking",

@@ -1,92 +1,75 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 
 import type { Show, Venue } from "@repo/types";
 
-import ChatInput from "@/components/ChatInput";
 import { MOCK_SHOWS, MOCK_VENUES } from "@/data/mockVenues";
+import Navbar from "@/components/Navbar";
+import Sidebar from "@/components/Sidebar";
+import VenueCard from "@/components/VenueCard";
+import VenueDetailSheet from "@/components/VenueDetailSheet";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export default function Home() {
-  const [query, setQuery] = useState<string>("");
-  const [results, setResults] = useState<Venue[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+  const [selectedVenueShows, setSelectedVenueShows] = useState<Show[]>([]);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-  const handleSearch = async (input?: string) => {
-    const effectiveQuery = (input ?? query).trim();
-    if (!effectiveQuery) {
+  const runSearch = async (message: string) => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
       return;
     }
-
-    const normalizedQuery = effectiveQuery.toLowerCase();
 
     setIsLoading(true);
     setHasSearched(true);
 
-    await new Promise<void>((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 1200);
-    });
-
-    const wantsBusking =
-      normalizedQuery.includes("busking") &&
-      !normalizedQuery.includes("non-busking") &&
-      !normalizedQuery.includes("non busking");
-    const wantsNonBusking =
-      normalizedQuery.includes("non-busking") || normalizedQuery.includes("non busking");
-    const wantsEightPm =
-      normalizedQuery.includes("8pm") ||
-      normalizedQuery.includes("20:00") ||
-      normalizedQuery.includes("after 8pm");
-    const wantsFree = normalizedQuery.includes("free");
-
-    const hasSpecificFilter =
-      wantsBusking ||
-      wantsNonBusking ||
-      wantsEightPm ||
-      wantsFree ||
-      MOCK_VENUES.some((venue) => {
-        return (
-          normalizedQuery.includes(venue.name.toLowerCase()) ||
-          normalizedQuery.includes(venue.city.toLowerCase())
-        );
+    try {
+      const response = await fetch(`${API_URL}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: trimmedMessage }),
       });
 
-    const filteredVenues = MOCK_VENUES.filter((venue) => {
-      const venueShows: Show[] = MOCK_SHOWS.filter((show) => show.venue_id === venue.id);
-      const matchNameOrCity =
-        normalizedQuery.includes(venue.name.toLowerCase()) ||
-        normalizedQuery.includes(venue.city.toLowerCase());
-
-      const matchBusking = wantsBusking
-        ? venueShows.some((show) => show.spot_type === "busking")
-        : false;
-
-      const matchNonBusking = wantsNonBusking
-        ? venueShows.some((show) => show.spot_type === "non_busking")
-        : false;
-
-      const matchEightPm = wantsEightPm
-        ? venueShows.some((show) => {
-            return show.start_time === "20:00" || show.start_time === "21:00";
-          })
-        : false;
-
-      const matchFree = wantsFree ? venueShows.some((show) => show.charge === 0) : false;
-
-      if (!hasSpecificFilter) {
-        return true;
-      }
-
-      return matchNameOrCity || matchBusking || matchNonBusking || matchEightPm || matchFree;
-    });
-
-    setResults(filteredVenues);
-    setIsLoading(false);
+      const data: { venues?: Venue[] } = await response.json();
+      setVenues(Array.isArray(data.venues) ? data.venues : []);
+    } catch (error) {
+      console.error(error);
+      setVenues([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  async function handleSearch(e: FormEvent) {
+    e.preventDefault();
+
+    if (!searchQuery.trim()) {
+      return;
+    }
+
+    await runSearch(searchQuery);
+  };
+
+  async function handleVenueSelect(venue: Venue) {
+    setSelectedVenue(venue);
+    setIsSheetOpen(true);
+    try {
+      const res = await fetch(`${API_URL}/api/venues/${venue.id}`);
+      const data = await res.json();
+      setSelectedVenueShows(data.shows ?? []);
+    } catch {
+      setSelectedVenueShows([]);
+    }
+  }
 
   const suggestions = [
     "Busking spots tonight",
@@ -96,10 +79,43 @@ export default function Home() {
 
   return (
     <>
-      <main className="min-h-screen bg-gray-950 text-gray-100 p-8 pb-28">
+      <Navbar />
+      <Sidebar
+        onFilter={(query) => {
+          if (!query) {
+            setSearchQuery("");
+            setVenues([]);
+            setHasSearched(false);
+            return;
+          }
+
+          setSearchQuery(query);
+          void runSearch(query);
+        }}
+      />
+
+      <main className="min-h-screen bg-gray-950 pb-32 pt-14 text-gray-100 lg:pl-56">
         <section className="px-4 pt-12 text-center">
-          <h1 className="text-4xl font-bold text-center mb-8">OpenMic Delhi</h1>
-          <p className="mt-2 text-zinc-400">Find your next spot.</p>
+          <h1 className="text-4xl md:text-6xl">
+            <span className="font-bold text-white font-[family-name:var(--font-inter)]">
+              OpenMic
+            </span>{" "}
+            <span className="italic text-[#F97316] font-[family-name:var(--font-playfair)]">
+              Delhi
+            </span>
+          </h1>
+          <p className="mt-3 text-base md:text-lg">
+            <span className="font-normal italic text-[#F97316] font-[family-name:var(--font-playfair)]">
+              Take a stand
+            </span>
+            <span className="text-zinc-400 font-[family-name:var(--font-inter)]">,</span>
+            <span className="text-zinc-400 font-[family-name:var(--font-inter)]">
+              {" "}and find your{" "}
+            </span>
+            <span className="font-bold text-white font-[family-name:var(--font-inter)]">
+              spot.
+            </span>
+          </p>
         </section>
 
         {!hasSearched ? (
@@ -109,8 +125,8 @@ export default function Home() {
                 key={suggestion}
                 type="button"
                 onClick={() => {
-                  setQuery(suggestion);
-                  void handleSearch(suggestion);
+                  setSearchQuery(suggestion);
+                  void runSearch(suggestion);
                 }}
                 className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-400"
               >
@@ -125,81 +141,59 @@ export default function Home() {
         ) : null}
 
         {hasSearched && !isLoading ? (
-          <section className="mt-6 px-4">
-            {results.length === 0 ? (
+          <section className="mt-6 px-4 md:px-6">
+            {venues.length === 0 ? (
               <p className="mt-10 text-center text-zinc-500">
                 No spots found. Try a different search.
               </p>
             ) : (
-              results.map((venue) => {
-                const venueShows = MOCK_SHOWS.filter((show) => show.venue_id === venue.id);
+              <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 md:px-6 xl:grid-cols-3">
+                {venues.map((venue) => {
+                  const venueShows = MOCK_SHOWS.filter((show) => show.venue_id === venue.id);
 
-                const hasFreeShow = venueShows.some((show) => show.charge === 0);
-                const lowestCharge = venueShows.reduce<number>((min, show) => {
-                  return show.charge < min ? show.charge : min;
-                }, Number.POSITIVE_INFINITY);
-
-                const chargeLabel = hasFreeShow
-                  ? "Free"
-                  : Number.isFinite(lowestCharge)
-                    ? "From ₹" + lowestCharge
-                    : "No upcoming shows";
-
-                return (
-                  <article
-                    key={venue.id}
-                    className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-lg max-w-sm mx-auto mb-6"
-                  >
-                    <Image
-                      src={venue.photos[0] ?? "https://picsum.photos/seed/fallback/600/400"}
-                      alt={venue.name + " venue photo"}
-                      width={600}
-                      height={400}
-                      unoptimized
-                      className="w-full h-48 object-cover"
+                  return (
+                    <VenueCard
+                      key={venue.id}
+                      venue={venue}
+                      shows={venueShows}
+                      onSelect={handleVenueSelect}
                     />
-
-                    <div className="p-5">
-                      <h2 className="text-xl font-bold text-white">{venue.name}</h2>
-                      <p className="mt-1 text-sm text-zinc-400">{venue.address}</p>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {venueShows.map((show) => {
-                          const chipClass =
-                            show.spot_type === "busking"
-                              ? "bg-amber-400/20 text-amber-300"
-                              : "bg-purple-500/20 text-purple-300";
-
-                          return (
-                            <span
-                              key={show.id}
-                              className={
-                                "rounded-full px-3 py-1 text-xs font-medium " + chipClass
-                              }
-                            >
-                              {show.start_time}
-                            </span>
-                          );
-                        })}
-                      </div>
-
-                      <p className="mt-4 text-sm font-semibold text-zinc-200">{chargeLabel}</p>
-                    </div>
-                  </article>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </section>
         ) : null}
       </main>
 
-      <ChatInput
-        value={query}
-        onChange={setQuery}
-        onSubmit={() => {
-          void handleSearch();
-        }}
-        isLoading={isLoading}
+      <form
+        onSubmit={handleSearch}
+        className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950 px-4 pb-4 pt-3"
+      >
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-2">
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={isLoading}
+            placeholder="Find a spot... e.g. busking tonight after 8pm"
+            className="w-full rounded-full bg-zinc-800 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
+          />
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="flex h-11 min-w-14 items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-black disabled:opacity-50"
+          >
+            {isLoading ? "Thinking..." : "Go"}
+          </button>
+        </div>
+      </form>
+
+      <VenueDetailSheet
+        venue={selectedVenue}
+        shows={selectedVenueShows}
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
       />
     </>
   );

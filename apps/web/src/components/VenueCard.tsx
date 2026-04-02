@@ -5,9 +5,10 @@ import type { Show, Venue } from "@repo/types";
 interface VenueCardProps {
   venue: Venue;
   shows: Show[];
+  onSelect: (venue: Venue) => void;
 }
 
-export default function VenueCard({ venue, shows }: VenueCardProps) {
+export default function VenueCard({ venue, shows, onSelect }: VenueCardProps) {
   const hasFreeShow = shows.some((show) => show.charge === 0);
   const lowestCharge = shows.reduce<number>((min, show) => {
     return show.charge < min ? show.charge : min;
@@ -20,15 +21,20 @@ export default function VenueCard({ venue, shows }: VenueCardProps) {
       : "No upcoming shows";
 
   return (
-    <article className="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-      <Image
-        src={venue.photos[0] ?? "https://picsum.photos/seed/fallback/600/400"}
-        alt={venue.name + " venue photo"}
-        width={600}
-        height={400}
-        unoptimized
-        className="h-48 w-full rounded-t-2xl object-cover"
-      />
+    <article
+      onClick={() => onSelect(venue)}
+      className="mb-4 cursor-pointer overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
+    >
+      <div className="relative aspect-video w-full">
+        <Image
+          src={venue.photos[0] ?? "https://picsum.photos/seed/fallback/600/400"}
+          alt={venue.name + " venue photo"}
+          fill
+          sizes="(max-width: 768px) 100vw, 33vw"
+          unoptimized
+          className="rounded-t-2xl object-cover"
+        />
+      </div>
 
       <div className="p-4">
         <h2 className="text-xl font-bold text-white">{venue.name}</h2>
@@ -59,7 +65,7 @@ export default function VenueCard({ venue, shows }: VenueCardProps) {
           onClick={() => {
             console.log("book venue", venue.id);
           }}
-          className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-bold text-black"
+          className="mt-4 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black transition-all duration-200 hover:bg-[#F97316] hover:text-white"
         >
           Book This Spot
         </button>

@@ -1,17 +1,29 @@
+import "dotenv/config";
 import cors from 'cors';
 import express from 'express';
 
 import type { Request, Response } from 'express';
 import { MOCK_SHOWS, MOCK_VENUES } from './data/mockData.js';
+import { processChat } from './services/llmService.js';
 import { filterShows, ShowFilters } from './utils/filterShows';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
-const ALLOWED_ORIGIN = 'http://localhost:3000';
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.CORS_ORIGIN ?? '',
+].filter(Boolean);
 
 app.use(
   cors({
-    origin: ALLOWED_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -92,6 +104,33 @@ app.get('/api/shows', (req: Request, res: Response) => {
 
   const results = filterShows(MOCK_SHOWS, filters);
   res.status(200).json(results);
+});
+
+app.post('/api/chat', async (req: Request, res: Response) => {
+  const message = req.body?.message;
+
+  if (typeof message !== 'string' || message.trim().length === 0) {
+    res.status(400).json({
+      error: 'message is required and must be a string',
+    });
+    return;
+  }
+
+  const result = await processChat(message);
+  res.status(200).json(result);
+});
+
+app.get('/api/venues/:id', (req: Request, res: Response) => {
+  const id = req.params.id;
+  const venue = MOCK_VENUES.find((v) => v.id === id);
+
+  if (!venue) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const shows = MOCK_SHOWS.filter((s) => s.venue_id === id);
+  res.status(200).json({ venue, shows });
 });
 
 app.listen(PORT, () => {
