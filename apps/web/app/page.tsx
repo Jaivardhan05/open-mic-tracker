@@ -94,7 +94,7 @@ export default function Home() {
         }}
       />
 
-      <main className="min-h-screen bg-gray-950 pb-32 pt-14 text-gray-100 lg:pl-56">
+      <main className="min-h-screen bg-gray-950 pb-12 pt-14 text-gray-100 lg:pl-56">
         <section className="px-4 pt-12 text-center">
           <h1 className="text-4xl md:text-6xl">
             <span className="font-bold text-white font-[family-name:var(--font-inter)]">
@@ -136,6 +136,29 @@ export default function Home() {
           </section>
         ) : null}
 
+        <form
+          onSubmit={handleSearch}
+          className="mx-auto mt-8 w-full max-w-2xl px-4"
+        >
+          <div className="flex w-full items-center gap-2">
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={isLoading}
+              placeholder="Find a spot... e.g. busking tonight after 8pm"
+              className="w-full rounded-full bg-zinc-800 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
+            />
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex h-11 min-w-14 items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-black disabled:opacity-50"
+            >
+              {isLoading ? "Thinking..." : "Go"}
+            </button>
+          </div>
+        </form>
+
         {isLoading ? (
           <p className="mt-10 px-4 text-center text-zinc-400">Finding spots…</p>
         ) : null}
@@ -165,29 +188,6 @@ export default function Home() {
           </section>
         ) : null}
       </main>
-
-      <form
-        onSubmit={handleSearch}
-        className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950 px-4 pb-4 pt-3"
-      >
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-2">
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={isLoading}
-            placeholder="Find a spot... e.g. busking tonight after 8pm"
-            className="w-full rounded-full bg-zinc-800 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
-          />
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="flex h-11 min-w-14 items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-black disabled:opacity-50"
-          >
-            {isLoading ? "Thinking..." : "Go"}
-          </button>
-        </div>
-      </form>
 
       <VenueDetailSheet
         venue={selectedVenue}

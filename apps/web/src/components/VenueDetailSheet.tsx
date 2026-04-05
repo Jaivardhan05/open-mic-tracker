@@ -20,7 +20,7 @@ export default function VenueDetailSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pt-16 md:items-center md:pt-20">
       <button
         type="button"
         aria-label="Close venue details"
@@ -28,7 +28,7 @@ export default function VenueDetailSheet({
         onClick={onClose}
       />
 
-      <div className="relative bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[92vh] md:max-h-[85vh] overflow-y-auto overscroll-contain z-10 p-4 md:p-6 pb-8">
+      <div className="relative bg-zinc-900 rounded-t-3xl md:rounded-3xl w-full md:max-w-2xl max-h-[85vh] md:max-h-[80vh] overflow-y-auto overscroll-contain z-10 p-4 md:p-6 pb-8">
         <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-zinc-700" />
 
         <button
@@ -103,7 +103,7 @@ export default function VenueDetailSheet({
                   onClick={() => {
                     console.log("book show", show.id);
                   }}
-                  className="mt-3 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black"
+                  className="mt-3 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black hover:bg-[#F97316] hover:text-white transition-colors duration-200 cursor-pointer"
                 >
                   Book This Spot
                 </button>

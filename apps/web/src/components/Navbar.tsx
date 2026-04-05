@@ -1,80 +1,92 @@
 "use client";
-
-import { useState } from "react";
+import { useState } from 'react';
 
 export default function Navbar() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const navItems = ["Home", "Venues", "About", "Contact"];
+  const [isOpen, setIsOpen] = useState(false);
+  const links = ['Home', 'Venues', 'About', 'Contact'];
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-40 h-14 border-b border-zinc-800/50 bg-zinc-950/90 backdrop-blur-md">
-      <div className="flex h-full items-center justify-between px-4 md:px-6">
-        <div className="text-lg">
-          <span className="font-bold text-white font-[family-name:var(--font-inter)]">
-            OpenMic
-          </span>{" "}
-          <span className="italic text-[#F97316] font-[family-name:var(--font-playfair)]">
-            Delhi
-          </span>
+    <>
+      <nav
+        className="fixed top-0 left-0 right-0 z-[60] h-14 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/50 flex items-center justify-between px-4 md:px-6"
+      >
+        <div className="flex items-center gap-0.5">
+          <span className="font-bold text-white text-lg tracking-tight">OpenMic</span>
+          <span className="italic text-[#F97316] text-lg font-serif ml-1">Delhi</span>
         </div>
 
-        <nav className="hidden items-center gap-6 lg:flex">
-          {navItems.map((item) => (
+        <div className="hidden md:flex items-center gap-8">
+          {links.map((link) => (
             <a
-              key={item}
+              key={link}
               href="#"
-              className="relative text-sm text-zinc-400 transition-colors hover:text-white after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-[#F97316] after:transition-all after:duration-300 hover:after:w-full"
+              className="text-sm text-zinc-400 hover:text-white transition-colors duration-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-px after:bg-[#F97316] after:transition-all after:duration-300 hover:after:w-full"
             >
-              {item}
+              {link}
             </a>
           ))}
-        </nav>
+        </div>
 
         <button
           type="button"
-          aria-label="Toggle navigation menu"
-          className="lg:hidden flex flex-col justify-center items-center w-11 h-11 rounded-xl bg-transparent border-none cursor-pointer active:bg-zinc-800 transition-colors duration-150 -mr-2"
-          onClick={() => setIsMenuOpen((prev) => !prev)}
+          onClick={() => setIsOpen(true)}
+          className="md:hidden flex flex-col justify-center items-center gap-1.5 w-10 h-10 rounded-md active:bg-white/10 transition-colors z-[60]"
+          aria-label="Open menu"
         >
-          <div className="flex flex-col gap-[5px] pointer-events-none">
-            <div className="w-5 h-0.5 bg-zinc-300 rounded" />
-            <div className="w-5 h-0.5 bg-zinc-300 rounded" />
-            <div className="w-5 h-0.5 bg-zinc-300 rounded" />
-          </div>
+          <span className="block w-6 h-0.5 bg-zinc-200 rounded-full" />
+          <span className="block w-6 h-0.5 bg-zinc-200 rounded-full" />
+          <span className="block w-6 h-0.5 bg-zinc-200 rounded-full" />
         </button>
-      </div>
+      </nav>
 
-      {isMenuOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
+      {isOpen && (
+        <div className="md:hidden fixed inset-0 z-[70] flex justify-end">
           <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setIsMenuOpen(false)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
           />
 
-          <div className="absolute top-0 right-0 h-full w-72 bg-zinc-900 border-l border-zinc-800 flex flex-col pt-16 px-6">
+          <div className="relative w-[75%] max-w-sm h-full bg-zinc-950/70 backdrop-blur-2xl border-l border-white/10 flex flex-col p-6 shadow-2xl z-10">
             <button
               type="button"
-              onClick={() => setIsMenuOpen(false)}
-              className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white text-2xl rounded-xl active:bg-zinc-800"
-              aria-label="Close navigation menu"
+              onClick={() => setIsOpen(false)}
+              className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white text-xl font-light rounded-xl bg-zinc-800/40 border border-zinc-700/30 active:bg-zinc-700/50 transition-colors duration-150"
+              aria-label="Close menu"
             >
-              ×
+              ✕
             </button>
 
-            {navItems.map((item) => (
+            <div className="mb-8 flex items-center gap-1">
+              <span className="font-bold text-white text-xl tracking-tight">OpenMic</span>
+              <span className="italic text-[#F97316] text-xl font-serif ml-1">Delhi</span>
+            </div>
+
+            <div className="w-full h-px bg-zinc-700/40 mb-6" />
+
+            {links.map((link) => (
               <a
-                key={item}
+                key={link}
                 href="#"
-                className="block py-4 text-lg font-medium text-zinc-300 hover:text-white border-b border-zinc-800/50 active:text-[#F97316] transition-colors duration-150"
-                onClick={() => setIsMenuOpen(false)}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center py-4 px-2 text-base font-medium text-zinc-300 hover:text-white active:text-[#F97316] border-b border-zinc-700/20 transition-colors duration-150 group"
               >
-                {item}
+                <span className="flex-1">{link}</span>
+                <span className="text-zinc-600 group-hover:text-zinc-400 group-active:text-[#F97316] text-sm transition-colors">
+                  →
+                </span>
               </a>
             ))}
+
+            <div className="mt-auto pt-6 border-t border-zinc-700/30">
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Find your next open mic spot
+                in Delhi.
+              </p>
+            </div>
           </div>
         </div>
-      ) : null}
-    </header>
+      )}
+    </>
   );
 }
