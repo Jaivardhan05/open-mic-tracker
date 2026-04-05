@@ -1,8 +1,15 @@
 import OpenAI from 'openai';
 
 import type { Venue, Show } from '@repo/types';
-import { MOCK_VENUES, MOCK_SHOWS } from '../data/mockData.js';
-import { filterShows, ShowFilters } from '../utils/filterShows.js';
+import { supabase } from '../lib/supabase.js';
+
+interface ShowFilters {
+  date?: string;
+  spot_type?: 'busking' | 'non_busking';
+  after_time?: string;
+  before_time?: string;
+  venue_ids?: string[];
+}
 
 const client = new OpenAI({
   baseURL: 'https://router.huggingface.co/v1',
@@ -109,47 +116,94 @@ export async function processChat(userMessage: string): Promise<ChatResponse> {
         };
       }
 
-      let filteredVenues = MOCK_VENUES;
+      let venueQuery = supabase
+        .from('venues')
+        .select('*')
+        .eq('admin_approved', true)
+        .eq('is_active', true);
 
       if (args.city) {
-        filteredVenues = filteredVenues.filter((venue) => {
-          return venue.city.toLowerCase() === args.city?.toLowerCase();
-        });
+        venueQuery = venueQuery.ilike('city', `%${args.city}%`);
       }
 
       if (args.venue_name) {
-        const venueQuery = args.venue_name.toLowerCase();
-        filteredVenues = filteredVenues.filter((venue) => {
-          return (
-            venue.name.toLowerCase().includes(venueQuery) ||
-            venue.address.toLowerCase().includes(venueQuery)
-          );
-        });
+        venueQuery = venueQuery.or(
+          `name.ilike.%${args.venue_name}%,address.ilike.%${args.venue_name}%`
+        );
       }
 
-      const venue_ids: string[] = filteredVenues.map((venue) => venue.id);
+      const { data: venueData, error: venueError } = await venueQuery;
 
-      const filters: ShowFilters = {};
+      if (venueError) {
+        console.error('Venue query error:', venueError);
+        return {
+          type: 'message',
+          message: 'Sorry, I could not search venues right now. Please try again.',
+        };
+      }
+
+      const venues = (venueData ?? []) as Venue[];
+
+      if (venues.length === 0) {
+        return {
+          type: 'venues',
+          message:
+            'I could not find any venues matching your search. Try a broader search or different location.',
+          venues: [],
+          shows: [],
+          filtersUsed: {},
+        };
+      }
+
+      const venueIds = venues.map((venue) => venue.id);
+
+      let showQuery = supabase
+        .from('shows')
+        .select('*')
+        .eq('is_cancelled', false)
+        .in('venue_id', venueIds)
+        .gte('date', new Date().toISOString().split('T')[0])
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (args.spot_type) {
+        showQuery = showQuery.eq('spot_type', args.spot_type);
+      }
+
       if (args.date) {
-        filters.date = args.date;
-      }
-      if (args.spot_type === 'busking' || args.spot_type === 'non_busking') {
-        filters.spot_type = args.spot_type;
-      }
-      if (args.after_time) {
-        filters.after_time = args.after_time;
-      }
-      if (args.before_time) {
-        filters.before_time = args.before_time;
-      }
-      if (args.city || args.venue_name) {
-        filters.venue_ids = venue_ids;
+        showQuery = showQuery.eq('date', args.date);
       }
 
-      const filteredShows = filterShows(MOCK_SHOWS, filters);
+      if (args.after_time) {
+        showQuery = showQuery.gte('start_time', args.after_time);
+      }
+
+      if (args.before_time) {
+        showQuery = showQuery.lte('start_time', args.before_time);
+      }
+
+      const { data: showData, error: showError } = await showQuery;
+
+      if (showError) {
+        console.error('Shows query error:', showError);
+        return {
+          type: 'message',
+          message: 'Sorry, I could not fetch show details right now.',
+        };
+      }
+
+      const filteredShows = (showData ?? []) as Show[];
 
       const matchedVenueIds = new Set(filteredShows.map((show) => show.venue_id));
-      const matchedVenues = MOCK_VENUES.filter((venue) => matchedVenueIds.has(venue.id));
+      const matchedVenues = venues.filter((venue) => matchedVenueIds.has(venue.id));
+
+      const filtersUsed: ShowFilters = {
+        ...(args.date && { date: args.date }),
+        ...(args.spot_type && { spot_type: args.spot_type }),
+        ...(args.after_time && { after_time: args.after_time }),
+        ...(args.before_time && { before_time: args.before_time }),
+        ...(venueIds.length > 0 && { venue_ids: venueIds }),
+      };
 
       const secondResponse = await client.chat.completions.create({
         model: 'Qwen/Qwen2.5-72B-Instruct',
@@ -179,7 +233,7 @@ export async function processChat(userMessage: string): Promise<ChatResponse> {
         message: secondResponse.choices[0]?.message?.content ?? 'Here are the spots I found.',
         venues: matchedVenues,
         shows: filteredShows,
-        filtersUsed: filters,
+        filtersUsed: filtersUsed,
       };
     }
 

@@ -3,9 +3,8 @@ import cors from 'cors';
 import express from 'express';
 
 import type { Request, Response } from 'express';
-import { MOCK_SHOWS, MOCK_VENUES } from './data/mockData.js';
+import { supabase, supabaseAdmin } from './lib/supabase.js';
 import { processChat } from './services/llmService.js';
-import { filterShows, ShowFilters } from './utils/filterShows';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
@@ -35,22 +34,30 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-app.get('/api/venues', (req: Request, res: Response) => {
+app.get('/api/venues', async (req: Request, res: Response) => {
   const city = typeof req.query.city === 'string' ? req.query.city : undefined;
 
-  if (!city) {
-    res.status(200).json(MOCK_VENUES);
+  let query = supabase
+    .from('venues')
+    .select('id, name, address, city, photos, description')
+    .eq('admin_approved', true)
+    .eq('is_active', true);
+
+  if (city) {
+    query = query.ilike('city', city);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    res.status(500).json({ error: error.message });
     return;
   }
 
-  const filteredVenues = MOCK_VENUES.filter((venue) => {
-    return venue.city.toLowerCase() === city.toLowerCase();
-  });
-
-  res.status(200).json(filteredVenues);
+  res.status(200).json(data ?? []);
 });
 
-app.get('/api/shows', (req: Request, res: Response) => {
+app.get('/api/shows', async (req: Request, res: Response) => {
   const city = typeof req.query.city === 'string' ? req.query.city : undefined;
   const date = typeof req.query.date === 'string' ? req.query.date : undefined;
   const spot_type = typeof req.query.spot_type === 'string' ? req.query.spot_type : undefined;
@@ -68,41 +75,65 @@ app.get('/api/shows', (req: Request, res: Response) => {
     return;
   }
 
-  let filteredVenues = MOCK_VENUES;
+  let query = supabase
+    .from('shows')
+    .select(
+      'id, venue_id, date, start_time, end_time, spot_type, total_spots, available_spots, charge, venues!inner(id, name, city, admin_approved, is_active)'
+    )
+    .eq('is_cancelled', false)
+    .eq('venues.admin_approved', true)
+    .eq('venues.is_active', true)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true });
 
-  if (city) {
-    filteredVenues = filteredVenues.filter((venue) => {
-      return venue.city.toLowerCase() === city.toLowerCase();
-    });
-  }
-
-  if (venue_name) {
-    filteredVenues = filteredVenues.filter((venue) => {
-      return venue.name.toLowerCase().includes(venue_name.toLowerCase());
-    });
-  }
-
-  const venue_ids: string[] = filteredVenues.map((venue) => venue.id);
-
-  const filters: ShowFilters = {};
   if (date) {
-    filters.date = date;
+    query = query.eq('date', date);
   }
   if (spot_type) {
-    filters.spot_type = spot_type as 'busking' | 'non_busking';
+    query = query.eq('spot_type', spot_type);
   }
   if (after_time) {
-    filters.after_time = after_time;
+    query = query.gte('start_time', after_time);
   }
   if (before_time) {
-    filters.before_time = before_time;
+    query = query.lte('start_time', before_time);
+  }
+  if (city) {
+    query = query.ilike('venues.city', city);
+  }
+  if (venue_name) {
+    query = query.ilike('venues.name', `%${venue_name}%`);
   }
 
-  if (city || venue_name) {
-    filters.venue_ids = venue_ids;
+  const { data, error } = await query;
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
   }
 
-  const results = filterShows(MOCK_SHOWS, filters);
+  const results = (data ?? []).map((show: {
+    id: string;
+    venue_id: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    spot_type: 'busking' | 'non_busking';
+    total_spots: number;
+    available_spots: number;
+    charge: number;
+  }) => ({
+    id: show.id,
+    venue_id: show.venue_id,
+    date: show.date,
+    start_time: show.start_time,
+    end_time: show.end_time,
+    spot_type: show.spot_type,
+    total_spots: show.total_spots,
+    available_spots: show.available_spots,
+    charge: show.charge,
+  }));
+
   res.status(200).json(results);
 });
 
@@ -120,17 +151,66 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   res.status(200).json(result);
 });
 
-app.get('/api/venues/:id', (req: Request, res: Response) => {
+app.get('/api/venues/:id', async (req: Request, res: Response) => {
   const id = req.params.id;
-  const venue = MOCK_VENUES.find((v) => v.id === id);
+
+  const { data: venue, error: venueError } = await supabase
+    .from('venues')
+    .select('id, name, address, city, photos, description')
+    .eq('id', id)
+    .eq('admin_approved', true)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (venueError) {
+    res.status(500).json({ error: venueError.message });
+    return;
+  }
 
   if (!venue) {
     res.status(404).json({ error: 'Venue not found' });
     return;
   }
 
-  const shows = MOCK_SHOWS.filter((s) => s.venue_id === id);
-  res.status(200).json({ venue, shows });
+  const { data: shows, error: showsError } = await supabase
+    .from('shows')
+    .select('id, venue_id, date, start_time, end_time, spot_type, total_spots, available_spots, charge')
+    .eq('venue_id', id)
+    .eq('is_cancelled', false)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true });
+
+  if (showsError) {
+    res.status(500).json({ error: showsError.message });
+    return;
+  }
+
+  res.status(200).json({ venue, shows: shows ?? [] });
+});
+
+app.post('/api/venues/:id/approve', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { data, error } = await supabaseAdmin.rpc('admin_approve_venue', { p_venue_id: id });
+
+  if (error) {
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+
+  return res.status(200).json(data);
+});
+
+app.get('/api/admin/stats', async (_req: Request, res: Response) => {
+  const { data, error } = await supabaseAdmin.rpc('get_platform_stats');
+
+  if (error) {
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+
+  return res.status(200).json(data);
 });
 
 app.listen(PORT, () => {
