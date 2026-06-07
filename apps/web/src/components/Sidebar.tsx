@@ -1,10 +1,17 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
+import { useAuth } from "../context/AuthContext";
+
 interface SidebarProps {
   onFilter: (query: string) => void;
 }
 
 export default function Sidebar({ onFilter }: SidebarProps) {
+  const { logout } = useAuth();
+  const router = useRouter();
+
   return (
     <aside className="fixed bottom-0 left-0 top-14 z-30 hidden w-56 flex-col border-r border-zinc-800/50 bg-zinc-950 px-3 pt-6 lg:flex">
       <div className="space-y-1">
@@ -56,7 +63,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         <button
           type="button"
           className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => onFilter("")}
+          onClick={() => router.push('/venues')}
         >
           <svg
             width="16"
@@ -160,6 +167,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         <button
           type="button"
           className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          onClick={() => router.push('/support')}
         >
           <svg
             width="16"
@@ -182,6 +190,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         <button
           type="button"
           className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          onClick={() => router.push('/support#contact')}
         >
           <svg
             width="16"
@@ -209,6 +218,18 @@ export default function Sidebar({ onFilter }: SidebarProps) {
             />
           </svg>
           <span>Contact Us</span>
+        </button>
+      </div>
+
+      <div className="mt-auto pt-4 border-t border-zinc-800/50">
+        <button
+          onClick={() => {
+            logout();
+            router.push('/auth');
+          }}
+          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 cursor-pointer transition-colors duration-200 hover:text-red-300 hover:bg-red-900/20 w-full"
+        >
+          Log Out
         </button>
       </div>
     </aside>

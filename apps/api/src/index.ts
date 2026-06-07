@@ -213,6 +213,66 @@ app.get('/api/admin/stats', async (_req: Request, res: Response) => {
   return res.status(200).json(data);
 });
 
+app.get('/api/admin/pending-venues', async (_req: Request, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .select('id, name, address, city, owner_id, created_at, admin_approved')
+    .eq('admin_approved', false)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+
+  if (!data || data.length === 0) {
+    return res.status(200).json([]);
+  }
+
+  const ownerIds = data.map((v) => v.owner_id).filter(Boolean);
+
+  let ownersMap: Record<string, { name: string; email: string }> = {};
+
+  if (ownerIds.length > 0) {
+    const { data: owners } = await supabaseAdmin
+      .from('users')
+      .select('id, name, email')
+      .in('id', ownerIds);
+
+    if (owners) {
+      owners.forEach((o: { id: string; name: string; email: string }) => {
+        ownersMap[o.id] = {
+          name: o.name,
+          email: o.email,
+        };
+      });
+    }
+  }
+
+  const result = data.map((v) => ({
+    ...v,
+    ownerName: ownersMap[v.owner_id]?.name ?? 'Unknown',
+    ownerEmail: ownersMap[v.owner_id]?.email ?? '',
+  }));
+
+  return res.status(200).json(result);
+});
+
+app.post('/api/venues/:id/reject', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { data, error } = await supabaseAdmin.rpc('admin_reject_venue', { p_venue_id: id });
+
+  if (error) {
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+
+  return res.status(200).json(data);
+});
+
 app.listen(PORT, () => {
   console.log('OpenMic API running at http://localhost:' + PORT);
 });
