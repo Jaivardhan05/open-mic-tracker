@@ -222,11 +222,11 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="layout-root">
       <Navbar />
 
       <div className="flex pt-14">
-        <aside className="hidden md:flex flex-col fixed left-0 top-14 bottom-0 w-56 bg-zinc-950 border-r border-zinc-800/50 pt-8 px-3 z-30">
+        <aside className="sidebar-glass hidden md:flex flex-col fixed left-0 top-14 bottom-0 w-56 pt-8 px-3 z-30 backdrop-blur-[40px] backdrop-saturate-[120%]">
           <button
             onClick={() => router.push('/home')}
             className="flex items-center gap-2 px-3 py-2 mb-6 text-zinc-500 hover:text-white text-sm transition-colors duration-200 group"
@@ -278,7 +278,7 @@ export default function EditProfilePage() {
           </div>
         </aside>
 
-        <main className="flex-1 md:ml-56 px-4 md:px-8 py-8 min-h-screen">
+        <main className="main-content-glass flex-1 md:ml-56 px-4 md:px-8 py-8 min-h-screen backdrop-blur-[6px] backdrop-saturate-[110%]">
           <div className="md:hidden mb-6">
             <button
               onClick={() => router.push('/home')}
@@ -304,7 +304,7 @@ export default function EditProfilePage() {
           <div className="mx-auto w-full max-w-2xl">
             <h1 className="text-2xl font-bold text-white mb-8">Edit Profile</h1>
 
-            <div className="rounded-3xl border border-zinc-800 bg-black/30 p-5 md:p-6">
+            <div className="content-glass rounded-3xl p-5 md:p-6 backdrop-blur-[12px]">
               <div className="mb-8">
                 <div className="w-20 h-20 rounded-full bg-[#F97316] text-white text-3xl font-bold flex items-center justify-center mx-auto mb-2">
                   {user.name.charAt(0).toUpperCase()}

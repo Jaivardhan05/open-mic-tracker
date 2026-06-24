@@ -38,9 +38,10 @@ export default function VenueDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="layout-root text-white">
       <Navbar />
-      <section className="mx-auto max-w-4xl px-4 pb-12 pt-24 text-center">
+      <section className="main-content-glass min-h-screen px-4 pb-12 pt-24 text-center backdrop-blur-[6px] backdrop-saturate-[110%]">
+        <div className="mx-auto max-w-4xl">
         <h1 className="text-2xl font-bold text-white">Welcome, {user.venueName ?? user.name}</h1>
         <span className="mt-3 inline-flex rounded-full bg-teal-500/20 px-3 py-1 text-xs font-semibold text-teal-300">
           Venue Producer
@@ -57,7 +58,7 @@ export default function VenueDashboardPage() {
           </button>
         </div>
 
-        <div className="mx-auto mt-8 max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center">
+        <div className="content-glass mx-auto mt-8 max-w-lg rounded-2xl p-6 text-center backdrop-blur-[12px]">
           <p className="mb-4 text-4xl">⏳</p>
           <h2 className="text-lg font-semibold text-white">Pending Approval</h2>
           <p className="mt-2 text-sm text-zinc-400">
@@ -69,6 +70,7 @@ export default function VenueDashboardPage() {
           >
             Update Venue Profile
           </button>
+        </div>
         </div>
       </section>
     </main>

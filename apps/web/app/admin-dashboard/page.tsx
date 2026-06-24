@@ -38,10 +38,11 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="layout-root text-white">
       <Navbar />
 
-      <section className="mx-auto max-w-5xl px-4 pb-12 pt-24">
+      <section className="main-content-glass min-h-screen px-4 pb-12 pt-24 backdrop-blur-[6px] backdrop-saturate-[110%]">
+        <div className="mx-auto max-w-5xl">
         <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
         <span className="mt-3 inline-flex rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300">
           Admin
@@ -58,7 +59,7 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
-        <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 text-center">
+        <div className="content-glass mt-8 rounded-2xl p-5 text-center backdrop-blur-[12px]">
           <p className="text-sm text-zinc-400">Live stats and venue moderation controls are available on your profile page.</p>
           <button
             onClick={() => router.push('/profile')}
@@ -82,6 +83,7 @@ export default function AdminDashboardPage() {
           >
             View All Users
           </button>
+        </div>
         </div>
       </section>
     </main>

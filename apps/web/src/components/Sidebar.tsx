@@ -13,11 +13,11 @@ export default function Sidebar({ onFilter }: SidebarProps) {
   const router = useRouter();
 
   return (
-    <aside className="fixed bottom-0 left-0 top-14 z-30 hidden w-56 flex-col border-r border-zinc-800/50 bg-zinc-950 px-3 pt-6 lg:flex">
+    <aside className="sidebar-glass fixed bottom-0 left-0 top-14 z-30 hidden w-56 flex-col px-3 pt-6 lg:flex backdrop-blur-[40px] backdrop-saturate-[120%]">
       <div className="space-y-1">
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-zinc-800/60 px-3 py-3 text-left text-sm text-white transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-zinc-800/60 px-3 py-3 text-left text-sm text-white motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => onFilter("")}
         >
           <span className="text-base">⌂</span>
@@ -26,7 +26,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
 
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => onFilter("")}
         >
           <svg
@@ -62,7 +62,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
       <div className="space-y-1">
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => router.push('/venues')}
         >
           <svg
@@ -87,7 +87,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         </button>
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => onFilter("spots tonight")}
         >
           <svg
@@ -111,7 +111,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         </button>
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => onFilter("free spots")}
         >
           <svg
@@ -133,7 +133,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         </button>
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => onFilter("busking spots")}
         >
           <svg
@@ -166,7 +166,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
       <div className="space-y-1">
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => router.push('/support')}
         >
           <svg
@@ -189,7 +189,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         </button>
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-800/60 hover:text-white"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
           onClick={() => router.push('/support#contact')}
         >
           <svg
@@ -227,7 +227,7 @@ export default function Sidebar({ onFilter }: SidebarProps) {
             logout();
             router.push('/auth');
           }}
-          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 cursor-pointer transition-colors duration-200 hover:text-red-300 hover:bg-red-900/20 w-full"
+          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 cursor-pointer motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:text-red-300 hover:bg-red-900/20 w-full"
         >
           Log Out
         </button>

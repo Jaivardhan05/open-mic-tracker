@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 
 import type { Show, Venue } from "@repo/types";
 
-import { MOCK_SHOWS, MOCK_VENUES } from "@/data/mockVenues";
+import { MOCK_SHOWS } from "@/data/mockVenues";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import BrandMark from "@/components/BrandMark";
 import VenueCard from "@/components/VenueCard";
 import VenueDetailSheet from "@/components/VenueDetailSheet";
 import { useAuth } from "../../src/context/AuthContext";
@@ -101,7 +102,7 @@ export default function HomePage() {
   }
 
   return (
-    <>
+    <div className="layout-root">
       <Navbar />
       <Sidebar
         onFilter={(query) => {
@@ -117,18 +118,13 @@ export default function HomePage() {
         }}
       />
 
-      <main className="min-h-screen bg-gray-950 pb-12 pt-14 text-gray-100 lg:pl-56">
+      <main className="main-content-glass min-h-screen pb-12 mt-14 text-gray-100 lg:ml-56">
         <section className="px-4 pt-12 text-center">
-          <h1 className="text-4xl md:text-6xl">
-            <span className="font-bold text-white font-[family-name:var(--font-inter)]">
-              OpenMic
-            </span>{" "}
-            <span className="italic text-[#F97316] font-[family-name:var(--font-playfair)]">
-              Delhi
-            </span>
+          <h1>
+            <BrandMark variant="hero" />
           </h1>
           <p className="mt-3 text-base md:text-lg">
-            <span className="font-normal italic text-[#F97316] font-[family-name:var(--font-playfair)]">
+            <span className="font-normal italic text-[#38bdf8] font-[family-name:var(--font-playfair)]">
               Take a stand
             </span>
             <span className="text-zinc-400 font-[family-name:var(--font-inter)]">,</span>
@@ -151,7 +147,7 @@ export default function HomePage() {
                   setSearchQuery(suggestion);
                   void runSearch(suggestion);
                 }}
-                className="rounded-full border border-zinc-700 px-4 py-2 text-sm text-zinc-400"
+                className="content-glass rounded-full px-4 py-2 text-sm text-zinc-300 hover:border-[#38bdf8] hover:text-[#38bdf8] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97]"
               >
                 {suggestion}
               </button>
@@ -163,19 +159,19 @@ export default function HomePage() {
           onSubmit={handleSearch}
           className="mx-auto mt-8 w-full max-w-2xl px-4"
         >
-          <div className="flex w-full items-center gap-2">
+          <div className="content-glass flex w-full items-center gap-2 rounded-full p-1.5">
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={isLoading}
               placeholder="Find a spot... e.g. busking tonight after 8pm"
-              className="w-full rounded-full bg-zinc-800 px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
+              className="w-full rounded-full bg-transparent px-4 py-3 text-sm text-white placeholder:text-zinc-400 focus:outline-none disabled:opacity-50"
             />
 
             <button
               type="submit"
               disabled={isLoading}
-              className="flex h-11 min-w-14 items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-black disabled:opacity-50"
+              className="flex h-11 min-w-14 items-center justify-center rounded-full bg-[#0a1628] px-4 text-sm font-bold text-white motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-[#38bdf8] hover:text-black disabled:opacity-50"
             >
               {isLoading ? "Thinking..." : "Go"}
             </button>
@@ -218,6 +214,6 @@ export default function HomePage() {
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
       />
-    </>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
@@ -13,12 +14,9 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-[60] h-14 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/50 flex items-center justify-between px-4 md:px-6"
+        className="navbar-glass fixed top-0 left-0 right-0 z-[60] h-14 flex items-center justify-between px-4 md:px-6 backdrop-blur-[40px] backdrop-saturate-[120%]"
       >
-        <div className="flex items-center gap-0.5">
-          <span className="font-bold text-white text-lg tracking-tight">OpenMic</span>
-          <span className="italic text-[#F97316] text-lg font-serif ml-1">Delhi</span>
-        </div>
+        <BrandMark variant="nav" />
 
         <div className="hidden md:flex items-center gap-8">
           {links.map((link) => (
@@ -33,7 +31,7 @@ export default function Navbar() {
                   ? '/support'
                   : '/support#contact'
               }
-              className="text-sm text-zinc-400 hover:text-white transition-colors duration-200 relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-px after:bg-[#F97316] after:transition-all after:duration-300 hover:after:w-full"
+              className="text-sm text-zinc-400 hover:text-white motion-safe:transition-all motion-safe:duration-100 relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-px after:bg-[#38bdf8] motion-safe:after:transition-all motion-safe:after:duration-150 hover:after:w-full"
             >
               {link}
             </a>
@@ -42,7 +40,7 @@ export default function Navbar() {
             <div className="hidden md:flex items-center gap-3">
               <div
                 onClick={() => router.push('/profile')}
-                className="w-9 h-9 rounded-full bg-[#F97316] flex items-center justify-center text-white text-sm font-bold cursor-pointer hover:bg-[#EA6C00] transition-colors duration-200 select-none"
+                className="w-9 h-9 rounded-full bg-[#38bdf8] flex items-center justify-center text-white text-sm font-bold cursor-pointer hover:bg-[#0ea5e9] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] select-none"
               >
                 {user.name.charAt(0).toUpperCase()}
               </div>
@@ -54,7 +52,7 @@ export default function Navbar() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="md:hidden flex flex-col justify-center items-center gap-1.5 w-10 h-10 rounded-md active:bg-white/10 transition-colors z-[60]"
+          className="md:hidden flex flex-col justify-center items-center gap-1.5 w-10 h-10 rounded-md active:bg-white/10 motion-safe:transition-all motion-safe:duration-75 motion-safe:active:scale-[0.97] z-[60]"
           aria-label="Open menu"
         >
           <span className="block w-6 h-0.5 bg-zinc-200 rounded-full" />
@@ -64,18 +62,18 @@ export default function Navbar() {
       </nav>
 
       {isOpen && (
-        <div className="md:hidden fixed inset-0 z-[70] flex justify-end">
+        <div className="mobile-menu-root md:hidden fixed inset-0 z-[70] flex justify-end">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
             aria-hidden="true"
           />
 
-          <div className="relative w-[75%] max-w-sm h-full bg-zinc-950/70 backdrop-blur-2xl border-l border-white/10 flex flex-col p-6 shadow-2xl z-10">
+          <div className="mobile-menu-glass relative w-[75%] max-w-sm h-full border-l border-white/10 flex flex-col p-6 shadow-2xl z-10 backdrop-blur-[40px] backdrop-saturate-[120%]">
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white text-xl font-light rounded-xl bg-zinc-800/40 border border-zinc-700/30 active:bg-zinc-700/50 transition-colors duration-150"
+              className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white text-xl font-light rounded-xl bg-zinc-800/40 border border-zinc-700/30 active:bg-zinc-700/50 motion-safe:transition-all motion-safe:duration-75 motion-safe:active:scale-[0.97]"
               aria-label="Close menu"
             >
               <svg
@@ -93,10 +91,7 @@ export default function Navbar() {
               </svg>
             </button>
 
-            <div className="mb-8 flex items-center gap-1">
-              <span className="font-bold text-white text-xl tracking-tight">OpenMic</span>
-              <span className="italic text-[#F97316] text-xl font-serif ml-1">Delhi</span>
-            </div>
+            <BrandMark variant="nav" className="mb-8" />
 
             <div className="w-full h-px bg-zinc-700/40 mb-6" />
 
@@ -113,10 +108,10 @@ export default function Navbar() {
                     : '/support#contact'
                 }
                 onClick={() => setIsOpen(false)}
-                className="flex items-center py-4 px-2 text-base font-medium text-zinc-300 hover:text-white active:text-[#F97316] border-b border-zinc-700/20 transition-colors duration-150 group"
+                className="flex items-center py-4 px-2 text-base font-medium text-zinc-300 hover:text-white active:text-[#38bdf8] border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group"
               >
                 <span className="flex-1">{link}</span>
-                <span className="text-zinc-600 group-hover:text-zinc-400 group-active:text-[#F97316] text-sm transition-colors">
+                <span className="text-zinc-600 group-hover:text-zinc-400 group-active:text-[#38bdf8] text-sm motion-safe:transition-colors">
                   →
                 </span>
               </a>

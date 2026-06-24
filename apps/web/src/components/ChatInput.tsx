@@ -23,14 +23,14 @@ export default function ChatInput({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t border-zinc-800 bg-zinc-950 px-4 pb-4 pt-3 pb-safe">
+    <div className="mobile-menu-glass fixed bottom-0 left-0 right-0 border-t border-white/10 px-4 pb-4 pt-3 pb-safe backdrop-blur-[40px] backdrop-saturate-[120%]">
       <div className="mx-auto flex w-full max-w-2xl items-center gap-2">
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Find a spot… e.g. busking tonight after 8pm"
-          className="w-full rounded-full bg-zinc-800 px-4 py-3 text-base text-white placeholder:text-zinc-400 focus:outline-none"
+          className="content-glass w-full rounded-full px-4 py-3 text-base text-white placeholder:text-zinc-400 focus:outline-none backdrop-blur-[12px]"
         />
 
         <button

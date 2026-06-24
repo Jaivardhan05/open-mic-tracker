@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
+import type { Show, Venue } from '@repo/types';
 
 import Navbar from '../../src/components/Navbar';
 import Sidebar from '../../src/components/Sidebar';
@@ -13,8 +17,8 @@ export default function VenuesPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
-  const [venues, setVenues] = useState<any[]>([]);
-  const [shows, setShows] = useState<any[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [shows, setShows] = useState<Show[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,12 +83,12 @@ export default function VenuesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="layout-root">
       <Navbar />
       <div className="flex">
         <Sidebar onFilter={() => {}} />
 
-        <main className="md:ml-56 pt-14 px-4 md:px-8 py-8 w-full">
+        <main className="main-content-glass md:ml-56 min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white">All Venues</h1>
             <p className="text-zinc-500 text-sm mt-1">{filteredVenues.length} venues in Delhi</p>
@@ -96,7 +100,7 @@ export default function VenuesPage() {
               placeholder="Search venues..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] min-h-[44px]"
+              className="content-glass flex-1 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] min-h-[44px] backdrop-blur-[12px]"
             />
 
             <div className="flex gap-2">
@@ -104,10 +108,10 @@ export default function VenuesPage() {
                 <button
                   key={type}
                   onClick={() => setFilterSpotType(type)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors min-h-[44px] ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[44px] ${
                     filterSpotType === type
-                      ? 'bg-[#F97316] text-white'
-                      : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                      ? 'bg-[#38bdf8] text-black'
+                      : 'content-glass text-zinc-300 hover:text-white backdrop-blur-[12px]'
                   }`}
                 >
                   {type === 'all' ? 'All' : type === 'busking' ? 'Busking' : 'Non-Busking'}
@@ -117,7 +121,7 @@ export default function VenuesPage() {
           </div>
 
           {isFetching ? (
-            <div className="animate-spin w-8 h-8 rounded-full border-2 border-zinc-700 border-t-[#F97316] mx-auto mt-20" />
+            <div className="animate-spin w-8 h-8 rounded-full border-2 border-zinc-700 border-t-[#38bdf8] mx-auto mt-20" />
           ) : error ? (
             <div className="text-center text-red-400 mt-20">{error}</div>
           ) : filteredVenues.length === 0 ? (
@@ -132,19 +136,22 @@ export default function VenuesPage() {
                 );
 
                 return (
-                  <div
+                  <Link
                     key={venue.id}
-                    className="bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 cursor-pointer hover:border-zinc-600 transition-colors duration-200"
-                    onClick={() => router.push(`/venues/${venue.id}`)}
+                    href={`/venues/${venue.id}`}
+                    className="content-glass rounded-2xl overflow-hidden block hover:border-[#38bdf8] transition-colors duration-200"
                   >
                     <div className="relative aspect-video">
-                      <img
+                      <Image
                         src={
                           venue.photos?.[0] ??
                           `https://picsum.photos/seed/${venue.id}/600/400`
                         }
                         alt={venue.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                        unoptimized
+                        className="object-cover"
                       />
                     </div>
 
@@ -190,7 +197,7 @@ export default function VenuesPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

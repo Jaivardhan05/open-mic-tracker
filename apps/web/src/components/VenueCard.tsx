@@ -23,7 +23,7 @@ export default function VenueCard({ venue, shows, onSelect }: VenueCardProps) {
   return (
     <article
       onClick={() => onSelect(venue)}
-      className="mb-4 cursor-pointer overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
+      className="content-glass mb-4 cursor-pointer overflow-hidden rounded-2xl backdrop-blur-[12px]"
     >
       <div className="relative aspect-video w-full">
         <Image

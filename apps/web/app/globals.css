@@ -3,11 +3,133 @@
 html,
 body {
 	min-height: 100%;
+	scroll-behavior: smooth;
 }
 
 body {
 	background-color: #09090b;
 	color: #ffffff;
+}
+
+.layout-root {
+	position: relative;
+	min-height: 100dvh;
+	overflow: hidden;
+	background: #050507;
+}
+
+.layout-root > :not(.navbar-glass):not(.sidebar-glass):not(.mobile-menu-root) {
+	position: relative;
+	z-index: 1;
+}
+
+.navbar-glass {
+	z-index: 60;
+	background: rgba(5, 10, 35, 0.90);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	backdrop-filter: blur(40px) saturate(120%);
+	-webkit-backdrop-filter: blur(40px) saturate(120%);
+}
+
+.sidebar-glass {
+	position: fixed;
+	z-index: 30;
+	background: rgba(5, 10, 35, 0.90);
+	border-right: 1px solid rgba(255, 255, 255, 0.08);
+	backdrop-filter: blur(40px) saturate(120%);
+	-webkit-backdrop-filter: blur(40px) saturate(120%);
+}
+
+.mobile-menu-glass {
+	background: rgba(5, 10, 35, 0.90);
+	backdrop-filter: blur(40px) saturate(120%);
+	-webkit-backdrop-filter: blur(40px) saturate(120%);
+}
+
+.main-content-glass {
+	position: relative;
+	z-index: 5;
+	background-image:
+		linear-gradient(rgba(0, 0, 0, 0.30), rgba(0, 0, 0, 0.30)),
+		url("/home-background-blue.jpg");
+	background-position: center 40%;
+	background-size: cover;
+	background-repeat: no-repeat;
+}
+
+.content-glass {
+	background: rgba(0, 0, 0, 0.52);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	backdrop-filter: blur(24px) saturate(120%);
+	-webkit-backdrop-filter: blur(24px) saturate(120%);
+}
+
+.brand-mark {
+	display: inline-flex;
+	align-items: baseline;
+	white-space: nowrap;
+	line-height: 1;
+}
+
+.brand-openmic {
+	font-family: var(--font-bebas), "Bebas Neue", sans-serif;
+	font-weight: 400;
+	font-style: normal;
+	letter-spacing: 0.02em;
+	color: #ffffff;
+}
+
+.brand-tilde {
+	margin: 0 6px;
+	font-family: var(--font-bebas), "Bebas Neue", sans-serif;
+	font-weight: 400;
+	font-style: normal;
+	color: #ffffff;
+}
+
+.brand-delhi {
+	font-family: var(--font-cormorant), "Cormorant Garamond", serif;
+	font-style: italic;
+	font-weight: 500;
+	color: #38bdf8;
+}
+
+.brand-mark-nav .brand-openmic,
+.brand-mark-nav .brand-tilde {
+	font-size: 1.3rem;
+}
+
+.brand-mark-nav .brand-delhi {
+	font-size: 1.1rem;
+}
+
+.brand-mark-hero .brand-openmic,
+.brand-mark-hero .brand-tilde {
+	font-size: 3.5rem;
+}
+
+.brand-mark-hero .brand-delhi {
+	font-size: 3rem;
+}
+
+@media (max-width: 640px) {
+	.brand-mark-nav .brand-openmic,
+	.brand-mark-nav .brand-tilde {
+		font-size: 1.1rem;
+	}
+
+	.brand-mark-nav .brand-delhi {
+		font-size: 0.95rem;
+	}
+
+	.brand-mark-hero .brand-openmic,
+	.brand-mark-hero .brand-tilde {
+		font-size: 2.2rem;
+	}
+
+	.brand-mark-hero .brand-delhi {
+		font-size: 1.9rem;
+	}
 }
 
 .pb-safe {
@@ -16,6 +138,23 @@ body {
 
 .pt-safe {
 	padding-top: max(0px, env(safe-area-inset-top));
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .layout-root {
+    animation: page-enter 150ms ease-out both;
+  }
 }
 
 /* Custom Dark Scrollbar */
