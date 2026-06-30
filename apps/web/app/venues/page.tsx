@@ -11,8 +11,6 @@ import Navbar from '../../src/components/Navbar';
 import Sidebar from '../../src/components/Sidebar';
 import { useAuth } from '../../src/context/AuthContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
-
 export default function VenuesPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -36,13 +34,13 @@ export default function VenuesPage() {
       setIsFetching(true);
       try {
         const [venuesRes, showsRes] = await Promise.all([
-          fetch(`${API_URL}/api/venues`),
-          fetch(`${API_URL}/api/shows`),
+          fetch('/api/venues'),
+          fetch('/api/shows'),
         ]);
         const venuesData = await venuesRes.json();
         const showsData = await showsRes.json();
-        setVenues(venuesData ?? []);
-        setShows(showsData ?? []);
+        setVenues(Array.isArray(venuesData) ? venuesData : []);
+        setShows(Array.isArray(showsData) ? showsData : []);
       } catch {
         setError('Failed to load venues.');
       } finally {

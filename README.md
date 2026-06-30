@@ -1,6 +1,6 @@
 # OpenMic Delhi
 
-OpenMic Delhi is a monorepo for discovering, listing, and managing open mic venues and shows in Delhi, with a Next.js frontend, an Express API, Supabase-backed persistence, and an AI chat search layer.
+OpenMic Delhi is a monorepo for discovering, listing, and managing open mic venues and shows in Delhi, with a Next.js frontend, an Express API, and Supabase-backed persistence.
 
 ## Tech Stack
 
@@ -14,7 +14,6 @@ OpenMic Delhi is a monorepo for discovering, listing, and managing open mic venu
 | Backend runtime | Node.js + TypeScript + tsx | >=18 / 5.9.2 / ^4.21.0 |
 | Database | Supabase / PostgreSQL | TBD in package manifests; schema is PostgreSQL-based |
 | Auth | Supabase Auth + client-side local storage session mirror | @supabase/supabase-js ^2.0.0 |
-| AI / LLM integration | OpenAI SDK routed to Hugging Face Router | openai ^4.0.0 |
 | Monorepo tooling | Turborepo | ^2.9.0 |
 | Package manager | npm | npm@10.9.2 |
 | Shared types | Internal workspace package | @repo/types 1.0.0 |
@@ -27,11 +26,10 @@ OpenMic Delhi is a monorepo for discovering, listing, and managing open mic venu
 ```text
 open-mic-tracker/
 	apps/ - application workspaces
-		api/ - Express API that reads from Supabase and exposes venue, show, chat, and admin endpoints
+		api/ - Express API that reads from Supabase and exposes venue, show, and admin endpoints
 			src/ - backend source code
 				db/ - SQL schema, functions, RLS, and seed data
 				lib/ - Supabase client setup
-				services/ - AI chat search logic
 				utils/ - local data helpers
 		web/ - Next.js App Router frontend
 			app/ - route segments and pages
@@ -63,11 +61,10 @@ You need Node.js 18 or newer, npm 10.9.2, and a Supabase project with SQL access
 | SUPABASE_ANON_KEY | Yes | Supabase anon key used by the API server. |
 | SUPABASE_SERVICE_ROLE_KEY | Yes | Service role key used for admin RPC calls and privileged reads. |
 
-### API and Chat
+### API
 
 | Variable | Required? | Description |
 | --- | --- | --- |
-| HF_API_TOKEN | Yes | Hugging Face Router token used by the OpenAI SDK in `apps/api/src/services/llmService.ts`. |
 | PORT | No | API port; defaults to `8080`. |
 | CORS_ORIGIN | No | Additional allowed frontend origin for the API CORS allowlist. |
 | NEXT_PUBLIC_API_URL | No | Frontend API base URL; defaults to `http://localhost:8080`. |
@@ -105,13 +102,11 @@ The frontend is a Next.js App Router app under `apps/web/app` and talks to the b
 
 Auth is implemented in `apps/web/src/lib/auth.ts` and `apps/web/src/context/AuthContext.tsx`. Supabase Auth is used for comedian and venue producer sign-up and sign-in, but the current user is mirrored into local storage as `openmic_user` for client-side routing and role checks. Admin access is a hard-coded email/password bypass in the frontend auth helper, not a Supabase role flow.
 
-The backend in `apps/api/src/index.ts` is an Express server that reads from Supabase with the anon client for public data and the service-role client for admin actions. It exposes health, venue, show, chat, and admin moderation endpoints, and uses Supabase RPC functions for venue approval and platform stats.
+The backend in `apps/api/src/index.ts` is an Express server that reads from Supabase with the anon client for public data and the service-role client for admin actions. It exposes health, venue, show, and admin moderation endpoints, and uses Supabase RPC functions for venue approval and platform stats.
 
 The database layer is plain PostgreSQL schema files in `apps/api/src/db`, not an ORM. `schema.sql` defines the tables and enums, `functions.sql` defines `SECURITY DEFINER` RPC helpers, and `rls.sql` applies row-level security policies.
 
 Role-based access is enforced in two places: the frontend routes redirect users based on the stored role, and Supabase RLS limits what authenticated users can read or mutate. The codebase distinguishes comedian, venue producer, and admin routes, but the admin dashboard still relies on frontend checks plus service-role API calls.
-
-The chat experience is implemented in `apps/api/src/services/llmService.ts`. It uses the OpenAI SDK with a Hugging Face Router base URL and a `search_venues` tool to turn natural-language requests into Supabase venue and show queries.
 
 ## User Roles
 
@@ -122,7 +117,6 @@ Comedians are routed to `/home` and `/profile`, where they search venues, inspec
 - Role-aware sign-up and login for comedians and venue producers.
 - Hard-coded admin login path for local/admin access.
 - Local-storage-backed session persistence for the currently active user.
-- AI-assisted venue search from the home page via the `/api/chat` endpoint.
 - Venue search and listing pages backed by the Express API and Supabase.
 - Venue detail fetches that include upcoming shows for a selected venue.
 - Profile view and profile edit flows for all three roles.

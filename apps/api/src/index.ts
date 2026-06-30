@@ -4,7 +4,6 @@ import express from 'express';
 
 import type { Request, Response } from 'express';
 import { supabase, supabaseAdmin } from './lib/supabase.js';
-import { processChat } from './services/llmService.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
@@ -137,19 +136,6 @@ app.get('/api/shows', async (req: Request, res: Response) => {
   res.status(200).json(results);
 });
 
-app.post('/api/chat', async (req: Request, res: Response) => {
-  const message = req.body?.message;
-
-  if (typeof message !== 'string' || message.trim().length === 0) {
-    res.status(400).json({
-      error: 'message is required and must be a string',
-    });
-    return;
-  }
-
-  const result = await processChat(message);
-  res.status(200).json(result);
-});
 
 app.get('/api/venues/:id', async (req: Request, res: Response) => {
   const id = req.params.id;

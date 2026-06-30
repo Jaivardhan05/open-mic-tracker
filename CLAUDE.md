@@ -48,7 +48,6 @@ packages/
 Entry point is `src/index.ts`. Routes are defined inline there (not in a separate router directory). Key areas:
 
 - `src/lib/supabase.ts` – Exports `supabase` (anon client) and `supabaseAdmin` (service-role client)
-- `src/services/llmService.ts` – OpenAI SDK pointed at Hugging Face Router (`HF_API_TOKEN`); handles `/api/chat` RAG-style queries over venue/show data
 - `src/db/` – SQL files applied manually to Supabase: `schema.sql` → `functions.sql` → `rls.sql` → `seed.sql`
 
 ### Web (`apps/web`)
@@ -71,7 +70,7 @@ Shared client-side code lives in `src/`:
 - `src/context/AuthContext.tsx` – React context wrapping `AuthProvider`; exposes `useAuth()` hook
 - `src/lib/auth.ts` – Auth helpers; user session stored in **localStorage** under key `openmic_user`
 - `src/lib/supabaseClient.ts` – Browser Supabase client (uses `NEXT_PUBLIC_*` env vars)
-- `src/components/` – `Navbar`, `Sidebar`, `ChatInput`, `VenueCard`, `VenueDetailSheet`, `BrandMark`
+- `src/components/` – `Navbar`, `Sidebar`, `VenueCard`, `VenueDetailSheet`, `BrandMark`
 
 ### Auth model
 
@@ -90,7 +89,6 @@ Tailwind CSS v4 with PostCSS. Four Google Fonts are loaded as CSS variables in `
 | `SUPABASE_URL` | api | Supabase project URL |
 | `SUPABASE_ANON_KEY` | api | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | api | Admin/privileged operations |
-| `HF_API_TOKEN` | api | Hugging Face Router token for LLM chat |
 | `PORT` | api | API port (default 8080) |
 | `CORS_ORIGIN` | api | Additional allowed frontend origin |
 | `NEXT_PUBLIC_SUPABASE_URL` | web | Supabase URL for browser client |

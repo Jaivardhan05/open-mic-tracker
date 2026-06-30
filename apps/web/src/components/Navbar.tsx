@@ -1,6 +1,6 @@
 "use client";
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,15 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const links = ['Home', 'Venues', 'About', 'Contact'];
+
+  function handleContactClick(e: React.MouseEvent<HTMLAnchorElement>) {
+    if (pathname === '/support') {
+      e.preventDefault();
+      document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 
   return (
     <>
@@ -31,6 +39,7 @@ export default function Navbar() {
                   ? '/support'
                   : '/support#contact'
               }
+              onClick={link === 'Contact' ? handleContactClick : undefined}
               className="text-sm text-zinc-400 hover:text-white motion-safe:transition-all motion-safe:duration-100 relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-px after:bg-[#38bdf8] motion-safe:after:transition-all motion-safe:after:duration-150 hover:after:w-full"
             >
               {link}
@@ -107,7 +116,10 @@ export default function Navbar() {
                     ? '/support'
                     : '/support#contact'
                 }
-                onClick={() => setIsOpen(false)}
+                onClick={(e) => {
+                  if (link === 'Contact') handleContactClick(e);
+                  setIsOpen(false);
+                }}
                 className="flex items-center py-4 px-2 text-base font-medium text-zinc-300 hover:text-white active:text-[#38bdf8] border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group"
               >
                 <span className="flex-1">{link}</span>

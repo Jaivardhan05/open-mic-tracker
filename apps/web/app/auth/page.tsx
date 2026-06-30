@@ -71,108 +71,104 @@ export default function AuthPage() {
     setIsLoading(true);
     setError("");
 
-    const { user: authUser, error: authError } = await signInUser(loginEmail.trim(), loginPassword);
+    try {
+      const { user: authUser, error: authError } = await signInUser(loginEmail.trim(), loginPassword);
 
-    if (authError || !authUser) {
-      setError(authError ?? "Invalid email or password");
+      if (authError || !authUser) {
+        setError(authError ?? "Invalid email or password");
+        return;
+      }
+
+      login(authUser);
+
+      switch (authUser.role) {
+        case "comedian":
+          router.push("/home");
+          break;
+        case "venue_producer":
+          router.push("/venue-dashboard");
+          break;
+        case "admin":
+          router.push("/admin-dashboard");
+          break;
+        default:
+          router.push("/home");
+      }
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    login(authUser);
-
-    switch (authUser.role) {
-      case "comedian":
-        router.push("/home");
-        break;
-      case "venue_producer":
-        router.push("/venue-dashboard");
-        break;
-      case "admin":
-        router.push("/admin-dashboard");
-        break;
-      default:
-        router.push("/home");
-    }
-
-    setIsLoading(false);
   }
 
   async function handleSignup() {
     setIsLoading(true);
     setError("");
+    try {
+      const activeEmail = role === "comedian" ? comedianEmail.trim() : venueProducerEmail.trim();
+      const activePhone = role === "comedian" ? comedianPhone.trim() : venueProducerPhone.trim();
+      const activePassword = role === "comedian" ? comedianPassword : venueProducerPassword;
 
-    const activeEmail = role === "comedian" ? comedianEmail.trim() : venueProducerEmail.trim();
-    const activePhone = role === "comedian" ? comedianPhone.trim() : venueProducerPhone.trim();
-    const activePassword = role === "comedian" ? comedianPassword : venueProducerPassword;
-
-    if (role === "comedian") {
-      if (
-        !comedianName.trim() ||
-        !comedianUsername.trim() ||
-        !comedianEmail.trim() ||
-        !comedianPhone.trim() ||
-        !comedianPassword
-      ) {
-        setError("Please fill all required comedian fields");
-        setIsLoading(false);
-        return;
+      if (role === "comedian") {
+        if (
+          !comedianName.trim() ||
+          !comedianUsername.trim() ||
+          !comedianEmail.trim() ||
+          !comedianPhone.trim() ||
+          !comedianPassword
+        ) {
+          setError("Please fill all required comedian fields");
+          return;
+        }
       }
-    }
 
-    if (role === "venue_producer") {
-      if (
-        !venueName.trim() ||
-        !venueProducerName.trim() ||
-        !venueProducerEmail.trim() ||
-        !venueProducerPhone.trim() ||
-        !venueProducerPassword
-      ) {
-        setError("Please fill all required venue producer fields");
-        setIsLoading(false);
-        return;
+      if (role === "venue_producer") {
+        if (
+          !venueName.trim() ||
+          !venueProducerName.trim() ||
+          !venueProducerEmail.trim() ||
+          !venueProducerPhone.trim() ||
+          !venueProducerPassword
+        ) {
+          setError("Please fill all required venue producer fields");
+          return;
+        }
       }
-    }
 
-    if (!activeEmail.includes("@")) {
-      setError("Please enter a valid email address");
-      setIsLoading(false);
-      return;
-    }
-
-    if (activePhone.replace(/\D/g, "").length < 10) {
-      setError("Phone number must be at least 10 digits");
-      setIsLoading(false);
-      return;
-    }
-
-    if (activePassword.length < 6) {
-      setError("Password must be at least 6 characters");
-      setIsLoading(false);
-      return;
-    }
-
-    if (role === "comedian") {
-      const { user: authUser, error: authError } = await signUpComedian({
-        name: comedianName.trim(),
-        username: comedianUsername.trim(),
-        email: comedianEmail.trim(),
-        phone: comedianPhone.trim(),
-        city: comedianCity,
-        password: comedianPassword,
-      });
-
-      if (authError || !authUser) {
-        setError(authError ?? "Signup failed");
-        setIsLoading(false);
+      if (!activeEmail.includes("@")) {
+        setError("Please enter a valid email address");
         return;
       }
 
-      login(authUser);
-      router.push("/home");
-      setIsLoading(false);
-      return;
-    }
+      if (activePhone.replace(/\D/g, "").length < 10) {
+        setError("Phone number must be at least 10 digits");
+        return;
+      }
+
+      if (activePassword.length < 6) {
+        setError("Password must be at least 6 characters");
+        return;
+      }
+
+      if (role === "comedian") {
+        const { user: authUser, error: authError } = await signUpComedian({
+          name: comedianName.trim(),
+          username: comedianUsername.trim(),
+          email: comedianEmail.trim(),
+          phone: comedianPhone.trim(),
+          city: comedianCity,
+          password: comedianPassword,
+        });
+
+        if (authError || !authUser) {
+          setError(authError ?? "Signup failed");
+          return;
+        }
+
+        login(authUser);
+        router.push("/home");
+        return;
+      }
 
     const { user: authUser, error: authError } = await signUpVenueProducer({
       venueName: venueName.trim(),
@@ -184,13 +180,16 @@ export default function AuthPage() {
 
     if (authError || !authUser) {
       setError(authError ?? "Signup failed");
-      setIsLoading(false);
       return;
     }
 
-    login(authUser);
-    router.push("/venue-dashboard");
-    setIsLoading(false);
+      login(authUser);
+      router.push("/venue-dashboard");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   const inputClassName = `${styles.fieldInput} mb-0`;
@@ -199,7 +198,10 @@ export default function AuthPage() {
   const roleCardClassName = (active: boolean) => `${styles.roleCard} ${active ? styles.roleCardActive : ""}`;
 
   return (
-    <main className={styles.authPage}>
+    <div className={styles.authShell}>
+      <div className={styles.authBackground} />
+      <div className={styles.authLayer}>
+      <main className={styles.authPage}>
       <section className={styles.cardShell}>
         <div className={styles.brandBlock}>
           <h1 className={styles.brandTitle}>
@@ -568,5 +570,7 @@ export default function AuthPage() {
         )}
       </section>
     </main>
+      </div>
+    </div>
   );
 }

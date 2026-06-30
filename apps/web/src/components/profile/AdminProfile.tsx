@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
 interface PendingVenue {
   id: string;
@@ -56,13 +55,13 @@ export function AdminProfile() {
     async function fetchAdminData() {
       setIsLoading(true);
       try {
-        const statsRes = await fetch(`${API_URL}/api/admin/stats`);
+        const statsRes = await fetch(`/api/admin/stats`);
         if (statsRes.ok) {
           const statsData = (await statsRes.json()) as AdminStats;
           setStats(statsData);
         }
 
-        const pendingRes = await fetch(`${API_URL}/api/admin/pending-venues`);
+        const pendingRes = await fetch(`/api/admin/pending-venues`);
         if (pendingRes.ok) {
           const pendingData = (await pendingRes.json()) as PendingVenue[];
           setPendingVenues(pendingData);
@@ -90,7 +89,7 @@ export function AdminProfile() {
   async function handleApprove(venueId: string) {
     setApprovingId(venueId);
     try {
-      const res = await fetch(`${API_URL}/api/venues/${venueId}/approve`, { method: 'POST' });
+      const res = await fetch(`/api/venues/${venueId}/approve`, { method: 'POST' });
 
       if (res.ok) {
         setPendingVenues((prev) => prev.filter((v) => v.id !== venueId));
@@ -115,7 +114,7 @@ export function AdminProfile() {
   async function handleReject(venueId: string) {
     setRejectingId(venueId);
     try {
-      const res = await fetch(`${API_URL}/api/venues/${venueId}/reject`, { method: 'POST' });
+      const res = await fetch(`/api/venues/${venueId}/reject`, { method: 'POST' });
       if (res.ok) {
         setPendingVenues((prev) => prev.filter((v) => v.id !== venueId));
         setStats((prev) => ({

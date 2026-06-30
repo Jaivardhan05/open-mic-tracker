@@ -11,8 +11,6 @@ import Navbar from '../../../src/components/Navbar';
 import Sidebar from '../../../src/components/Sidebar';
 import { useAuth } from '../../../src/context/AuthContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
-
 export default function VenueDetailPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -36,7 +34,7 @@ export default function VenueDetailPage() {
     async function fetchVenue() {
       setIsFetching(true);
       try {
-        const res = await fetch(`${API_URL}/api/venues/${id}`);
+        const res = await fetch(`/api/venues/${id}`);
         if (!res.ok) {
           setError('Venue not found.');
           return;
