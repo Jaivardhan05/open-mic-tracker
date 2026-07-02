@@ -86,7 +86,7 @@ export default function VenuesPage() {
       <div className="flex">
         <Sidebar onFilter={() => {}} />
 
-        <main className="main-content-glass md:ml-56 min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
+        <main className="main-content-glass sidebar-content-margin lg:ml-[var(--sidebar-w)] min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-white">All Venues</h1>
             <p className="text-zinc-500 text-sm mt-1">{filteredVenues.length} venues in Delhi</p>

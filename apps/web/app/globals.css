@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+:root {
+	--sidebar-w: 14rem;
+}
+
 html,
 body {
 	min-height: 100%;
@@ -38,6 +42,16 @@ body {
 	border-right: 1px solid rgba(255, 255, 255, 0.08);
 	backdrop-filter: blur(40px) saturate(120%);
 	-webkit-backdrop-filter: blur(40px) saturate(120%);
+}
+
+.sidebar-content-margin {
+	transition: margin-left 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sidebar-content-margin {
+		transition: none;
+	}
 }
 
 .mobile-menu-glass {

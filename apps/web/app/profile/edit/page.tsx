@@ -306,13 +306,13 @@ export default function EditProfilePage() {
 
             <div className="content-glass rounded-3xl p-5 md:p-6 backdrop-blur-[12px]">
               <div className="mb-8">
-                <div className="w-20 h-20 rounded-full bg-[#F97316] text-white text-3xl font-bold flex items-center justify-center mx-auto mb-2">
+                <div className="w-20 h-20 rounded-full bg-[#38bdf8] text-white text-3xl font-bold flex items-center justify-center mx-auto mb-2">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <button
                   type="button"
                   onClick={() => window.alert('Photo upload coming soon.')}
-                  className="text-[#F97316] text-sm cursor-pointer text-center w-full"
+                  className="text-[#38bdf8] text-sm cursor-pointer text-center w-full"
                 >
                   Change Photo
                 </button>
@@ -326,7 +326,7 @@ export default function EditProfilePage() {
                 type="text"
                 value={nameValue}
                 onChange={(e) => setNameValue(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
               />
 
               <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="username-value">
@@ -338,7 +338,7 @@ export default function EditProfilePage() {
                 value={usernameValue}
                 onChange={(e) => setUsernameValue(e.target.value)}
                 placeholder="@yourname"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
               />
 
               <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="city-value">
@@ -348,7 +348,7 @@ export default function EditProfilePage() {
                 id="city-value"
                 value={cityValue}
                 onChange={(e) => setCityValue(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
               >
                 <option value="Delhi">Delhi</option>
                 <option value="Mumbai">Mumbai</option>
@@ -366,7 +366,7 @@ export default function EditProfilePage() {
                     type="text"
                     value={venueNameValue}
                     onChange={(e) => setVenueNameValue(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
                   />
                 </>
               )}
@@ -433,7 +433,7 @@ export default function EditProfilePage() {
                     placeholder="Enter current password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
                   />
 
                   <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="new-password">
@@ -445,7 +445,7 @@ export default function EditProfilePage() {
                     placeholder="Min 6 characters"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
                   />
 
                   <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="confirm-password">
@@ -457,7 +457,7 @@ export default function EditProfilePage() {
                     placeholder="Repeat new password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] mb-4 min-h-[44px]"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
                   />
 
                   <button
@@ -487,7 +487,7 @@ export default function EditProfilePage() {
                 type="button"
                 onClick={() => void handleSaveProfile()}
                 disabled={saveLoading}
-                className="w-full bg-[#F97316] text-white font-bold py-3 rounded-xl hover:bg-[#EA6C00] disabled:opacity-50 transition-colors duration-200 mt-6 min-h-[44px]"
+                className="w-full bg-[#38bdf8] text-white font-bold py-3 rounded-xl hover:bg-[#0ea5e9] disabled:opacity-50 transition-colors duration-200 mt-6 min-h-[44px]"
               >
                 {saveLoading ? 'Saving...' : 'Save Changes'}
               </button>

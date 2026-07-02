@@ -1,235 +1,171 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 import { useAuth } from "../context/AuthContext";
+import {
+  IconHome,
+  IconDiscover,
+  IconVenues,
+  IconClock,
+  IconFreeSpots,
+  IconBusking,
+  IconInfo,
+  IconMail,
+  IconChevronCollapse,
+  IconLogout,
+} from "./icons/NavIcons";
 
 interface SidebarProps {
   onFilter: (query: string) => void;
 }
 
+interface NavEntry {
+  label: string;
+  icon: (props: { className?: string }) => React.JSX.Element;
+  href?: string;
+  filterQuery?: string;
+}
+
+const primaryEntries: NavEntry[] = [
+  { label: "Home", icon: IconHome, filterQuery: "" },
+  { label: "Discover", icon: IconDiscover, filterQuery: "" },
+];
+
+const exploreEntries: NavEntry[] = [
+  { label: "All Venues", icon: IconVenues, href: "/venues" },
+  { label: "Tonight", icon: IconClock, filterQuery: "spots tonight" },
+  { label: "Free Spots", icon: IconFreeSpots, filterQuery: "free spots" },
+  { label: "Busking", icon: IconBusking, filterQuery: "busking spots" },
+];
+
+const supportEntries: NavEntry[] = [
+  { label: "How It Works", icon: IconInfo, href: "/support" },
+  { label: "Contact Us", icon: IconMail, href: "/support#contact" },
+];
+
+const COLLAPSE_KEY = "openmic_sidebar_collapsed";
+const EXPANDED_W = "14rem";
+const COLLAPSED_W = "4.5rem";
+
 export default function Sidebar({ onFilter }: SidebarProps) {
   const { logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(COLLAPSE_KEY) === "true";
+    setCollapsed(stored);
+    document.documentElement.style.setProperty("--sidebar-w", stored ? COLLAPSED_W : EXPANDED_W);
+  }, []);
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    window.localStorage.setItem(COLLAPSE_KEY, String(next));
+    document.documentElement.style.setProperty("--sidebar-w", next ? COLLAPSED_W : EXPANDED_W);
+  }
+
+  function handleEntryClick(entry: NavEntry) {
+    if (entry.href) {
+      router.push(entry.href);
+      return;
+    }
+    if (entry.filterQuery !== undefined) {
+      onFilter(entry.filterQuery);
+    }
+  }
+
+  function isActive(entry: NavEntry) {
+    if (entry.href) {
+      return pathname === entry.href.split("#")[0];
+    }
+    return entry.label === "Home" && pathname === "/home";
+  }
+
+  function renderEntry(entry: NavEntry) {
+    const active = isActive(entry);
+    const Icon = entry.icon;
+
+    return (
+      <button
+        key={entry.label}
+        type="button"
+        onClick={() => handleEntryClick(entry)}
+        className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm motion-safe:transition-all motion-safe:duration-150 motion-safe:ease-out motion-safe:active:scale-[0.97] ${
+          collapsed ? "justify-center" : ""
+        } ${
+          active
+            ? "bg-[#38bdf8]/10 text-white"
+            : "text-zinc-400 hover:bg-white/5 hover:text-white"
+        }`}
+      >
+        {active && (
+          <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#38bdf8]" />
+        )}
+        <Icon className={`h-4 w-4 shrink-0 ${active ? "text-[#38bdf8]" : ""}`} />
+        {!collapsed && <span className="truncate">{entry.label}</span>}
+        {collapsed && (
+          <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-lg bg-zinc-900/95 px-2.5 py-1.5 text-xs text-white opacity-0 shadow-lg ring-1 ring-white/10 motion-safe:transition-opacity motion-safe:duration-150 group-hover:opacity-100">
+            {entry.label}
+          </span>
+        )}
+      </button>
+    );
+  }
 
   return (
-    <aside className="sidebar-glass fixed bottom-0 left-0 top-14 z-30 hidden w-56 flex-col px-3 pt-6 lg:flex backdrop-blur-[40px] backdrop-saturate-[120%]">
-      <div className="space-y-1">
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl bg-zinc-800/60 px-3 py-3 text-left text-sm text-white motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => onFilter("")}
-        >
-          <span className="text-base">⌂</span>
-          <span>Home</span>
-        </button>
+    <aside
+      className={`sidebar-glass fixed bottom-0 left-0 top-14 z-30 hidden flex-col pt-6 motion-safe:transition-[width] motion-safe:duration-200 motion-safe:ease-out lg:flex ${
+        collapsed ? "w-[4.5rem] px-2" : "w-56 px-3"
+      }`}
+    >
+      <div className="space-y-1">{primaryEntries.map(renderEntry)}</div>
 
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => onFilter("")}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M7.333 2.667 2.667 8l4.666 5.333"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M8.667 2.667 13.333 8l-4.666 5.333"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>Discover</span>
-        </button>
-      </div>
+      {collapsed ? (
+        <div className="my-4 h-px bg-zinc-800/60" />
+      ) : (
+        <p className="mb-2 mt-6 px-3 text-xs font-semibold tracking-widest text-zinc-600">EXPLORE</p>
+      )}
+      <div className="space-y-1">{exploreEntries.map(renderEntry)}</div>
 
-      <p className="mb-2 mt-6 px-3 text-xs font-semibold tracking-widest text-zinc-600">
-        EXPLORE
-      </p>
-      <div className="space-y-1">
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => router.push('/venues')}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <rect
-              x="2.5"
-              y="2.5"
-              width="11"
-              height="11"
-              rx="2"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-          </svg>
-          <span>All Venues</span>
-        </button>
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => onFilter("spots tonight")}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 2.5v5.5l3.5 2"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-          <span>Tonight</span>
-        </button>
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => onFilter("free spots")}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M3 8h10M8 3v10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Free Spots</span>
-        </button>
-        <button
-          type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => onFilter("busking spots")}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M2.5 8a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0Z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M5.5 9.5c.5.6 1.2 1 2.5 1 1.3 0 2-.4 2.5-1"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Busking</span>
-        </button>
-      </div>
+      {collapsed ? (
+        <div className="my-4 h-px bg-zinc-800/60" />
+      ) : (
+        <p className="mb-2 mt-6 px-3 text-xs font-semibold tracking-widest text-zinc-600">SUPPORT</p>
+      )}
+      <div className="space-y-1">{supportEntries.map(renderEntry)}</div>
 
-      <p className="mb-2 mt-6 px-3 text-xs font-semibold tracking-widest text-zinc-600">
-        SUPPORT
-      </p>
-      <div className="space-y-1">
+      <div className="mt-auto space-y-1 border-t border-zinc-800/50 pt-4">
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => router.push('/support')}
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-150 motion-safe:active:scale-[0.97] hover:bg-white/5 hover:text-white ${
+            collapsed ? "justify-center" : ""
+          }`}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 12.667A4.667 4.667 0 1 0 8 3.333a4.667 4.667 0 0 0 0 9.334Z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-            <path d="M8 6.5v2.333" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="10.833" r="0.667" fill="currentColor" />
-          </svg>
-          <span>How It Works</span>
+          <IconChevronCollapse
+            className={`h-4 w-4 shrink-0 motion-safe:transition-transform motion-safe:duration-200 ${
+              collapsed ? "rotate-180" : ""
+            }`}
+          />
+          {!collapsed && <span>Collapse</span>}
         </button>
         <button
           type="button"
-          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-zinc-400 motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:bg-zinc-800/60 hover:text-white"
-          onClick={() => router.push('/support#contact')}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <rect
-              x="2.5"
-              y="3"
-              width="11"
-              height="10"
-              rx="1.5"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            />
-            <path
-              d="m3 4 5 4 5-4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span>Contact Us</span>
-        </button>
-      </div>
-
-      <div className="mt-auto pt-4 border-t border-zinc-800/50">
-        <button
           onClick={() => {
             logout();
-            router.push('/auth');
+            router.push("/auth");
           }}
-          className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 cursor-pointer motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] hover:text-red-300 hover:bg-red-900/20 w-full"
+          className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-red-400 motion-safe:transition-all motion-safe:duration-150 motion-safe:active:scale-[0.97] hover:bg-red-900/20 hover:text-red-300 ${
+            collapsed ? "justify-center" : ""
+          }`}
         >
-          Log Out
+          <IconLogout className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Log Out</span>}
         </button>
       </div>
     </aside>

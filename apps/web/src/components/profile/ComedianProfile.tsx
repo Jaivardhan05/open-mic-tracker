@@ -16,7 +16,7 @@ export function ComedianProfile() {
           {user.name.charAt(0).toUpperCase()}
         </div>
         <h1 className="mt-4 text-2xl font-bold text-white">{user.name}</h1>
-        <span className="mt-2 rounded-full bg-[#F97316]/20 px-3 py-1 text-center text-xs font-medium text-[#F97316]">
+        <span className="mt-2 rounded-full bg-[#38bdf8]/20 px-3 py-1 text-center text-xs font-medium text-[#38bdf8]">
           Comedian
         </span>
         <p className="mt-1 text-sm text-zinc-500">{user.city}</p>
@@ -44,7 +44,7 @@ export function ComedianProfile() {
         </div>
         <button
           type="button"
-          className="mt-4 w-full rounded-xl bg-[#F97316] py-3 font-bold text-white transition-colors hover:bg-[#EA6C00]"
+          className="mt-4 w-full rounded-xl bg-[#38bdf8] py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9]"
         >
           Find a Spot
         </button>

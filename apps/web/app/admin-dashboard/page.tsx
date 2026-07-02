@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-zinc-400">Live stats and venue moderation controls are available on your profile page.</p>
           <button
             onClick={() => router.push('/profile')}
-            className="mt-6 w-full max-w-sm rounded-xl bg-[#F97316] py-3 font-bold text-white transition-colors hover:bg-[#EA6C00]"
+            className="mt-6 w-full max-w-sm rounded-xl bg-[#38bdf8] py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9]"
           >
             View Full Admin Dashboard
           </button>
@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             type="button"
-            className="rounded-xl bg-[#F97316] px-5 py-3 font-bold text-white transition-colors hover:bg-[#EA6C00]"
+            className="rounded-xl bg-[#38bdf8] px-5 py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9]"
           >
             Review Pending Venues
           </button>

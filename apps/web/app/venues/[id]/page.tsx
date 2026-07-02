@@ -68,7 +68,7 @@ export default function VenueDetailPage() {
       <div className="flex">
         <Sidebar onFilter={() => {}} />
 
-        <main className="main-content-glass md:ml-56 min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
+        <main className="main-content-glass sidebar-content-margin lg:ml-[var(--sidebar-w)] min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
           <div className="mb-6">
             <Link
               href="/venues"

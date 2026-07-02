@@ -65,7 +65,7 @@ export default function VenueCard({ venue, shows, onSelect }: VenueCardProps) {
           onClick={() => {
             console.log("book venue", venue.id);
           }}
-          className="mt-4 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black transition-all duration-200 hover:bg-[#F97316] hover:text-white"
+          className="mt-4 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black transition-all duration-200 hover:bg-[#38bdf8] hover:text-white"
         >
           Book This Spot
         </button>

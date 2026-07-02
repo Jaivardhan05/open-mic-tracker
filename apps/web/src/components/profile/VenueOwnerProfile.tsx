@@ -44,7 +44,7 @@ export function VenueOwnerProfile() {
         </div>
         <button
           type="button"
-          className="mt-4 w-full rounded-xl bg-[#F97316] py-3 font-bold text-white transition-colors hover:bg-[#EA6C00]"
+          className="mt-4 w-full rounded-xl bg-[#38bdf8] py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9]"
         >
           Register a Venue
         </button>

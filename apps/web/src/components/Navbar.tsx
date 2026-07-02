@@ -4,19 +4,31 @@ import { useRouter, usePathname } from 'next/navigation';
 
 import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
+import { IconHome, IconVenues, IconInfo, IconMail, IconClose, IconLogout } from './icons/NavIcons';
+
+const links = [
+  { label: 'Home', href: '/home', icon: IconHome },
+  { label: 'Venues', href: '/venues', icon: IconVenues },
+  { label: 'About', href: '/support', icon: IconInfo },
+  { label: 'Contact', href: '/support#contact', icon: IconMail },
+];
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const links = ['Home', 'Venues', 'About', 'Contact'];
 
   function handleContactClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (pathname === '/support') {
       e.preventDefault();
       document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
     }
+  }
+
+  function isActive(link: (typeof links)[number]) {
+    if (link.label === 'Contact') return false;
+    return pathname === link.href.split('#')[0];
   }
 
   return (
@@ -27,24 +39,21 @@ export default function Navbar() {
         <BrandMark variant="nav" />
 
         <div className="hidden md:flex items-center gap-8">
-          {links.map((link) => (
-            <a
-              key={link}
-              href={
-                link === 'Home'
-                  ? '/home'
-                  : link === 'Venues'
-                  ? '/venues'
-                  : link === 'About'
-                  ? '/support'
-                  : '/support#contact'
-              }
-              onClick={link === 'Contact' ? handleContactClick : undefined}
-              className="text-sm text-zinc-400 hover:text-white motion-safe:transition-all motion-safe:duration-100 relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-px after:bg-[#38bdf8] motion-safe:after:transition-all motion-safe:after:duration-150 hover:after:w-full"
-            >
-              {link}
-            </a>
-          ))}
+          {links.map((link) => {
+            const active = isActive(link);
+            return (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={link.label === 'Contact' ? handleContactClick : undefined}
+                className={`text-sm motion-safe:transition-all motion-safe:duration-100 relative after:absolute after:bottom-[-2px] after:left-0 after:h-px after:bg-[#38bdf8] motion-safe:after:transition-all motion-safe:after:duration-150 hover:after:w-full ${
+                  active ? 'text-white after:w-full' : 'text-zinc-400 hover:text-white after:w-0'
+                }`}
+              >
+                {link.label}
+              </a>
+            );
+          })}
           {user && (
             <div className="hidden md:flex items-center gap-3">
               <div
@@ -70,85 +79,83 @@ export default function Navbar() {
         </button>
       </nav>
 
-      {isOpen && (
-        <div className="mobile-menu-root md:hidden fixed inset-0 z-[70] flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      <div
+        className={`mobile-menu-root md:hidden fixed inset-0 z-[70] flex justify-end ${
+          isOpen ? '' : 'pointer-events-none'
+        }`}
+        aria-hidden={!isOpen}
+      >
+        <div
+          className={`absolute inset-0 bg-black/40 backdrop-blur-sm motion-safe:transition-opacity motion-safe:duration-200 ${
+            isOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+
+        <div
+          className={`mobile-menu-glass relative w-[75%] max-w-sm h-full border-l border-white/10 flex flex-col p-6 pt-safe pb-safe shadow-2xl z-10 backdrop-blur-[40px] backdrop-saturate-[120%] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out ${
+            isOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <button
+            type="button"
             onClick={() => setIsOpen(false)}
-            aria-hidden="true"
-          />
+            className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white text-xl font-light rounded-xl bg-zinc-800/40 border border-zinc-700/30 active:bg-zinc-700/50 motion-safe:transition-all motion-safe:duration-75 motion-safe:active:scale-[0.97]"
+            aria-label="Close menu"
+          >
+            <IconClose className="h-[18px] w-[18px]" />
+          </button>
 
-          <div className="mobile-menu-glass relative w-[75%] max-w-sm h-full border-l border-white/10 flex flex-col p-6 shadow-2xl z-10 backdrop-blur-[40px] backdrop-saturate-[120%]">
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center text-zinc-400 hover:text-white text-xl font-light rounded-xl bg-zinc-800/40 border border-zinc-700/30 active:bg-zinc-700/50 motion-safe:transition-all motion-safe:duration-75 motion-safe:active:scale-[0.97]"
-              aria-label="Close menu"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+          <BrandMark variant="nav" className="mb-8" />
 
-            <BrandMark variant="nav" className="mb-8" />
+          <div className="w-full h-px bg-zinc-700/40 mb-6" />
 
-            <div className="w-full h-px bg-zinc-700/40 mb-6" />
-
-            {links.map((link) => (
+          {links.map((link) => {
+            const active = isActive(link);
+            const Icon = link.icon;
+            return (
               <a
-                key={link}
-                href={
-                  link === 'Home'
-                    ? '/home'
-                    : link === 'Venues'
-                    ? '/venues'
-                    : link === 'About'
-                    ? '/support'
-                    : '/support#contact'
-                }
+                key={link.label}
+                href={link.href}
                 onClick={(e) => {
-                  if (link === 'Contact') handleContactClick(e);
+                  if (link.label === 'Contact') handleContactClick(e);
                   setIsOpen(false);
                 }}
-                className="flex items-center py-4 px-2 text-base font-medium text-zinc-300 hover:text-white active:text-[#38bdf8] border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group"
+                className={`flex items-center gap-3 py-4 px-2 text-base font-medium border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group ${
+                  active ? 'text-[#38bdf8]' : 'text-zinc-300 hover:text-white active:text-[#38bdf8]'
+                }`}
               >
-                <span className="flex-1">{link}</span>
-                <span className="text-zinc-600 group-hover:text-zinc-400 group-active:text-[#38bdf8] text-sm motion-safe:transition-colors">
-                  →
-                </span>
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${
+                    active ? 'text-[#38bdf8]' : 'text-zinc-500 group-hover:text-zinc-300'
+                  }`}
+                />
+                <span className="flex-1">{link.label}</span>
               </a>
-            ))}
+            );
+          })}
 
-            <button
-              onClick={() => {
-                logout();
-                router.push('/auth');
-                setIsOpen(false);
-              }}
-              className="block w-full text-left py-4 text-lg font-medium text-red-400 active:text-red-300 transition-colors duration-150 border-t border-zinc-700/50 mt-4"
-            >
-              Log Out
-            </button>
+          <button
+            onClick={() => {
+              logout();
+              router.push('/auth');
+              setIsOpen(false);
+            }}
+            className="flex items-center gap-3 w-full text-left py-4 text-lg font-medium text-red-400 active:text-red-300 transition-colors duration-150 border-t border-zinc-700/50 mt-4"
+          >
+            <IconLogout className="h-4 w-4 shrink-0" />
+            Log Out
+          </button>
 
-            <div className="mt-auto pt-6 border-t border-zinc-700/30">
-              <p className="text-xs text-zinc-600 leading-relaxed">
-                Find your next open mic spot
-                in Delhi.
-              </p>
-            </div>
+          <div className="mt-auto pt-6 border-t border-zinc-700/30">
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              Find your next open mic spot
+              in Delhi.
+            </p>
           </div>
         </div>
-      )}
+      </div>
     </>
   );
 }

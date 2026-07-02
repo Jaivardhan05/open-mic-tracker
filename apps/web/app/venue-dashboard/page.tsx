@@ -66,7 +66,7 @@ export default function VenueDashboardPage() {
           </p>
           <button
             type="button"
-            className="mt-4 rounded-xl bg-[#F97316] px-6 py-3 font-bold text-white transition-colors hover:bg-[#EA6C00]"
+            className="mt-4 rounded-xl bg-[#38bdf8] px-6 py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9]"
           >
             Update Venue Profile
           </button>
