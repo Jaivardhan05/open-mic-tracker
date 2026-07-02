@@ -292,13 +292,19 @@ export default function SupportPage() {
           border-color: rgba(255, 255, 255, 0.26);
           transition: border-color 0.3s ease;
         }
+
+        /* Stronger glassmorphism blur on this page's content cards only */
+        .content-glass {
+          backdrop-filter: blur(40px) saturate(120%);
+          -webkit-backdrop-filter: blur(40px) saturate(120%);
+        }
       `}</style>
 
       <div
         className="layout-root"
         style={{
           backgroundImage:
-            'linear-gradient(rgba(0,0,0,0.30),rgba(0,0,0,0.30)),url("/home-background-blue.jpg")',
+            'linear-gradient(rgba(0,0,0,0.30),rgba(0,0,0,0.30)),url("/mic-dark.png")',
           backgroundSize: 'cover',
           backgroundPosition: 'center 40%',
           backgroundAttachment: 'fixed',

@@ -65,7 +65,7 @@ body {
 	z-index: 5;
 	background-image:
 		linear-gradient(rgba(0, 0, 0, 0.30), rgba(0, 0, 0, 0.30)),
-		url("/home-background-blue.jpg");
+		url("/mic-dark.png");
 	background-position: center 40%;
 	background-size: cover;
 	background-repeat: no-repeat;
