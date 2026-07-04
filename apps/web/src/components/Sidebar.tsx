@@ -6,11 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import {
   IconHome,
-  IconDiscover,
   IconVenues,
-  IconClock,
-  IconFreeSpots,
-  IconBusking,
   IconInfo,
   IconMail,
   IconChevronCollapse,
@@ -29,15 +25,11 @@ interface NavEntry {
 }
 
 const primaryEntries: NavEntry[] = [
-  { label: "Home", icon: IconHome, filterQuery: "" },
-  { label: "Discover", icon: IconDiscover, filterQuery: "" },
+  { label: "Home", icon: IconHome, href: "/home" },
 ];
 
 const exploreEntries: NavEntry[] = [
   { label: "All Venues", icon: IconVenues, href: "/venues" },
-  { label: "Tonight", icon: IconClock, filterQuery: "spots tonight" },
-  { label: "Free Spots", icon: IconFreeSpots, filterQuery: "free spots" },
-  { label: "Busking", icon: IconBusking, filterQuery: "busking spots" },
 ];
 
 const supportEntries: NavEntry[] = [

@@ -1,113 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../src/components/Navbar';
-
-// SVG fractal-noise tile, URL-encoded for use as a data URI background-image.
-// Creates a subtle grain texture that adds tactile depth to cards.
-const NOISE_URI = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")`;
-
-// Fires once when the element first enters the viewport, then disconnects.
-function useVisible(threshold = 0.1) {
-  const ref = useRef<HTMLElement | null>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) { setVisible(true); obs.unobserve(el); }
-      },
-      { threshold },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return [ref, visible] as const;
-}
-
-// Glassmorphic card with:
-//   - SVG grain noise overlay (texture / depth)
-//   - Cursor-tracking radial spotlight (physical light feeling)
-//   - Subtle 3-D tilt on hover (perceived depth)
-// All effects skip automatically for prefers-reduced-motion users.
-function SpotlightCard({
-  children,
-  className = '',
-  style,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const spotRef = useRef<HTMLDivElement>(null);
-  // Read once on mount — avoids re-querying matchMedia on every mouse move.
-  const reduced = useRef(
-    typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  );
-
-  const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
-    const spot = spotRef.current;
-    if (!card || !spot) return;
-    const r = card.getBoundingClientRect();
-    const x = ((e.clientX - r.left) / r.width) * 100;
-    const y = ((e.clientY - r.top) / r.height) * 100;
-    // Spotlight
-    spot.style.opacity = '1';
-    spot.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.07) 0%, transparent 65%)`;
-    // 3-D tilt (skipped for reduced-motion)
-    if (!reduced.current) {
-      const rx = (y / 100 - 0.5) * -4;
-      const ry = (x / 100 - 0.5) * 4;
-      card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
-      card.style.transition = 'transform 0.07s linear';
-    }
-  }, []);
-
-  const onLeave = useCallback(() => {
-    const spot = spotRef.current;
-    const card = cardRef.current;
-    if (spot) spot.style.opacity = '0';
-    if (card && !reduced.current) {
-      card.style.transform = '';
-      card.style.transition = 'transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-    }
-  }, []);
-
-  return (
-    <div
-      ref={cardRef}
-      className={`content-glass relative overflow-hidden ${className}`}
-      style={{ ...style, willChange: 'transform' }}
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
-    >
-      {/* Grain texture overlay */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: NOISE_URI,
-          backgroundRepeat: 'repeat',
-          opacity: 0.055,
-          mixBlendMode: 'soft-light' as React.CSSProperties['mixBlendMode'],
-        }}
-        aria-hidden="true"
-      />
-      {/* Cursor spotlight */}
-      <div
-        ref={spotRef}
-        className="absolute inset-0 pointer-events-none"
-        style={{ opacity: 0, transition: 'opacity 0.35s ease' }}
-        aria-hidden="true"
-      />
-      {children}
-    </div>
-  );
-}
+import { SpotlightCard } from '../../src/components/venues/SpotlightCard';
+import { useVisible, enter } from '../../src/hooks/useVisible';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -116,15 +13,6 @@ type SectionId = (typeof SECTION_IDS)[number];
 
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-}
-
-// Returns opacity + translateY entrance styles with a per-element delay.
-function enter(visible: boolean, delay = 0): React.CSSProperties {
-  return {
-    opacity: visible ? 1 : 0,
-    transform: visible ? 'translateY(0px)' : 'translateY(18px)',
-    transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
-  };
 }
 
 const FAQ_ITEMS = [
@@ -204,14 +92,6 @@ export default function SupportPage() {
   return (
     <>
       <style>{`
-        /* Disable all motion for accessibility */
-        @media (prefers-reduced-motion: reduce) {
-          *, *::before, *::after {
-            transition-duration: 0.001ms !important;
-            animation-duration: 0.001ms !important;
-          }
-        }
-
         /* Tab nav ── sliding underline via CSS scaleX */
         .support-tab {
           position: relative;
@@ -265,26 +145,6 @@ export default function SupportPage() {
           width: 3px;
           border-radius: 2px;
           background: #38bdf8;
-        }
-
-        /* Button ── diagonal light sweep on hover */
-        .btn-sweep {
-          position: relative;
-          overflow: hidden;
-        }
-        .btn-sweep::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          left: -110%;
-          width: 60%;
-          background: rgba(255, 255, 255, 0.18);
-          transform: skewX(-18deg);
-          transition: left 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-          pointer-events: none;
-        }
-        .btn-sweep:hover::before {
-          left: 160%;
         }
 
         /* SpotlightCard hover border brightening via CSS (complement to the JS spotlight) */
@@ -354,7 +214,7 @@ export default function SupportPage() {
             {/* ── How It Works ─────────────────────────────── */}
             <section
               id="about"
-              ref={aboutRef as React.RefObject<HTMLElement>}
+              ref={aboutRef}
               className="mb-20"
             >
               <div style={enter(aboutVisible, 0)}>
@@ -411,7 +271,7 @@ export default function SupportPage() {
             {/* ── Contact Us ───────────────────────────────── */}
             <section
               id="contact"
-              ref={contactRef as React.RefObject<HTMLElement>}
+              ref={contactRef}
               className="mb-20"
             >
               <div style={enter(contactVisible, 0)}>
@@ -466,7 +326,7 @@ export default function SupportPage() {
             {/* ── FAQ ──────────────────────────────────────── */}
             <section
               id="faq"
-              ref={faqRef as React.RefObject<HTMLElement>}
+              ref={faqRef}
               className="mb-20"
             >
               <div style={enter(faqVisible, 0)}>

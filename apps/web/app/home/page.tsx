@@ -64,7 +64,10 @@ export default function HomePage() {
         }}
       />
 
-      <main className="main-content-glass sidebar-content-margin min-h-screen pb-12 mt-14 text-gray-100 lg:ml-[var(--sidebar-w)]">
+      <main
+        className="main-content-glass sidebar-content-margin pb-12 text-gray-100 lg:ml-[var(--sidebar-w)] overflow-y-auto"
+        style={{ height: 'calc(100dvh - 3.5rem)', marginTop: '3.5rem' }}
+      >
         <section className="px-4 pt-12 text-center">
           <h1>
             <BrandMark variant="hero" />

@@ -94,3 +94,6 @@ Tailwind CSS v4 with PostCSS. Four Google Fonts are loaded as CSS variables in `
 | `NEXT_PUBLIC_SUPABASE_URL` | web | Supabase URL for browser client |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | Supabase anon key for browser client |
 | `NEXT_PUBLIC_API_URL` | web | API base URL (default `http://localhost:8080`) |
+
+## Conventions
+- Before running any bash/terminal command, explain in one short line what it does and why.

@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Show, Venue } from '@repo/types';
@@ -10,6 +8,12 @@ import type { Show, Venue } from '@repo/types';
 import Navbar from '../../src/components/Navbar';
 import Sidebar from '../../src/components/Sidebar';
 import { useAuth } from '../../src/context/AuthContext';
+import { FilterPills, type SpotTypeFilter } from '../../src/components/venues/FilterPills';
+import { VenueListCard } from '../../src/components/venues/VenueListCard';
+import { useVisible } from '../../src/hooks/useVisible';
+import { IconClose, IconSearch } from '../../src/components/icons/NavIcons';
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function VenuesPage() {
   const { user, isLoading } = useAuth();
@@ -20,8 +24,12 @@ export default function VenuesPage() {
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterSpotType, setFilterSpotType] = useState<'all' | 'busking' | 'non_busking'>('all');
-  const [filterCity] = useState('all');
+  const [filterSpotType, setFilterSpotType] = useState<SpotTypeFilter>('all');
+  const [filterCity, setFilterCity] = useState('all');
+  const [filterFreeOnly, setFilterFreeOnly] = useState(false);
+  const [filterTonightOnly, setFilterTonightOnly] = useState(false);
+
+  const [gridRef, gridVisible] = useVisible(0.05);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -50,10 +58,16 @@ export default function VenuesPage() {
     void fetchAll();
   }, []);
 
+  const cities = useMemo(
+    () => Array.from(new Set(venues.map((v) => v.city).filter(Boolean))),
+    [venues],
+  );
+
+  const today = useMemo(() => todayISO(), []);
+
   const filteredVenues = venues.filter((v) => {
     const name = String(v.name ?? '').toLowerCase();
     const address = String(v.address ?? '').toLowerCase();
-    const city = String(v.city ?? '').toLowerCase();
 
     const matchesSearch =
       searchQuery === '' || name.includes(searchQuery.toLowerCase()) || address.includes(searchQuery.toLowerCase());
@@ -63,10 +77,27 @@ export default function VenuesPage() {
     const matchesSpotType =
       filterSpotType === 'all' || venueShows.some((s) => s.spot_type === filterSpotType);
 
-    const matchesCity = filterCity === 'all' || city === filterCity.toLowerCase();
+    const matchesCity = filterCity === 'all' || v.city === filterCity;
 
-    return matchesSearch && matchesSpotType && matchesCity;
+    const matchesFree = !filterFreeOnly || venueShows.some((s) => Number(s.charge ?? 0) === 0);
+
+    const matchesTonight = !filterTonightOnly || venueShows.some((s) => s.date === today);
+
+    return matchesSearch && matchesSpotType && matchesCity && matchesFree && matchesTonight;
   });
+
+  function handleSidebarFilter(query: string) {
+    if (query === 'busking spots') setFilterSpotType('busking');
+    else if (query === 'free spots') setFilterFreeOnly(true);
+    else if (query === 'spots tonight') setFilterTonightOnly(true);
+  }
+
+  const subtitle =
+    filterCity !== 'all'
+      ? `${filteredVenues.length} venues in ${filterCity}`
+      : cities.length <= 1
+      ? `${filteredVenues.length} venues${cities[0] ? ` in ${cities[0]}` : ''}`
+      : `${filteredVenues.length} venues across ${cities.length} cities`;
 
   if (isLoading) {
     return (
@@ -81,127 +112,113 @@ export default function VenuesPage() {
   }
 
   return (
-    <div className="layout-root">
-      <Navbar />
-      <div className="flex">
-        <Sidebar onFilter={() => {}} />
+    <>
+      <style>{`
+        .content-glass {
+          backdrop-filter: blur(40px) saturate(120%);
+          -webkit-backdrop-filter: blur(40px) saturate(120%);
+        }
+        .spotlight-card-wrap:hover .content-glass {
+          border-color: rgba(255, 255, 255, 0.26);
+          transition: border-color 0.3s ease;
+        }
+      `}</style>
 
-        <main className="main-content-glass sidebar-content-margin lg:ml-[var(--sidebar-w)] min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white">All Venues</h1>
-            <p className="text-zinc-500 text-sm mt-1">{filteredVenues.length} venues in Delhi</p>
-          </div>
+      <div className="layout-root">
+        <Navbar />
+        <div className="flex">
+          <Sidebar onFilter={handleSidebarFilter} />
 
-          <div className="flex flex-col sm:flex-row gap-3 mb-8">
-            <input
-              type="text"
-              placeholder="Search venues..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="content-glass flex-1 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] min-h-[44px] backdrop-blur-[12px]"
-            />
+          <main
+            className="main-content-glass sidebar-content-margin lg:ml-[var(--sidebar-w)] overflow-y-auto w-full"
+            style={{ height: 'calc(100dvh - 3.5rem)', marginTop: '3.5rem' }}
+          >
+            <div className="px-4 md:px-8 py-8 max-w-7xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold text-white">All Venues</h1>
+                <p className="brand-delhi mt-1" style={{ color: '#38bdf8', fontSize: '1.05rem' }}>
+                  {subtitle}
+                </p>
+              </div>
 
-            <div className="flex gap-2">
-              {(['all', 'busking', 'non_busking'] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setFilterSpotType(type)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[44px] ${
-                    filterSpotType === type
-                      ? 'bg-[#38bdf8] text-black'
-                      : 'content-glass text-zinc-300 hover:text-white backdrop-blur-[12px]'
-                  }`}
+              <div className="flex flex-col gap-4 mb-8">
+                <div className="relative">
+                  <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                  <input
+                    type="text"
+                    placeholder="Search venues..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="content-glass w-full rounded-xl pl-10 pr-10 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] min-h-[44px] backdrop-blur-[12px]"
+                  />
+                  {searchQuery !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white motion-safe:transition-colors"
+                    >
+                      <IconClose className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <FilterPills
+                  spotType={filterSpotType}
+                  onSpotTypeChange={setFilterSpotType}
+                  freeOnly={filterFreeOnly}
+                  onFreeOnlyToggle={() => setFilterFreeOnly((v) => !v)}
+                  tonightOnly={filterTonightOnly}
+                  onTonightOnlyToggle={() => setFilterTonightOnly((v) => !v)}
+                  cities={cities}
+                  city={filterCity}
+                  onCityChange={setFilterCity}
+                />
+              </div>
+
+              {isFetching ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="content-glass rounded-2xl overflow-hidden animate-pulse">
+                      <div className="aspect-video bg-white/5" />
+                      <div className="p-4 space-y-3">
+                        <div className="h-4 bg-white/5 rounded w-3/4" />
+                        <div className="h-3 bg-white/5 rounded w-1/2" />
+                        <div className="h-3 bg-white/5 rounded w-1/3" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="text-center text-red-400 mt-20">{error}</div>
+              ) : filteredVenues.length === 0 ? (
+                <div className="flex flex-col items-center text-center text-zinc-500 mt-20">
+                  <IconSearch className="w-12 h-12 text-zinc-700 mb-4" />
+                  No venues found matching your search.
+                </div>
+              ) : (
+                <div
+                  ref={gridRef}
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5"
                 >
-                  {type === 'all' ? 'All' : type === 'busking' ? 'Busking' : 'Non-Busking'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {isFetching ? (
-            <div className="animate-spin w-8 h-8 rounded-full border-2 border-zinc-700 border-t-[#38bdf8] mx-auto mt-20" />
-          ) : error ? (
-            <div className="text-center text-red-400 mt-20">{error}</div>
-          ) : filteredVenues.length === 0 ? (
-            <div className="text-center text-zinc-500 mt-20">No venues found matching your search.</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredVenues.map((venue) => {
-                const venueShows = shows.filter((s) => s.venue_id === venue.id);
-                const totalSpots = venueShows.reduce(
-                  (sum, s) => sum + Number(s.available_spots ?? 0),
-                  0
-                );
-
-                return (
-                  <Link
-                    key={venue.id}
-                    href={`/venues/${venue.id}`}
-                    className="content-glass rounded-2xl overflow-hidden block hover:border-[#38bdf8] transition-colors duration-200"
-                  >
-                    <div className="relative aspect-video">
-                      <Image
-                        src={
-                          venue.photos?.[0] ??
-                          `https://picsum.photos/seed/${venue.id}/600/400`
-                        }
-                        alt={venue.name}
-                        fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                        unoptimized
-                        className="object-cover"
+                  {filteredVenues.map((venue, index) => {
+                    const venueShows = shows.filter((s) => s.venue_id === venue.id);
+                    return (
+                      <VenueListCard
+                        key={venue.id}
+                        venue={venue}
+                        shows={venueShows}
+                        index={index}
+                        visible={gridVisible}
                       />
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="font-bold text-white text-base mb-1 line-clamp-1">{venue.name}</h3>
-
-                      <p className="text-zinc-500 text-xs mb-3 line-clamp-1">{venue.address}</p>
-
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {venueShows.slice(0, 3).map((show) => (
-                          <span
-                            key={show.id}
-                            className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              show.spot_type === 'busking'
-                                ? 'bg-amber-500/20 text-amber-400'
-                                : 'bg-purple-500/20 text-purple-400'
-                            }`}
-                          >
-                            {String(show.start_time ?? '').slice(0, 5)}
-                          </span>
-                        ))}
-                        {venueShows.length === 0 && (
-                          <span className="text-xs text-zinc-600">No upcoming shows</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-white">
-                          {venueShows.some((s) => Number(s.charge ?? 0) === 0)
-                            ? 'Free'
-                            : venueShows.length > 0
-                            ? `From ₹${Math.min(...venueShows.map((s) => Number(s.charge ?? 0)))}`
-                            : '—'}
-                        </span>
-                        <span
-                          className={`text-xs font-medium ${
-                            venueShows.some((s) => Number(s.available_spots ?? 0) <= 3)
-                              ? 'text-red-400'
-                              : 'text-green-400'
-                          }`}
-                        >
-                          {totalSpots} spots left
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </main>
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -10,6 +10,7 @@ import type { Show, Venue } from '@repo/types';
 import Navbar from '../../../src/components/Navbar';
 import Sidebar from '../../../src/components/Sidebar';
 import { useAuth } from '../../../src/context/AuthContext';
+import { SpotlightCard } from '../../../src/components/venues/SpotlightCard';
 
 export default function VenueDetailPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -68,7 +69,11 @@ export default function VenueDetailPage() {
       <div className="flex">
         <Sidebar onFilter={() => {}} />
 
-        <main className="main-content-glass sidebar-content-margin lg:ml-[var(--sidebar-w)] min-h-screen mt-14 px-4 md:px-8 py-8 w-full">
+        <main
+          className="main-content-glass sidebar-content-margin lg:ml-[var(--sidebar-w)] overflow-y-auto w-full"
+          style={{ height: 'calc(100dvh - 3.5rem)', marginTop: '3.5rem' }}
+        >
+          <div className="px-4 md:px-8 py-8">
           <div className="mb-6">
             <Link
               href="/venues"
@@ -89,7 +94,7 @@ export default function VenueDetailPage() {
             <div className="text-center text-red-400 mt-20">{error}</div>
           ) : venue ? (
             <div className="max-w-3xl">
-              <div className="content-glass rounded-2xl overflow-hidden mb-6">
+              <SpotlightCard className="rounded-2xl overflow-hidden mb-6">
                 <div className="relative aspect-video w-full">
                   <Image
                     src={venue.photos?.[0] ?? `https://picsum.photos/seed/${venue.id}/800/450`}
@@ -110,7 +115,7 @@ export default function VenueDetailPage() {
                     <p className="text-zinc-300 text-sm leading-relaxed">{venue.description}</p>
                   ) : null}
                 </div>
-              </div>
+              </SpotlightCard>
 
               <h2 className="text-lg font-bold text-white mb-4">Upcoming Shows</h2>
 
@@ -119,7 +124,7 @@ export default function VenueDetailPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {shows.map((show) => (
-                    <div key={show.id} className="content-glass rounded-xl p-4">
+                    <SpotlightCard key={show.id} className="rounded-xl p-4">
                       <div className="flex items-center justify-between mb-2">
                         <span
                           className={`text-xs font-medium px-2.5 py-1 rounded-full ${
@@ -156,12 +161,13 @@ export default function VenueDetailPage() {
                           Book Spot
                         </button>
                       </div>
-                    </div>
+                    </SpotlightCard>
                   ))}
                 </div>
               )}
             </div>
           ) : null}
+          </div>
         </main>
       </div>
     </div>
