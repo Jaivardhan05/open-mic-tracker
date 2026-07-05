@@ -225,7 +225,7 @@ export default function EditProfilePage() {
     <div className="layout-root">
       <Navbar />
 
-      <div className="flex pt-14">
+      <div className="flex">
         <aside className="sidebar-glass hidden md:flex flex-col fixed left-0 top-14 bottom-0 w-56 pt-8 px-3 z-30 backdrop-blur-[40px] backdrop-saturate-[120%]">
           <button
             onClick={() => router.push('/home')}
@@ -278,7 +278,10 @@ export default function EditProfilePage() {
           </div>
         </aside>
 
-        <main className="main-content-glass flex-1 md:ml-56 px-4 md:px-8 py-8 min-h-screen backdrop-blur-[6px] backdrop-saturate-[110%]">
+        <main
+          className="main-content-glass sidebar-content-margin flex-1 md:ml-56 px-4 md:px-8 py-8 overflow-y-auto backdrop-blur-[6px] backdrop-saturate-[110%]"
+          style={{ height: 'calc(100dvh - 3.5rem)', marginTop: '3.5rem' }}
+        >
           <div className="md:hidden mb-6">
             <button
               onClick={() => router.push('/home')}

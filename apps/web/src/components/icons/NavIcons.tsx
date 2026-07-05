@@ -143,6 +143,35 @@ export function IconChevronRight({ className }: IconProps) {
   );
 }
 
+export function IconPhone({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M3.833 2.5h2l1 3-1.5 1a7.333 7.333 0 0 0 3.667 3.667l1-1.5 3 1v2a1 1 0 0 1-1 1A10.667 10.667 0 0 1 2.833 3.5a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function IconAt({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="8" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M10.5 8.5v.667a1.833 1.833 0 0 0 3.667 0V8.5a6.167 6.167 0 1 0-2.487 4.955"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconLogout({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

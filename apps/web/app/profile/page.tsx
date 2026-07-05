@@ -121,7 +121,7 @@ export default function ProfilePage() {
     <div className="layout-root">
       <Navbar />
 
-      <div className="flex pt-14">
+      <div className="flex">
         <aside className="sidebar-glass hidden md:flex flex-col fixed left-0 top-14 bottom-0 w-56 pt-8 px-3 z-30 backdrop-blur-[40px] backdrop-saturate-[120%]">
           <button
             onClick={() => router.push('/home')}
@@ -146,35 +146,48 @@ export default function ProfilePage() {
 
           <div className="w-full h-px bg-zinc-800/50 mb-6" />
 
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors duration-200 mb-1 ${
-                pathname === item.href
-                  ? 'bg-zinc-800 text-white font-medium'
-                  : 'text-zinc-500 hover:text-white hover:bg-zinc-800/50'
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </a>
-          ))}
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => router.push(item.href)}
+                  className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm motion-safe:transition-all motion-safe:duration-150 motion-safe:ease-out motion-safe:active:scale-[0.97] ${
+                    active
+                      ? 'bg-[#38bdf8]/10 text-white'
+                      : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-[#38bdf8]" />
+                  )}
+                  <span className={active ? 'text-[#38bdf8]' : ''}>{item.icon}</span>
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
           <div className="mt-auto pt-4 border-t border-zinc-800/50">
             <button
+              type="button"
               onClick={() => {
                 void logout();
                 router.push('/auth');
               }}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400 cursor-pointer transition-colors duration-200 hover:text-red-300 hover:bg-red-900/20 w-full"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-red-400 motion-safe:transition-all motion-safe:duration-150 motion-safe:active:scale-[0.97] hover:bg-red-900/20 hover:text-red-300"
             >
               Log Out
             </button>
           </div>
         </aside>
 
-        <main className="main-content-glass backdrop-blur-[12px] flex-1 md:ml-56 px-4 md:px-8 py-8 min-h-screen backdrop-blur-[6px] backdrop-saturate-[110%]">
+        <main
+          className="main-content-glass sidebar-content-margin md:ml-56 px-4 md:px-8 py-8 overflow-y-auto w-full"
+          style={{ height: 'calc(100dvh - 3.5rem)', marginTop: '3.5rem' }}
+        >
           <div className="md:hidden mb-6">
             <button
               onClick={() => router.push('/home')}
