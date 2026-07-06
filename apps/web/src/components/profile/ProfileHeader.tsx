@@ -24,7 +24,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
 
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-zinc-800 text-3xl font-bold text-white ring-2 ring-[#38bdf8]/40 ring-offset-2 ring-offset-black">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#38bdf8]/20 text-3xl font-bold text-white ring-2 ring-[#38bdf8]/55 ring-offset-2 ring-offset-black shadow-[0_0_14px_2px_rgba(56,189,248,0.25)]">
         {user.name.charAt(0).toUpperCase()}
       </div>
 

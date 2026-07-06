@@ -22,7 +22,7 @@ export function ProfileDetailsCard({ user }: ProfileDetailsCardProps) {
   ];
 
   return (
-    <section className="rounded-3xl border border-zinc-800 bg-black/30 p-4 md:p-6">
+    <section className="content-glass rounded-3xl p-4 md:p-6 backdrop-blur-[40px] backdrop-saturate-[120%]">
       <h2 className="mb-2 text-lg font-semibold text-white">Account Details</h2>
 
       <div className="divide-y divide-zinc-800/70">

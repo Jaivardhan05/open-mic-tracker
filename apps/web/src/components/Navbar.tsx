@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
-import { IconHome, IconVenues, IconInfo, IconMail, IconClose, IconLogout } from './icons/NavIcons';
+import { IconHome, IconVenues, IconInfo, IconMail, IconClose, IconLogout, IconUser } from './icons/NavIcons';
 
 const links = [
   { label: 'Home', href: '/home', icon: IconHome },
@@ -55,14 +55,16 @@ export default function Navbar() {
             );
           })}
           {user && (
-            <div className="hidden md:flex items-center gap-3">
-              <div
-                onClick={() => router.push('/profile')}
-                className="w-9 h-9 rounded-full bg-[#38bdf8] flex items-center justify-center text-white text-sm font-bold cursor-pointer hover:bg-[#0ea5e9] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] select-none"
-              >
+            <div
+              onClick={() => router.push('/profile')}
+              className="hidden md:flex items-center gap-3 cursor-pointer group select-none"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#38bdf8]/20 flex items-center justify-center text-white text-sm font-bold ring-2 ring-[#38bdf8]/55 ring-offset-2 ring-offset-black shadow-[0_0_10px_1px_rgba(56,189,248,0.25)] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:group-active:scale-[0.97]">
                 {user.name.charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm text-zinc-400 font-medium">{user.name.split(' ')[0]}</span>
+              <span className="brand-delhi text-base motion-safe:transition-colors motion-safe:duration-150 group-hover:text-[#7dd3fc]">
+                {user.name.split(' ')[0]}
+              </span>
             </div>
           )}
         </div>
@@ -135,6 +137,23 @@ export default function Navbar() {
               </a>
             );
           })}
+
+          {user && (
+            <a
+              href="/profile"
+              onClick={() => setIsOpen(false)}
+              className={`flex items-center gap-3 py-4 px-2 text-base font-medium border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group ${
+                pathname === '/profile' ? 'text-[#38bdf8]' : 'text-zinc-300 hover:text-white active:text-[#38bdf8]'
+              }`}
+            >
+              <IconUser
+                className={`h-4 w-4 shrink-0 ${
+                  pathname === '/profile' ? 'text-[#38bdf8]' : 'text-zinc-500 group-hover:text-zinc-300'
+                }`}
+              />
+              <span className="flex-1">My Profile</span>
+            </a>
+          )}
 
           <button
             onClick={() => {

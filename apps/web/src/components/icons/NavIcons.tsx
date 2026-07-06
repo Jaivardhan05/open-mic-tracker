@@ -99,6 +99,15 @@ export function IconMail({ className }: IconProps) {
   );
 }
 
+export function IconUser({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="8" cy="5.333" r="2.667" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2.667 13.333c0-2.577 2.388-4.666 5.333-4.666s5.333 2.089 5.333 4.666" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconChevronCollapse({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
