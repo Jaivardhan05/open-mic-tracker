@@ -7,15 +7,26 @@ import Navbar from '../../../src/components/Navbar';
 import { useAuth } from '../../../src/context/AuthContext';
 import { supabase } from '../../../src/lib/supabaseClient';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+
 export default function EditProfilePage() {
   const { user, isLoading, logout, updateUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
+  // Legacy fields (venue_producer / admin only — unchanged from prior behavior).
   const [nameValue, setNameValue] = useState('');
-  const [usernameValue, setUsernameValue] = useState('');
   const [cityValue, setCityValue] = useState('Delhi');
   const [venueNameValue, setVenueNameValue] = useState('');
+
+  // Comedian-only editable fields.
+  const [phoneValue, setPhoneValue] = useState('');
+  const [bioValue, setBioValue] = useState('');
+  const [contactEmailValue, setContactEmailValue] = useState('');
+  const [youtubeUrlValue, setYoutubeUrlValue] = useState('');
+  const [xUrlValue, setXUrlValue] = useState('');
+  const [instagramUrlValue, setInstagramUrlValue] = useState('');
+
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -40,9 +51,15 @@ export default function EditProfilePage() {
     }
 
     setNameValue(user.name ?? '');
-    setUsernameValue(user.username ?? '');
     setCityValue(user.city ?? 'Delhi');
     setVenueNameValue(user.venueName ?? '');
+
+    setPhoneValue(user.phone ?? '');
+    setBioValue(user.bio ?? '');
+    setContactEmailValue(user.contactEmail ?? '');
+    setYoutubeUrlValue(user.youtubeUrl ?? '');
+    setXUrlValue(user.xUrl ?? '');
+    setInstagramUrlValue(user.instagramUrl ?? '');
   }, [user]);
 
   if (isLoading) {
@@ -58,6 +75,7 @@ export default function EditProfilePage() {
   }
 
   const currentUser = user;
+  const isComedian = currentUser.role === 'comedian';
 
   const navItems: Array<{ label: string; href: string; icon: ReactNode }> = [
     {
@@ -157,6 +175,10 @@ export default function EditProfilePage() {
       setPasswordError('Password must be at least 6 characters');
       return;
     }
+    if (newPassword === currentPassword) {
+      setPasswordError('New password must be different from your current password');
+      return;
+    }
 
     setPasswordLoading(true);
     setPasswordError('');
@@ -190,7 +212,7 @@ export default function EditProfilePage() {
     setPasswordLoading(false);
   }
 
-  async function handleSaveProfile() {
+  async function handleSaveLegacyProfile() {
     setSaveLoading(true);
     setSaveError('');
     setSaveSuccess('');
@@ -210,7 +232,6 @@ export default function EditProfilePage() {
         updateUser({
           name: nameValue.trim(),
           city: cityValue,
-          username: usernameValue.trim(),
         });
         setSaveSuccess('Profile saved successfully');
       }
@@ -219,6 +240,65 @@ export default function EditProfilePage() {
     } finally {
       setSaveLoading(false);
     }
+  }
+
+  async function handleSaveComedianProfile() {
+    setSaveLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        setSaveError('Your session has expired. Please log in again.');
+        return;
+      }
+
+      const payload = {
+        phone: phoneValue.trim(),
+        bio: bioValue.trim(),
+        contact_email: contactEmailValue.trim(),
+        youtube_url: youtubeUrlValue.trim(),
+        x_url: xUrlValue.trim(),
+        instagram_url: instagramUrlValue.trim(),
+      };
+
+      const response = await fetch(`${API_URL}/api/users/me`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setSaveError(result.error ?? 'Failed to save profile');
+        return;
+      }
+
+      updateUser({
+        phone: payload.phone,
+        bio: payload.bio || undefined,
+        contactEmail: payload.contact_email || undefined,
+        youtubeUrl: payload.youtube_url || undefined,
+        xUrl: payload.x_url || undefined,
+        instagramUrl: payload.instagram_url || undefined,
+      });
+      setSaveSuccess('Profile saved successfully');
+    } catch {
+      setSaveError('Failed to save profile');
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
+  function handleSaveProfile() {
+    return isComedian ? handleSaveComedianProfile() : handleSaveLegacyProfile();
   }
 
   return (
@@ -308,69 +388,164 @@ export default function EditProfilePage() {
             <h1 className="text-2xl font-bold text-white mb-8">Edit Profile</h1>
 
             <div className="content-glass rounded-3xl p-5 md:p-6 backdrop-blur-[12px]">
-              <div className="mb-8">
-                <div className="w-20 h-20 rounded-full bg-[#38bdf8] text-white text-3xl font-bold flex items-center justify-center mx-auto mb-2">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => window.alert('Photo upload coming soon.')}
-                  className="text-[#38bdf8] text-sm cursor-pointer text-center w-full"
-                >
-                  Change Photo
-                </button>
-              </div>
-
-              <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="name-value">
-                Full Name
-              </label>
-              <input
-                id="name-value"
-                type="text"
-                value={nameValue}
-                onChange={(e) => setNameValue(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-              />
-
-              <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="username-value">
-                Username
-              </label>
-              <input
-                id="username-value"
-                type="text"
-                value={usernameValue}
-                onChange={(e) => setUsernameValue(e.target.value)}
-                placeholder="@yourname"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-              />
-
-              <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="city-value">
-                City
-              </label>
-              <select
-                id="city-value"
-                value={cityValue}
-                onChange={(e) => setCityValue(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-              >
-                <option value="Delhi">Delhi</option>
-                <option value="Mumbai">Mumbai</option>
-                <option value="Bangalore">Bangalore</option>
-                <option value="Pune">Pune</option>
-              </select>
-
-              {user.role === 'venue_producer' && (
+              {isComedian ? (
                 <>
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="venue-name-value">
-                    Venue Name
+                  <div className="mb-8 flex flex-col items-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#38bdf8]/20 text-3xl font-bold text-white ring-2 ring-[#38bdf8]/55 ring-offset-2 ring-offset-black shadow-[0_0_14px_2px_rgba(56,189,248,0.25)]">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="full-name-value">
+                    Full Name
                   </label>
                   <input
-                    id="venue-name-value"
+                    id="full-name-value"
                     type="text"
-                    value={venueNameValue}
-                    onChange={(e) => setVenueNameValue(e.target.value)}
+                    value={user.name}
+                    disabled
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-500 text-base cursor-not-allowed mb-4 min-h-[44px]"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="email-value">
+                    Email
+                  </label>
+                  <input
+                    id="email-value"
+                    type="email"
+                    value={user.email}
+                    disabled
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-500 text-base cursor-not-allowed mb-4 min-h-[44px]"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="phone-value">
+                    Phone
+                  </label>
+                  <input
+                    id="phone-value"
+                    type="tel"
+                    value={phoneValue}
+                    onChange={(e) => setPhoneValue(e.target.value)}
+                    placeholder="10-digit mobile number"
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
                   />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="bio-value">
+                    Bio
+                  </label>
+                  <textarea
+                    id="bio-value"
+                    value={bioValue}
+                    onChange={(e) => setBioValue(e.target.value)}
+                    maxLength={500}
+                    rows={4}
+                    placeholder="Tell venues a bit about yourself (optional)"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 resize-none"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="contact-email-value">
+                    Contact Email
+                  </label>
+                  <input
+                    id="contact-email-value"
+                    type="email"
+                    value={contactEmailValue}
+                    onChange={(e) => setContactEmailValue(e.target.value)}
+                    placeholder="Public email for bookings/inquiries (optional)"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="youtube-url-value">
+                    YouTube
+                  </label>
+                  <input
+                    id="youtube-url-value"
+                    type="url"
+                    value={youtubeUrlValue}
+                    onChange={(e) => setYoutubeUrlValue(e.target.value)}
+                    placeholder="https://youtube.com/@yourname (optional)"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="x-url-value">
+                    X (Twitter)
+                  </label>
+                  <input
+                    id="x-url-value"
+                    type="url"
+                    value={xUrlValue}
+                    onChange={(e) => setXUrlValue(e.target.value)}
+                    placeholder="https://x.com/yourname (optional)"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="instagram-url-value">
+                    Instagram
+                  </label>
+                  <input
+                    id="instagram-url-value"
+                    type="url"
+                    value={instagramUrlValue}
+                    onChange={(e) => setInstagramUrlValue(e.target.value)}
+                    placeholder="https://instagram.com/yourname (optional)"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="mb-8">
+                    <div className="w-20 h-20 rounded-full bg-[#38bdf8] text-white text-3xl font-bold flex items-center justify-center mx-auto mb-2">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => window.alert('Photo upload coming soon.')}
+                      className="text-[#38bdf8] text-sm cursor-pointer text-center w-full"
+                    >
+                      Change Photo
+                    </button>
+                  </div>
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="name-value">
+                    Full Name
+                  </label>
+                  <input
+                    id="name-value"
+                    type="text"
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                  />
+
+                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="city-value">
+                    City
+                  </label>
+                  <select
+                    id="city-value"
+                    value={cityValue}
+                    onChange={(e) => setCityValue(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                  >
+                    <option value="Delhi">Delhi</option>
+                    <option value="Mumbai">Mumbai</option>
+                    <option value="Bangalore">Bangalore</option>
+                    <option value="Pune">Pune</option>
+                  </select>
+
+                  {user.role === 'venue_producer' && (
+                    <>
+                      <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="venue-name-value">
+                        Venue Name
+                      </label>
+                      <input
+                        id="venue-name-value"
+                        type="text"
+                        value={venueNameValue}
+                        onChange={(e) => setVenueNameValue(e.target.value)}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                      />
+                    </>
+                  )}
                 </>
               )}
 

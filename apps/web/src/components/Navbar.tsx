@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 
 import BrandMark from './BrandMark';
 import { useAuth } from '../context/AuthContext';
+import { getDisplayFirstName } from '../lib/formatName';
 import { IconHome, IconVenues, IconInfo, IconMail, IconClose, IconLogout, IconUser } from './icons/NavIcons';
 
 const links = [
@@ -63,7 +64,7 @@ export default function Navbar() {
                 {user.name.charAt(0).toUpperCase()}
               </div>
               <span className="brand-delhi text-base motion-safe:transition-colors motion-safe:duration-150 group-hover:text-[#7dd3fc]">
-                {user.name.split(' ')[0]}
+                {getDisplayFirstName(user.name)}
               </span>
             </div>
           )}

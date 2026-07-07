@@ -3,10 +3,14 @@ export interface AuthUser {
   name: string;
   email: string;
   phone: string;
-  city: string;
+  city?: string;
   role: "comedian" | "venue_producer" | "admin";
-  username?: string;
   venueName?: string;
+  bio?: string;
+  contactEmail?: string;
+  youtubeUrl?: string;
+  xUrl?: string;
+  instagramUrl?: string;
   createdAt: string;
 }
 
@@ -73,10 +77,8 @@ export function setStoredUsers(users: StoredAuthUser[]): void {
 
 export async function signUpComedian(params: {
   name: string;
-  username: string;
   email: string;
   phone: string;
-  city: string;
   password: string;
 }): Promise<{
   user: AuthUser | null;
@@ -89,7 +91,6 @@ export async function signUpComedian(params: {
       data: {
         full_name: params.name,
         role: "comedian",
-        city: params.city,
       },
     },
   });
@@ -107,7 +108,6 @@ export async function signUpComedian(params: {
     .from("users")
     .update({
       phone: params.phone,
-      city: params.city,
     })
     .eq("id", data.user.id);
 
@@ -120,9 +120,7 @@ export async function signUpComedian(params: {
     name: params.name,
     email: params.email,
     phone: params.phone,
-    city: params.city,
     role: "comedian",
-    username: params.username,
     createdAt: new Date().toISOString(),
   };
 
@@ -259,9 +257,14 @@ export async function signInUser(email: string, password: string): Promise<{
     name: profile.name,
     email: profile.email,
     phone: profile.phone ?? "",
-    city: profile.city ?? "Delhi",
     role: profile.role as AuthUser["role"],
     venueName,
+    ...(profile.role !== "comedian" ? { city: profile.city ?? "Delhi" } : {}),
+    bio: profile.bio ?? undefined,
+    contactEmail: profile.contact_email ?? undefined,
+    youtubeUrl: profile.youtube_url ?? undefined,
+    xUrl: profile.x_url ?? undefined,
+    instagramUrl: profile.instagram_url ?? undefined,
     createdAt: profile.created_at,
   };
 

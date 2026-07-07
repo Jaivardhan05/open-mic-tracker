@@ -42,10 +42,8 @@ export default function AuthPage() {
   const [loginPassword, setLoginPassword] = useState("");
 
   const [comedianName, setComedianName] = useState("");
-  const [comedianUsername, setComedianUsername] = useState("");
   const [comedianEmail, setComedianEmail] = useState("");
   const [comedianPhone, setComedianPhone] = useState("");
-  const [comedianCity, setComedianCity] = useState("Delhi");
   const [comedianPassword, setComedianPassword] = useState("");
 
   const [venueName, setVenueName] = useState("");
@@ -112,7 +110,6 @@ export default function AuthPage() {
       if (role === "comedian") {
         if (
           !comedianName.trim() ||
-          !comedianUsername.trim() ||
           !comedianEmail.trim() ||
           !comedianPhone.trim() ||
           !comedianPassword
@@ -153,10 +150,8 @@ export default function AuthPage() {
       if (role === "comedian") {
         const { user: authUser, error: authError } = await signUpComedian({
           name: comedianName.trim(),
-          username: comedianUsername.trim(),
           email: comedianEmail.trim(),
           phone: comedianPhone.trim(),
-          city: comedianCity,
           password: comedianPassword,
         });
 
@@ -415,19 +410,6 @@ export default function AuthPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="comedian-username">
-                Username
-              </label>
-              <input
-                id="comedian-username"
-                value={comedianUsername}
-                onChange={(e) => setComedianUsername(e.target.value)}
-                className={inputClassName}
-                placeholder="@yourname"
-              />
-            </div>
-
-            <div className={styles.fieldGroup}>
               <label className={labelClassName} htmlFor="comedian-email">
                 Email
               </label>
@@ -451,23 +433,6 @@ export default function AuthPage() {
                 className={inputClassName}
                 placeholder="10-digit mobile number"
               />
-            </div>
-
-            <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="comedian-city">
-                City
-              </label>
-              <select
-                id="comedian-city"
-                value={comedianCity}
-                onChange={(e) => setComedianCity(e.target.value)}
-                className={`${inputClassName} ${styles.selectField}`}
-              >
-                <option value="Delhi">Delhi</option>
-                <option value="Mumbai">Mumbai</option>
-                <option value="Bangalore">Bangalore</option>
-                <option value="Pune">Pune</option>
-              </select>
             </div>
 
             <div className={styles.fieldGroup}>

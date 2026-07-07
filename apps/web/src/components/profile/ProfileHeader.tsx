@@ -1,5 +1,4 @@
 import type { AuthUser } from '../../lib/auth';
-import { IconMapPin } from '../icons/NavIcons';
 
 interface ProfileHeaderProps {
   user: AuthUser;
@@ -33,11 +32,6 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
       <span className="mt-2 rounded-full bg-[#38bdf8]/20 px-3 py-1 text-center text-xs font-medium text-[#38bdf8]">
         {ROLE_LABEL[user.role]}
       </span>
-
-      <p className="brand-delhi mt-2 flex items-center gap-1.5 text-sm" style={{ color: '#38bdf8' }}>
-        <IconMapPin className="h-3.5 w-3.5 shrink-0" />
-        {user.city}
-      </p>
 
       {joined && <p className="mt-1 text-xs text-zinc-600">Joined {joined}</p>}
     </div>

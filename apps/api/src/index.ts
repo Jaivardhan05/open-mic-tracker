@@ -2,8 +2,59 @@ import "dotenv/config";
 import cors from 'cors';
 import express from 'express';
 
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { supabase, supabaseAdmin } from './lib/supabase.js';
+
+interface AuthedRequest extends Request {
+  userId?: string;
+}
+
+async function requireUser(req: AuthedRequest, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : undefined;
+
+  if (!token) {
+    res.status(401).json({ error: 'Missing authorization token' });
+    return;
+  }
+
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data.user) {
+    res.status(401).json({ error: 'Invalid or expired session' });
+    return;
+  }
+
+  req.userId = data.user.id;
+  next();
+}
+
+const COMEDIAN_EDITABLE_FIELDS = [
+  'phone',
+  'bio',
+  'contact_email',
+  'youtube_url',
+  'x_url',
+  'instagram_url',
+] as const;
+
+type ComedianEditableField = (typeof COMEDIAN_EDITABLE_FIELDS)[number];
+
+const FORBIDDEN_PROFILE_FIELDS = [
+  'name',
+  'full_name',
+  'email',
+  'role',
+  'id',
+  'is_active',
+  'profile_picture',
+  'city',
+  'username',
+  'password',
+  'password_hash',
+  'created_at',
+  'updated_at',
+];
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
@@ -257,6 +308,76 @@ app.post('/api/venues/:id/reject', async (req: Request, res: Response) => {
   }
 
   return res.status(200).json(data);
+});
+
+app.patch('/api/users/me', requireUser, async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const forbiddenKeysPresent = FORBIDDEN_PROFILE_FIELDS.filter((key) => key in body);
+  if (forbiddenKeysPresent.length > 0) {
+    res.status(400).json({
+      error: `Cannot update field(s): ${forbiddenKeysPresent.join(', ')}`,
+    });
+    return;
+  }
+
+  const updates: Partial<Record<ComedianEditableField, string | null>> = {};
+
+  for (const field of COMEDIAN_EDITABLE_FIELDS) {
+    if (!(field in body)) {
+      continue;
+    }
+    const raw = body[field];
+    if (raw !== null && typeof raw !== 'string') {
+      res.status(400).json({ error: `${field} must be a string` });
+      return;
+    }
+    const trimmed: string | null = typeof raw === 'string' ? raw.trim() : null;
+    updates[field] = trimmed === '' ? null : trimmed;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: 'No editable fields provided' });
+    return;
+  }
+
+  if (updates.phone && !/^\+?[0-9]{10,15}$/.test(updates.phone)) {
+    res.status(400).json({ error: 'Invalid phone number format' });
+    return;
+  }
+
+  if (updates.bio && updates.bio.length > 500) {
+    res.status(400).json({ error: 'Bio must be 500 characters or fewer' });
+    return;
+  }
+
+  if (updates.contact_email && !/^[^@]+@[^@]+\.[^@]+$/.test(updates.contact_email)) {
+    res.status(400).json({ error: 'Invalid contact email format' });
+    return;
+  }
+
+  for (const urlField of ['youtube_url', 'x_url', 'instagram_url'] as const) {
+    const value = updates[urlField];
+    if (value && !/^https?:\/\//i.test(value)) {
+      res.status(400).json({ error: `${urlField} must start with http:// or https://` });
+      return;
+    }
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select('id, name, email, phone, bio, contact_email, youtube_url, x_url, instagram_url, role, created_at')
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data);
 });
 
 app.listen(PORT, () => {
