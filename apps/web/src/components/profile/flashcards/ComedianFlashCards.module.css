@@ -1,12 +1,11 @@
 .centerCard {
+  position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 1.5rem;
-  background: linear-gradient(180deg, #18181b, #09090b);
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  box-shadow:
-    0 25px 50px -15px rgba(0, 0, 0, 0.7),
-    0 0 25px -8px rgba(56, 189, 248, 0.25);
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.08), transparent 60%),
+    linear-gradient(180deg, #1c1c20, #08080a);
   padding: 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -14,6 +13,34 @@
   text-align: center;
   gap: 0.65rem;
   overflow: hidden;
+  isolation: isolate;
+}
+
+.centerCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, rgba(56, 189, 248, 0.55), rgba(56, 189, 248, 0) 40%, rgba(56, 189, 248, 0) 70%, rgba(56, 189, 248, 0.35));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.centerCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.centerCard > * {
+  position: relative;
 }
 
 .centerAvatar {
@@ -36,6 +63,12 @@
   letter-spacing: 0.04em;
   font-size: 1.4rem;
   color: #fff;
+}
+
+.centerDivider {
+  width: 2.5rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.6), transparent);
 }
 
 .centerBio {
@@ -62,21 +95,25 @@
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 0.3rem;
   box-shadow: 0 18px 30px -12px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
 }
 
 .socialIcon {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
 }
 
 .iconSvg {
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 100%;
+  height: 100%;
+  max-width: 5.5rem;
+  max-height: 5.5rem;
 }
 
 .socialLabel {
@@ -119,8 +156,23 @@
   color: #202124;
 }
 
+.x .iconSvg {
+  max-width: 4rem;
+  max-height: 4rem;
+}
+
+.youtube .iconSvg {
+  max-width: 6rem;
+  max-height: 6rem;
+}
+
 .gmail .socialIcon {
   color: #ea4335;
+}
+
+.gmail .iconSvg {
+  max-width: 5rem;
+  max-height: 5rem;
 }
 
 .gmail .socialSubtext {

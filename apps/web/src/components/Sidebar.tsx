@@ -148,8 +148,8 @@ export default function Sidebar({ onFilter }: SidebarProps) {
         </button>
         <button
           type="button"
-          onClick={() => {
-            logout();
+          onClick={async () => {
+            await logout();
             router.push("/auth");
           }}
           className={`flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left text-sm text-red-400 motion-safe:transition-all motion-safe:duration-150 motion-safe:active:scale-[0.97] hover:bg-red-900/20 hover:text-red-300 ${

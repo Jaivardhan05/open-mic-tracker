@@ -27,14 +27,19 @@
 .card {
   position: absolute;
   inset: 0;
+  --pop-scale: 1;
+  --pop-lift: 0%;
   transition:
-    transform 550ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    opacity 400ms ease-out;
+    transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 400ms ease-out,
+    filter 300ms ease-out;
+  filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
   will-change: transform;
 }
 
 .center {
   z-index: 40;
+  transform: scale(var(--pop-scale)) translateY(var(--pop-lift));
 }
 
 .slotB,
@@ -47,49 +52,88 @@
   z-index: 10;
 }
 
+.card:hover,
+.card:focus-within {
+  z-index: 50;
+  --pop-scale: 1.07;
+  --pop-lift: -5%;
+  filter:
+    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 18px var(--glow-color, rgba(56, 189, 248, 0.3)));
+}
+
+/* Slot-to-brand mapping is fixed by ComedianFlashCards: slotA=Instagram, slotB=X, slotC=YouTube, slotD=Gmail */
+.slotA:hover,
+.slotA:focus-within {
+  filter:
+    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 20px rgba(88, 81, 219, 0.55))
+    drop-shadow(0 0 20px rgba(225, 48, 108, 0.55));
+}
+
+.slotB:hover,
+.slotB:focus-within {
+  --glow-color: rgba(56, 189, 248, 0.28);
+}
+
+.slotC:hover,
+.slotC:focus-within {
+  --glow-color: rgba(255, 0, 0, 0.35);
+}
+
+.slotD:hover,
+.slotD:focus-within {
+  --glow-color: rgba(255, 255, 255, 0.35);
+}
+
+.center:hover,
+.center:focus-within {
+  --glow-color: rgba(56, 189, 248, 0.5);
+}
+
 /* Desktop / hover-capable pointers: horizontal fan, pure CSS :hover, no JS state involved */
 @media (hover: hover) and (pointer: fine) {
   .slotB {
-    transform: translate(-6%, 3%) rotate(0deg) scale(0.97);
+    transform: translate(-6%, 3%) rotate(0deg) scale(calc(0.97 * var(--pop-scale))) translateY(var(--pop-lift));
     opacity: 0.9;
   }
 
   .slotC {
-    transform: translate(6%, 3%) rotate(0deg) scale(0.97);
+    transform: translate(6%, 3%) rotate(0deg) scale(calc(0.97 * var(--pop-scale))) translateY(var(--pop-lift));
     opacity: 0.9;
   }
 
   .slotA {
-    transform: translate(-9%, 5%) rotate(0deg) scale(0.94);
+    transform: translate(-9%, 5%) rotate(0deg) scale(calc(0.94 * var(--pop-scale))) translateY(var(--pop-lift));
     opacity: 0.55;
   }
 
   .slotD {
-    transform: translate(9%, 5%) rotate(0deg) scale(0.94);
+    transform: translate(9%, 5%) rotate(0deg) scale(calc(0.94 * var(--pop-scale))) translateY(var(--pop-lift));
     opacity: 0.55;
   }
 
   .stack:hover .center {
-    transform: translateY(-4%) scale(1.02);
+    transform: translateY(calc(-4% + var(--pop-lift))) scale(calc(1.02 * var(--pop-scale)));
   }
 
   .stack:hover .slotB {
-    transform: translate(-96%, 10%) rotate(-10deg) scale(1);
+    transform: translate(-80%, 8%) rotate(-10deg) scale(var(--pop-scale)) translateY(var(--pop-lift));
     opacity: 1;
   }
 
   .stack:hover .slotC {
-    transform: translate(96%, 10%) rotate(10deg) scale(1);
+    transform: translate(80%, 8%) rotate(10deg) scale(var(--pop-scale)) translateY(var(--pop-lift));
     opacity: 1;
   }
 
   .stack:hover .slotA {
-    transform: translate(-172%, 36%) rotate(-20deg) scale(1);
+    transform: translate(-138%, 29%) rotate(-20deg) scale(var(--pop-scale)) translateY(var(--pop-lift));
     opacity: 1;
   }
 
   .stack:hover .slotD {
-    transform: translate(172%, 36%) rotate(20deg) scale(1);
+    transform: translate(138%, 29%) rotate(20deg) scale(var(--pop-scale)) translateY(var(--pop-lift));
     opacity: 1;
   }
 }
@@ -97,42 +141,42 @@
 /* Touch / coarse pointers: always-peeking vertical stack, tap toggles a vertical fan */
 @media not all and (hover: hover) {
   .slotB {
-    transform: translateY(14%) rotate(-2deg) scale(0.97);
-    opacity: 0.85;
+    transform: translateY(calc(5% + var(--pop-lift))) rotate(-2deg) scale(calc(0.97 * var(--pop-scale)));
+    opacity: 1;
   }
 
   .slotC {
-    transform: translateY(24%) rotate(2deg) scale(0.95);
-    opacity: 0.72;
+    transform: translateY(calc(8% + var(--pop-lift))) rotate(2deg) scale(calc(0.95 * var(--pop-scale)));
+    opacity: 1;
   }
 
   .slotA {
-    transform: translateY(34%) rotate(-3deg) scale(0.93);
-    opacity: 0.55;
+    transform: translateY(calc(11% + var(--pop-lift))) rotate(-3deg) scale(calc(0.93 * var(--pop-scale)));
+    opacity: 1;
   }
 
   .slotD {
-    transform: translateY(44%) rotate(3deg) scale(0.91);
-    opacity: 0.4;
+    transform: translateY(calc(14% + var(--pop-lift))) rotate(3deg) scale(calc(0.91 * var(--pop-scale)));
+    opacity: 1;
   }
 
   .stack.open .slotB {
-    transform: translateY(108%) rotate(-3deg) scale(1);
+    transform: translateY(calc(108% + var(--pop-lift))) rotate(-3deg) scale(var(--pop-scale));
     opacity: 1;
   }
 
   .stack.open .slotC {
-    transform: translateY(216%) rotate(3deg) scale(1);
+    transform: translateY(calc(216% + var(--pop-lift))) rotate(3deg) scale(var(--pop-scale));
     opacity: 1;
   }
 
   .stack.open .slotA {
-    transform: translateY(324%) rotate(-4deg) scale(1);
+    transform: translateY(calc(324% + var(--pop-lift))) rotate(-4deg) scale(var(--pop-scale));
     opacity: 1;
   }
 
   .stack.open .slotD {
-    transform: translateY(432%) rotate(4deg) scale(1);
+    transform: translateY(calc(432% + var(--pop-lift))) rotate(4deg) scale(var(--pop-scale));
     opacity: 1;
   }
 }

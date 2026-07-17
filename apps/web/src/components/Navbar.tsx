@@ -157,8 +157,8 @@ export default function Navbar() {
           )}
 
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               router.push('/auth');
               setIsOpen(false);
             }}

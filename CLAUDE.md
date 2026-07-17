@@ -96,4 +96,4 @@ Tailwind CSS v4 with PostCSS. Four Google Fonts are loaded as CSS variables in `
 | `NEXT_PUBLIC_API_URL` | web | API base URL (default `http://localhost:8080`) |
 
 ## Conventions
-- Before running any bash/terminal command, explain in one short line what it does and why.
+- Before running any bash/terminal command, give a one-line explanation of what that specific command does and why, so the user knows what's running and can judge if it's needed.

@@ -53,6 +53,7 @@ export function ComedianFlashCards({ user }: ComedianFlashCardsProps) {
     <div className={styles.centerCard}>
       <div className={styles.centerAvatar}>{user.name.charAt(0).toUpperCase()}</div>
       <h2 className={styles.centerName}>{user.name}</h2>
+      <div className={styles.centerDivider} />
       <p className={styles.centerBio}>
         {user.bio && user.bio.trim().length > 0 ? user.bio : 'No bio yet — add one from Edit Profile.'}
       </p>
@@ -90,7 +91,7 @@ export function ComedianFlashCards({ user }: ComedianFlashCardsProps) {
         />
       }
       outerRight={
-        <div className={`${styles.socialCard} ${styles.gmail}`}>
+        <div className={`${styles.socialCard} ${styles.gmail}`} tabIndex={0}>
           <span className={styles.socialIcon}>
             <GmailIcon className={styles.iconSvg} />
           </span>

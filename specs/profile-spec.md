@@ -116,3 +116,30 @@ a comedian checking their own profile, not trend-chasing.
 
 An implementation plan only. Once approved, execution happens in a
 separate, scoped prompt.
+
+## 10. Fan-Card Follow-Up Fixes (2026-07-16)
+
+Scoped follow-up to the fan-card component only
+(`src/components/profile/flashcards/*`), not a re-scope of the page:
+
+- **Stacking on hover/focus**: any individual card (`.card:hover` /
+  `.card:focus-within`) takes top `z-index`, overriding the static
+  per-slot stacking order, so a hovered/focused card is never partially
+  hidden by a fanned-out neighbor. The Gmail card (which has no `href`)
+  gets `tabIndex={0}` so it can receive keyboard focus like the linked
+  cards.
+- **Logo-forward social cards**: social cards drop the small top-left
+  icon placement in favor of a large, centered brand mark occupying most
+  of the card, with handle/detail text pinned to the bottom. Icon sizing
+  is per-brand (Instagram/X/YouTube/Gmail marks aren't uniform shapes).
+- **Reduced fan spread**: hover-state translate distances scaled down
+  ~20% across all four slots (rotation unchanged) so the outermost cards
+  (particularly Instagram, the leftmost) stay within the content area and
+  don't get clipped behind the fixed sidebar on `/profile`.
+- **Center card visual treatment**: explicitly **not** glassmorphic
+  (glassmorphism is already used heavily elsewhere on the site, per
+  Section 5). Instead: opaque layered-dark background, a subtle grain
+  texture overlay, and a thin cyan (`#38BDF8`) gradient rim in place of
+  the flat single-color border — a "layered darkness + glow" treatment
+  rather than a frosted-glass one. No `backdrop-filter`/translucency, no
+  neon saturation, same Bebas Neue / Cormorant Garamond italic pairing.
