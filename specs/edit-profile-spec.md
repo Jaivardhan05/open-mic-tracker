@@ -168,7 +168,26 @@ export function getDisplayFirstName(fullName: string): string {
   in the same file rather than one shared form, so future changes to one
   don't silently affect the other.
 
-## 10. Out of scope, left for later
+## 10. Brutalist input styling (`BrutalistField.module.css`)
+
+Scoped entirely to `apps/web/app/profile/edit/BrutalistField.tsx` +
+`BrutalistField.module.css`, shared by every field on this page via the
+`BrutalistField` wrapper component (not duplicated per field).
+
+- Accent color (label tag background, hover shadow accent): `#38bdf8`
+  (site primary cyan), replacing an original `#e9b50b` gold that clashed
+  with the dark/cyan theme used elsewhere on the site.
+- Border weight: `.container` border `2px solid #000` (was `4px`),
+  `.field` border `2px solid #000` (was `3px`) — thinner, still a visible
+  deliberate outline.
+- Offset drop-shadow (`.container`'s `box-shadow: 10px 10px 0 #000`) kept
+  unchanged; only the hover-state accent color swapped to cyan.
+- The soft red gradient glow (`.shadow`, blurred `rgba(255,107,107,...)`
+  gradient behind each box) is intentionally left as-is — flagged as a
+  gradient inconsistent with the site's flat-color rule, but out of scope
+  for this pass per product decision.
+
+## 11. Out of scope, left for later
 
 - Displaying bio/social links on the `/profile` view itself — that page's
   redesign is tracked separately in `profile-spec.md`, which explicitly

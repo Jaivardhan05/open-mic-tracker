@@ -1,0 +1,92 @@
+/*
+ * Deliberate experimental style break from the rest of the app's
+ * glassmorphism theme, scoped to /profile/edit inputs only. Brutalist
+ * structure kept, but accent color/border weight tuned to the site's
+ * dark/cyan (#38BDF8) palette.
+ */
+
+.container {
+  position: relative;
+  background: #061639;
+  padding: 10px;
+  border: 2px solid #000;
+  width: 100%;
+  margin-bottom: 4rem;
+  transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
+  transform-style: preserve-3d;
+  transform: rotateX(10deg) rotateY(-10deg);
+  perspective: 800px;
+  box-shadow: 0px 0px 0 #12557e;
+}
+
+.container:hover {
+  transform: rotateX(5deg) rotateY(1deg) scale(1.03);
+  box-shadow: 7px 7px 0 -2px #2d8eb8, 10px 2px 0 0 #000;
+}
+
+.container::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -15px;
+  left: 20px;
+  background: #38bdf8;
+  color: #000;
+  font-weight: bold;
+  padding: 5px 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  transform: translateZ(50px);
+  z-index: 4;
+  border: 2px solid #000;
+}
+
+.srLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.field {
+  width: 100%;
+  outline: none;
+  border: px solid #2f4867;
+  padding: 15px;
+  font-size: 16px;
+  background: #020c20;
+  color: #e6edef;
+  resize: none;
+  transform: translateZ(10px);
+  transition: all 400ms cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  z-index: 3;
+  font-family: 'Roboto', Arial, sans-serif;
+  letter-spacing: -0.3px;
+}
+
+.field::placeholder {
+  color: #5c7292;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.8em;
+}
+
+.field:hover,
+.field:focus {
+  background: #000000;
+  transform: translateZ(20px) translateX(-3px) translateY(-3px);
+  box-shadow: 2px 2px 0 0 #0e2036;
+}
+
+.field:disabled {
+  background: #0f1a2b;
+  border-color: #476da2;
+  color: #767e88;
+  cursor: not-allowed;
+}

@@ -143,3 +143,38 @@ Scoped follow-up to the fan-card component only
   the flat single-color border — a "layered darkness + glow" treatment
   rather than a frosted-glass one. No `backdrop-filter`/translucency, no
   neon saturation, same Bebas Neue / Cormorant Garamond italic pairing.
+
+## 11. `/profile/edit` Brutalist Field Recolor (2026-07-19)
+
+Scoped follow-up to `BrutalistField.module.css` only (Section 8's original
+"no `/profile/edit` changes" applied to this spec's initial scope, not to
+this later, separately-approved pass). Second iteration after an initial
+cyan-label recolor — this pass targets the input box itself, which still
+read as a light gray-and-white double frame clashing with the dark theme.
+
+- **Container** (`.container`): background darkened from `#f0f0f0` to
+  `#0b1220` so the padding collar around each field reads as one tonal
+  piece with the field itself, rather than gray-around-navy. Border stays
+  black, 2px. Offset shadow reduced from `10px 10px 0 #000` to
+  `2px 2px 0 #000` — kept, but no longer dominant. Hover-state glow stays
+  cyan (`#38bdf8`, matching the label-tag accent from the prior pass) but
+  its offset is reduced from `20px` to `4px` to match the smaller resting
+  shadow.
+- **Field, editable state** (`.field` default): fill `#16233a`
+  (desaturated navy), rim `1px solid #2f4867` (a lighter step of the same
+  navy family, not a contrasting color) — thin rim, not the previous
+  `2px`/`3px` heavy black block. Hover/focus fill lightens one step to
+  `#1c2c47`; hover/focus shadow reduced to `2px 2px 0 #2f4867` (navy, not
+  black).
+- **Field, locked/disabled state** (`.field:disabled`, used for Full Name
+  and Email on the comedian branch): fill `#0f1a2b` (darker navy step,
+  recedes relative to editable fields), rim `1px solid #23344c` (dimmer
+  navy step) — same family as editable, distinguishable by being darker/
+  dimmer rather than a different hue.
+- **Text**: entered value `#f5f7fa` (near-white) in both states; disabled
+  text `#93a3b8` (dimmer, still legible); placeholder text `#7b8ba3`
+  (dim blue-gray, replacing the previous `#666` gray).
+- Cyan label tags (`.container::before`, `#38bdf8`) from the prior pass
+  are unchanged.
+- No gradients or glow/neon effects introduced — all flat colors, per the
+  site's existing design-system constraint (Section 5).

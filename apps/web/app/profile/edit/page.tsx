@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import Navbar from '../../../src/components/Navbar';
 import { useAuth } from '../../../src/context/AuthContext';
 import { supabase } from '../../../src/lib/supabaseClient';
+import { BrutalistField } from './BrutalistField';
+import fieldStyles from './BrutalistField.module.css';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
 
@@ -387,7 +389,7 @@ export default function EditProfilePage() {
           <div className="mx-auto w-full max-w-2xl">
             <h1 className="text-2xl font-bold text-white mb-8">Edit Profile</h1>
 
-            <div className="content-glass rounded-3xl p-5 md:p-6 backdrop-blur-[12px]">
+            <>
               {isComedian ? (
                 <>
                   <div className="mb-8 flex flex-col items-center">
@@ -396,155 +398,142 @@ export default function EditProfilePage() {
                     </div>
                   </div>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="full-name-value">
-                    Full Name
-                  </label>
-                  <input
-                    id="full-name-value"
-                    type="text"
-                    value={user.name}
-                    disabled
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-500 text-base cursor-not-allowed mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Full Name" htmlFor="full-name-value">
+                    <input
+                      id="full-name-value"
+                      type="text"
+                      value={user.name}
+                      disabled
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="email-value">
-                    Email
-                  </label>
-                  <input
-                    id="email-value"
-                    type="email"
-                    value={user.email}
-                    disabled
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-500 text-base cursor-not-allowed mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Email" htmlFor="email-value">
+                    <input
+                      id="email-value"
+                      type="email"
+                      value={user.email}
+                      disabled
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="phone-value">
-                    Phone
-                  </label>
-                  <input
-                    id="phone-value"
-                    type="tel"
-                    value={phoneValue}
-                    onChange={(e) => setPhoneValue(e.target.value)}
-                    placeholder="10-digit mobile number"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Phone" htmlFor="phone-value">
+                    <input
+                      id="phone-value"
+                      type="tel"
+                      value={phoneValue}
+                      onChange={(e) => setPhoneValue(e.target.value)}
+                      placeholder="10-digit mobile number"
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="bio-value">
-                    Bio
-                  </label>
-                  <textarea
-                    id="bio-value"
-                    value={bioValue}
-                    onChange={(e) => setBioValue(e.target.value)}
-                    maxLength={500}
-                    rows={4}
-                    placeholder="Tell venues a bit about yourself (optional)"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 resize-none"
-                  />
+                  <BrutalistField label="Bio" htmlFor="bio-value">
+                    <textarea
+                      id="bio-value"
+                      value={bioValue}
+                      onChange={(e) => setBioValue(e.target.value)}
+                      maxLength={500}
+                      rows={4}
+                      placeholder="Tell venues a bit about yourself (optional)"
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="contact-email-value">
-                    Contact Email
-                  </label>
-                  <input
-                    id="contact-email-value"
-                    type="email"
-                    value={contactEmailValue}
-                    onChange={(e) => setContactEmailValue(e.target.value)}
-                    placeholder="Public email for bookings/inquiries (optional)"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Contact Email" htmlFor="contact-email-value">
+                    <input
+                      id="contact-email-value"
+                      type="email"
+                      value={contactEmailValue}
+                      onChange={(e) => setContactEmailValue(e.target.value)}
+                      placeholder="Public email for bookings/inquiries (optional)"
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="youtube-url-value">
-                    YouTube
-                  </label>
-                  <input
-                    id="youtube-url-value"
-                    type="url"
-                    value={youtubeUrlValue}
-                    onChange={(e) => setYoutubeUrlValue(e.target.value)}
-                    placeholder="https://youtube.com/@yourname (optional)"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="YouTube" htmlFor="youtube-url-value">
+                    <input
+                      id="youtube-url-value"
+                      type="url"
+                      value={youtubeUrlValue}
+                      onChange={(e) => setYoutubeUrlValue(e.target.value)}
+                      placeholder="https://youtube.com/@yourname (optional)"
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="x-url-value">
-                    X (Twitter)
-                  </label>
-                  <input
-                    id="x-url-value"
-                    type="url"
-                    value={xUrlValue}
-                    onChange={(e) => setXUrlValue(e.target.value)}
-                    placeholder="https://x.com/yourname (optional)"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="X (Twitter)" htmlFor="x-url-value">
+                    <input
+                      id="x-url-value"
+                      type="url"
+                      value={xUrlValue}
+                      onChange={(e) => setXUrlValue(e.target.value)}
+                      placeholder="https://x.com/yourname (optional)"
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="instagram-url-value">
-                    Instagram
-                  </label>
-                  <input
-                    id="instagram-url-value"
-                    type="url"
-                    value={instagramUrlValue}
-                    onChange={(e) => setInstagramUrlValue(e.target.value)}
-                    placeholder="https://instagram.com/yourname (optional)"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Instagram" htmlFor="instagram-url-value">
+                    <input
+                      id="instagram-url-value"
+                      type="url"
+                      value={instagramUrlValue}
+                      onChange={(e) => setInstagramUrlValue(e.target.value)}
+                      placeholder="https://instagram.com/yourname (optional)"
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
                 </>
               ) : (
                 <>
-                  <div className="mb-8">
-                    <div className="w-20 h-20 rounded-full bg-[#38bdf8] text-white text-3xl font-bold flex items-center justify-center mx-auto mb-2">
+                  <div className="mb-8 flex flex-col items-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#38bdf8]/20 text-3xl font-bold text-white ring-2 ring-[#38bdf8]/55 ring-offset-2 ring-offset-black shadow-[0_0_14px_2px_rgba(56,189,248,0.25)]">
                       {user.name.charAt(0).toUpperCase()}
                     </div>
                     <button
                       type="button"
                       onClick={() => window.alert('Photo upload coming soon.')}
-                      className="text-[#38bdf8] text-sm cursor-pointer text-center w-full"
+                      className="text-[#38bdf8] text-sm cursor-pointer text-center w-full mt-2"
                     >
                       Change Photo
                     </button>
                   </div>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="name-value">
-                    Full Name
-                  </label>
-                  <input
-                    id="name-value"
-                    type="text"
-                    value={nameValue}
-                    onChange={(e) => setNameValue(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Full Name" htmlFor="name-value">
+                    <input
+                      id="name-value"
+                      type="text"
+                      value={nameValue}
+                      onChange={(e) => setNameValue(e.target.value)}
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="city-value">
-                    City
-                  </label>
-                  <select
-                    id="city-value"
-                    value={cityValue}
-                    onChange={(e) => setCityValue(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  >
-                    <option value="Delhi">Delhi</option>
-                    <option value="Mumbai">Mumbai</option>
-                    <option value="Bangalore">Bangalore</option>
-                    <option value="Pune">Pune</option>
-                  </select>
+                  <BrutalistField label="City" htmlFor="city-value">
+                    <select
+                      id="city-value"
+                      value={cityValue}
+                      onChange={(e) => setCityValue(e.target.value)}
+                      className={fieldStyles.field}
+                    >
+                      <option value="Delhi">Delhi</option>
+                      <option value="Mumbai">Mumbai</option>
+                      <option value="Bangalore">Bangalore</option>
+                      <option value="Pune">Pune</option>
+                    </select>
+                  </BrutalistField>
 
                   {user.role === 'venue_producer' && (
-                    <>
-                      <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="venue-name-value">
-                        Venue Name
-                      </label>
+                    <BrutalistField label="Venue Name" htmlFor="venue-name-value">
                       <input
                         id="venue-name-value"
                         type="text"
                         value={venueNameValue}
                         onChange={(e) => setVenueNameValue(e.target.value)}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
+                        className={fieldStyles.field}
                       />
-                    </>
+                    </BrutalistField>
                   )}
                 </>
               )}
@@ -602,41 +591,38 @@ export default function EditProfilePage() {
                     </div>
                   ) : null}
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="current-password">
-                    Current Password
-                  </label>
-                  <input
-                    id="current-password"
-                    type="password"
-                    placeholder="Enter current password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Current Password" htmlFor="current-password">
+                    <input
+                      id="current-password"
+                      type="password"
+                      placeholder="Enter current password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="new-password">
-                    New Password
-                  </label>
-                  <input
-                    id="new-password"
-                    type="password"
-                    placeholder="Min 6 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="New Password" htmlFor="new-password">
+                    <input
+                      id="new-password"
+                      type="password"
+                      placeholder="Min 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
-                  <label className="text-xs text-zinc-400 mb-1.5 font-medium block" htmlFor="confirm-password">
-                    Confirm New Password
-                  </label>
-                  <input
-                    id="confirm-password"
-                    type="password"
-                    placeholder="Repeat new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-base placeholder-zinc-500 focus:outline-none focus:border-[#38bdf8] focus:ring-1 focus:ring-[#38bdf8] mb-4 min-h-[44px]"
-                  />
+                  <BrutalistField label="Confirm New Password" htmlFor="confirm-password">
+                    <input
+                      id="confirm-password"
+                      type="password"
+                      placeholder="Repeat new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={fieldStyles.field}
+                    />
+                  </BrutalistField>
 
                   <button
                     type="button"
@@ -661,15 +647,18 @@ export default function EditProfilePage() {
                 </div>
               ) : null}
 
-              <button
-                type="button"
-                onClick={() => void handleSaveProfile()}
-                disabled={saveLoading}
-                className="w-full bg-[#38bdf8] text-white font-bold py-3 rounded-xl hover:bg-[#0ea5e9] disabled:opacity-50 transition-colors duration-200 mt-6 min-h-[44px]"
-              >
-                {saveLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
+              <div className="text-center mt-6">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveProfile()}
+                  disabled={saveLoading}
+                  className="btn-sweep bg-[#38bdf8] text-white font-bold px-8 rounded-xl hover:bg-[#0ea5e9] disabled:opacity-50 transition-colors duration-150"
+                  style={{ minHeight: '44px' }}
+                >
+                  {saveLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </>
           </div>
         </main>
       </div>

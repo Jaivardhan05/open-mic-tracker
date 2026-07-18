@@ -57,39 +57,10 @@
   z-index: 50;
   --pop-scale: 1.07;
   --pop-lift: -5%;
-  filter:
-    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 18px var(--glow-color, rgba(56, 189, 248, 0.3)));
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.5));
 }
 
 /* Slot-to-brand mapping is fixed by ComedianFlashCards: slotA=Instagram, slotB=X, slotC=YouTube, slotD=Gmail */
-.slotA:hover,
-.slotA:focus-within {
-  filter:
-    drop-shadow(0 18px 28px rgba(0, 0, 0, 0.5))
-    drop-shadow(0 0 20px rgba(88, 81, 219, 0.55))
-    drop-shadow(0 0 20px rgba(225, 48, 108, 0.55));
-}
-
-.slotB:hover,
-.slotB:focus-within {
-  --glow-color: rgba(56, 189, 248, 0.28);
-}
-
-.slotC:hover,
-.slotC:focus-within {
-  --glow-color: rgba(255, 0, 0, 0.35);
-}
-
-.slotD:hover,
-.slotD:focus-within {
-  --glow-color: rgba(255, 255, 255, 0.35);
-}
-
-.center:hover,
-.center:focus-within {
-  --glow-color: rgba(56, 189, 248, 0.5);
-}
 
 /* Desktop / hover-capable pointers: horizontal fan, pure CSS :hover, no JS state involved */
 @media (hover: hover) and (pointer: fine) {
