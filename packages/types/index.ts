@@ -44,6 +44,24 @@ export interface FavoriteVenue extends Venue {
   booking_count: number;
 }
 
+export interface AdminVenue {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  admin_approved: boolean;
+  is_hidden: boolean;
+  hidden_reason: string | null;
+}
+
+export interface VenueNotice {
+  id: string;
+  venue_id: string | null;
+  venue_name: string;
+  reason: string;
+  created_at: string;
+}
+
 export type SpotRequestStatus =
   | 'pending'
   | 'accepted'

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
+import AdminHomeContent from "@/components/dashboard/AdminHomeContent";
 import ComedianHomeContent from "@/components/dashboard/ComedianHomeContent";
 import VenueProducerDashboard from "@/components/venue-dashboard/VenueProducerDashboard";
 import { useAuth } from "../../src/context/AuthContext";
@@ -42,6 +43,8 @@ export default function HomePage() {
       >
         {user.role === "venue_producer" ? (
           <VenueProducerDashboard user={user} />
+        ) : user.role === "admin" ? (
+          <AdminHomeContent />
         ) : (
           <ComedianHomeContent />
         )}

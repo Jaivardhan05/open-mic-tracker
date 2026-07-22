@@ -10,6 +10,7 @@ import AddSpotForm from "./AddSpotForm";
 import CancelSpotDialog from "./CancelSpotDialog";
 import RequestsPanel from "./RequestsPanel";
 import VenueCalendarSection from "./VenueCalendarSection";
+import VenueNoticesSection from "./VenueNoticesSection";
 
 interface VenueProducerDashboardProps {
   user: AuthUser;
@@ -43,6 +44,8 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
           + Add a new Spot
         </button>
       </section>
+
+      <VenueNoticesSection />
 
       <VenueCalendarSection
         spots={spots}

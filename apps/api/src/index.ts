@@ -110,7 +110,8 @@ app.get('/api/venues', async (req: Request, res: Response) => {
     .from('venues')
     .select('id, name, address, city, photos, description')
     .eq('admin_approved', true)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .eq('is_hidden', false);
 
   if (city) {
     query = query.ilike('city', city);
@@ -147,11 +148,12 @@ app.get('/api/shows', async (req: Request, res: Response) => {
   let query = supabase
     .from('shows')
     .select(
-      'id, venue_id, date, start_time, end_time, spot_type, total_spots, available_spots, charge, venues!inner(id, name, city, admin_approved, is_active)'
+      'id, venue_id, date, start_time, end_time, spot_type, total_spots, available_spots, charge, venues!inner(id, name, city, admin_approved, is_active, is_hidden)'
     )
     .eq('is_cancelled', false)
     .eq('venues.admin_approved', true)
     .eq('venues.is_active', true)
+    .eq('venues.is_hidden', false)
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
 
@@ -348,6 +350,51 @@ app.post('/api/venues/:id/reject', async (req: Request, res: Response) => {
   }
 
   return res.status(200).json(data);
+});
+
+app.get('/api/admin/venues', requireUser, requireRole('admin'), async (_req: AuthedRequest, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .select('id, name, address, city, admin_approved, is_hidden, hidden_reason')
+    .eq('is_active', true)
+    .order('name', { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data ?? []);
+});
+
+app.post('/api/venues/:id/hide', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
+  const { id } = req.params;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
+
+  const { data, error } = await supabaseAdmin.rpc('admin_hide_venue', {
+    p_venue_id: id,
+    p_reason: reason,
+  });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data);
+});
+
+app.post('/api/venues/:id/unhide', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
+  const { id } = req.params;
+
+  const { data, error } = await supabaseAdmin.rpc('admin_unhide_venue', { p_venue_id: id });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data);
 });
 
 app.patch('/api/users/me', requireUser, async (req: AuthedRequest, res: Response) => {
@@ -727,6 +774,23 @@ app.get('/api/spots/mine', requireUser, requireRole('venue_producer'), async (re
   res.status(200).json(data ?? []);
 });
 
+app.get('/api/venue-producer/notices', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+
+  const { data, error } = await supabaseAdmin
+    .from('venue_notices')
+    .select('id, venue_id, venue_name, reason, created_at')
+    .eq('owner_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data ?? []);
+});
+
 app.post('/api/spots/:id/cancel', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
   const { id } = req.params;
@@ -829,6 +893,25 @@ app.post('/api/spot-requests/:id/accept', requireUser, requireRole('venue_produc
   const message = typeof req.body?.message === 'string' ? req.body.message : undefined;
 
   const { data, error } = await supabaseAdmin.rpc('accept_spot_request', {
+    p_request_id: id,
+    p_venue_producer_id: userId,
+    p_message: message,
+  });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data);
+});
+
+app.post('/api/spot-requests/:id/venue-cancel', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const { id } = req.params;
+  const message = typeof req.body?.message === 'string' ? req.body.message : undefined;
+
+  const { data, error } = await supabaseAdmin.rpc('venue_cancel_spot_request', {
     p_request_id: id,
     p_venue_producer_id: userId,
     p_message: message,

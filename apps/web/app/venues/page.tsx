@@ -12,6 +12,7 @@ import { FilterPills, type SpotTypeFilter } from '../../src/components/venues/Fi
 import { VenueListCard } from '../../src/components/venues/VenueListCard';
 import { useVisible } from '../../src/hooks/useVisible';
 import { IconClose, IconSearch } from '../../src/components/icons/NavIcons';
+import { matchesVenueSearch } from '../../src/lib/venueSearch';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -66,11 +67,7 @@ export default function VenuesPage() {
   const today = useMemo(() => todayISO(), []);
 
   const filteredVenues = venues.filter((v) => {
-    const name = String(v.name ?? '').toLowerCase();
-    const address = String(v.address ?? '').toLowerCase();
-
-    const matchesSearch =
-      searchQuery === '' || name.includes(searchQuery.toLowerCase()) || address.includes(searchQuery.toLowerCase());
+    const matchesSearch = matchesVenueSearch(v, searchQuery);
 
     const venueShows = shows.filter((s) => s.venue_id === v.id);
 

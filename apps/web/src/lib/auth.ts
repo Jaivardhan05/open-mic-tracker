@@ -202,20 +202,6 @@ export async function signInUser(email: string, password: string): Promise<{
   user: AuthUser | null;
   error: string | null;
 }> {
-  // Admin bypasses Supabase Auth entirely.
-  if (email === "admin@openmic.delhi" && password === "OpenMic@Admin2024") {
-    const adminUser: AuthUser = {
-      id: "admin_root",
-      name: "Admin",
-      email: "admin@openmic.delhi",
-      phone: "",
-      city: "Delhi",
-      role: "admin",
-      createdAt: new Date().toISOString(),
-    };
-    return { user: adminUser, error: null };
-  }
-
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,

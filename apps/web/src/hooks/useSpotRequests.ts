@@ -91,5 +91,21 @@ export function useSpotRequests(spotId: string | null) {
     [refetch]
   );
 
-  return { requests, isLoading, refetch, acceptRequest };
+  const cancelRequest = useCallback(
+    async (requestId: string, message?: string) => {
+      const res = await authorizedFetch(`/api/spot-requests/${requestId}/venue-cancel`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.success) {
+        return { success: false, error: result.error ?? "Failed to cancel request" };
+      }
+      await refetch();
+      return { success: true };
+    },
+    [refetch]
+  );
+
+  return { requests, isLoading, refetch, acceptRequest, cancelRequest };
 }

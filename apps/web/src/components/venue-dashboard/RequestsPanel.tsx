@@ -16,12 +16,14 @@ function RequestCard({
   onAction,
   disabled,
   showMessageInput,
+  variant = "primary",
 }: {
   request: SpotRequestRow;
   actionLabel?: string;
   onAction?: (message: string) => void;
   disabled?: boolean;
   showMessageInput?: boolean;
+  variant?: "primary" | "danger";
 }) {
   const [message, setMessage] = useState("");
 
@@ -49,7 +51,11 @@ function RequestCard({
             type="button"
             disabled={disabled}
             onClick={() => onAction(message)}
-            className="w-full rounded-lg bg-[#38bdf8] px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#0ea5e9] disabled:opacity-50"
+            className={
+              variant === "danger"
+                ? "w-full rounded-lg border border-red-800 bg-red-900/40 px-2 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50"
+                : "w-full rounded-lg bg-[#38bdf8] px-2 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[#0ea5e9] disabled:opacity-50"
+            }
           >
             {actionLabel}
           </button>
@@ -60,7 +66,7 @@ function RequestCard({
 }
 
 export default function RequestsPanel({ spotId, spotAvailableSpots, onClose }: RequestsPanelProps) {
-  const { requests, isLoading, acceptRequest } = useSpotRequests(spotId);
+  const { requests, isLoading, acceptRequest, cancelRequest } = useSpotRequests(spotId);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -70,6 +76,16 @@ export default function RequestsPanel({ spotId, spotAvailableSpots, onClose }: R
     const result = await acceptRequest(requestId, message || undefined);
     if (!result.success) {
       setError(result.error ?? "Failed to accept request");
+    }
+    setPendingActionId(null);
+  }
+
+  async function handleCancel(requestId: string, message: string) {
+    setPendingActionId(requestId);
+    setError("");
+    const result = await cancelRequest(requestId, message || undefined);
+    if (!result.success) {
+      setError(result.error ?? "Failed to cancel request");
     }
     setPendingActionId(null);
   }
@@ -126,7 +142,15 @@ export default function RequestsPanel({ spotId, spotAvailableSpots, onClose }: R
               ) : (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {requests.accepted.map((r) => (
-                    <RequestCard key={r.id} request={r} />
+                    <RequestCard
+                      key={r.id}
+                      request={r}
+                      actionLabel={pendingActionId === r.id ? "Cancelling…" : "Cancel"}
+                      disabled={pendingActionId === r.id}
+                      showMessageInput
+                      variant="danger"
+                      onAction={(message) => handleCancel(r.id, message)}
+                    />
                   ))}
                 </div>
               )}

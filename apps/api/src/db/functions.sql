@@ -192,7 +192,7 @@ BEGIN
         WHERE role = 'comedian'),
     'total_venue_owners',
       (SELECT COUNT(*) FROM users
-        WHERE role = 'venue_owner')
+        WHERE role = 'venue_producer')
   ) INTO v_stats;
 
   RETURN v_stats;
