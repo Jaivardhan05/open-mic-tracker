@@ -24,7 +24,7 @@ export default function RootPage() {
         router.push("/home");
         break;
       case "venue_producer":
-        router.push("/venue-dashboard");
+        router.push("/home");
         break;
       case "admin":
         router.push("/admin-dashboard");

@@ -1,12 +1,16 @@
 import Image from "next/image";
+import { useState } from "react";
 
-import type { Show, Venue } from "@repo/types";
+import type { Booking, Show, Venue } from "@repo/types";
 
 interface VenueDetailSheetProps {
   venue: Venue | null;
   shows: Show[];
   isOpen: boolean;
   onClose: () => void;
+  bookings: Booking[];
+  onBook: (showId: string) => Promise<{ success: boolean; error?: string }>;
+  onCancel: (bookingId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export default function VenueDetailSheet({
@@ -14,9 +18,35 @@ export default function VenueDetailSheet({
   shows,
   isOpen,
   onClose,
+  bookings,
+  onBook,
+  onCancel,
 }: VenueDetailSheetProps) {
+  const [pendingShowId, setPendingShowId] = useState<string | null>(null);
+  const [errorByShow, setErrorByShow] = useState<Record<string, string>>({});
+
   if (!isOpen || venue === null) {
     return null;
+  }
+
+  async function handleBook(showId: string) {
+    setPendingShowId(showId);
+    setErrorByShow((prev) => ({ ...prev, [showId]: "" }));
+    const result = await onBook(showId);
+    if (!result.success) {
+      setErrorByShow((prev) => ({ ...prev, [showId]: result.error ?? "Failed to book spot" }));
+    }
+    setPendingShowId(null);
+  }
+
+  async function handleCancel(bookingId: string, showId: string) {
+    setPendingShowId(showId);
+    setErrorByShow((prev) => ({ ...prev, [showId]: "" }));
+    const result = await onCancel(bookingId);
+    if (!result.success) {
+      setErrorByShow((prev) => ({ ...prev, [showId]: result.error ?? "Failed to cancel booking" }));
+    }
+    setPendingShowId(null);
   }
 
   return (
@@ -98,15 +128,51 @@ export default function VenueDetailSheet({
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    console.log("book show", show.id);
-                  }}
-                  className="mt-3 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black hover:bg-[#38bdf8] hover:text-white transition-colors duration-200 cursor-pointer"
-                >
-                  Book This Spot
-                </button>
+                {errorByShow[show.id] ? (
+                  <p className="mt-2 text-xs text-red-400">{errorByShow[show.id]}</p>
+                ) : null}
+
+                {(() => {
+                  const existingBooking = bookings.find((b) => b.show?.id === show.id);
+                  const isPending = pendingShowId === show.id;
+
+                  if (existingBooking?.booking_status === "awaiting_confirmation") {
+                    return (
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="rounded-full border border-zinc-600 px-3 py-1 text-xs font-semibold text-zinc-400">
+                          Waiting for confirmation
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => handleCancel(existingBooking.id, show.id)}
+                          className="min-h-[44px] rounded-xl border border-red-800 bg-red-900/40 px-4 text-sm font-semibold text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50"
+                        >
+                          {isPending ? "Cancelling…" : "Cancel"}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  if (existingBooking?.booking_status === "confirmed_awaiting_comedian") {
+                    return (
+                      <p className="mt-3 rounded-xl bg-[#38bdf8]/10 px-3 py-2 text-center text-xs font-semibold text-[#38bdf8]">
+                        Confirmed by venue — respond in Reminders &amp; Confirmations
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <button
+                      type="button"
+                      disabled={isPending || show.available_spots <= 0}
+                      onClick={() => handleBook(show.id)}
+                      className="mt-3 w-full min-h-[44px] rounded-xl bg-white py-3 text-sm font-bold text-black hover:bg-[#38bdf8] hover:text-white transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isPending ? "Booking…" : "Book This Spot"}
+                    </button>
+                  );
+                })()}
               </article>
             );
           })

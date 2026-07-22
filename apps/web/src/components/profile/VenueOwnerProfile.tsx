@@ -21,54 +21,6 @@ export function VenueOwnerProfile() {
         </span>
         <p className="mt-1 text-sm text-zinc-500">Producer: {user.name}</p>
       </div>
-
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-center">
-          <p className="text-2xl font-bold text-white">0</p>
-          <p className="mt-1 text-xs text-zinc-500">My Venues</p>
-        </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-center">
-          <p className="text-2xl font-bold text-white">0</p>
-          <p className="mt-1 text-xs text-zinc-500">Active Shows</p>
-        </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-center">
-          <p className="text-2xl font-bold text-white">0</p>
-          <p className="mt-1 text-xs text-zinc-500">Total Bookings</p>
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="mb-4 text-lg font-semibold text-white">My Venues</h2>
-        <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 p-8 text-center text-sm text-zinc-600">
-          No venues registered yet.
-        </div>
-        <button
-          type="button"
-          className="mt-4 w-full rounded-xl bg-[#38bdf8] py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9]"
-        >
-          Register a Venue
-        </button>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="mb-4 text-lg font-semibold text-white">Upcoming Shows</h2>
-        <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 p-8 text-center text-sm text-zinc-600">
-          No shows scheduled.
-        </div>
-        <button
-          type="button"
-          className="mt-4 w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 font-semibold text-white transition-colors hover:bg-zinc-700"
-        >
-          Add a Show
-        </button>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="mb-4 text-lg font-semibold text-white">Recent Bookings for Your Venues</h2>
-        <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 p-8 text-center text-sm text-zinc-600">
-          No bookings yet.
-        </div>
-      </div>
     </section>
   );
 }

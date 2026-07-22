@@ -20,7 +20,7 @@ function getRedirectPath(role: AuthUser["role"]): string {
     case "comedian":
       return "/home";
     case "venue_producer":
-      return "/venue-dashboard";
+      return "/home";
     case "admin":
       return "/admin-dashboard";
     default:
@@ -84,7 +84,7 @@ export default function AuthPage() {
           router.push("/home");
           break;
         case "venue_producer":
-          router.push("/venue-dashboard");
+          router.push("/home");
           break;
         case "admin":
           router.push("/admin-dashboard");
@@ -179,7 +179,7 @@ export default function AuthPage() {
     }
 
       login(authUser);
-      router.push("/venue-dashboard");
+      router.push("/home");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
