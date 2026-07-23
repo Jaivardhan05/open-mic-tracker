@@ -11,6 +11,7 @@ export interface AuthUser {
   youtubeUrl?: string;
   xUrl?: string;
   instagramUrl?: string;
+  mapsUrl?: string;
   createdAt: string;
 }
 
@@ -251,6 +252,7 @@ export async function signInUser(email: string, password: string): Promise<{
     youtubeUrl: profile.youtube_url ?? undefined,
     xUrl: profile.x_url ?? undefined,
     instagramUrl: profile.instagram_url ?? undefined,
+    mapsUrl: profile.maps_url ?? undefined,
     createdAt: profile.created_at,
   };
 

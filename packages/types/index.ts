@@ -5,6 +5,11 @@ export interface Venue {
   city: string;
   photos: string[];
   description: string;
+  instagram_url?: string | null;
+  youtube_url?: string | null;
+  maps_url?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
 }
 
 export interface Show {

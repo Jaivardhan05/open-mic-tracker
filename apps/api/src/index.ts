@@ -48,16 +48,27 @@ function requireRole(role: 'comedian' | 'venue_producer' | 'admin') {
   };
 }
 
-const COMEDIAN_EDITABLE_FIELDS = [
+const PROFILE_EDITABLE_FIELDS = [
   'phone',
   'bio',
   'contact_email',
   'youtube_url',
   'x_url',
   'instagram_url',
+  'maps_url',
 ] as const;
 
-type ComedianEditableField = (typeof COMEDIAN_EDITABLE_FIELDS)[number];
+type ProfileEditableField = (typeof PROFILE_EDITABLE_FIELDS)[number];
+
+const VENUE_EDITABLE_FIELDS = [
+  'instagram_url',
+  'youtube_url',
+  'maps_url',
+  'contact_email',
+  'contact_phone',
+] as const;
+
+type VenueEditableField = (typeof VENUE_EDITABLE_FIELDS)[number];
 
 const FORBIDDEN_PROFILE_FIELDS = [
   'name',
@@ -214,7 +225,7 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
 
   const { data: venueRow, error: venueError } = await supabase
     .from('venues')
-    .select('id, name, address, city, photos, description, owner_id')
+    .select('id, name, address, city, photos, description, instagram_url, youtube_url, maps_url, contact_email, contact_phone, owner_id')
     .eq('id', id)
     .eq('admin_approved', true)
     .eq('is_active', true)
@@ -265,6 +276,75 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
   }
 
   res.status(200).json({ venue, shows: shows ?? [], spots });
+});
+
+app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const { id } = req.params;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const { data: venueRow, error: venueError } = await supabaseAdmin
+    .from('venues')
+    .select('owner_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (venueError) {
+    res.status(500).json({ error: venueError.message });
+    return;
+  }
+
+  if (!venueRow || venueRow.owner_id !== userId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  const updates: Partial<Record<VenueEditableField, string | null>> = {};
+
+  for (const field of VENUE_EDITABLE_FIELDS) {
+    if (!(field in body)) {
+      continue;
+    }
+    const raw = body[field];
+    if (raw !== null && typeof raw !== 'string') {
+      res.status(400).json({ error: `${field} must be a string` });
+      return;
+    }
+    const trimmed: string | null = typeof raw === 'string' ? raw.trim() : null;
+    updates[field] = trimmed === '' ? null : trimmed;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: 'No editable fields provided' });
+    return;
+  }
+
+  if (updates.contact_email && !/^[^@]+@[^@]+\.[^@]+$/.test(updates.contact_email)) {
+    res.status(400).json({ error: 'Invalid contact email format' });
+    return;
+  }
+
+  for (const urlField of ['instagram_url', 'youtube_url', 'maps_url'] as const) {
+    const value = updates[urlField];
+    if (value && !/^https?:\/\//i.test(value)) {
+      res.status(400).json({ error: `${urlField} must start with http:// or https://` });
+      return;
+    }
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .update(updates)
+    .eq('id', id)
+    .select('id, name, address, city, photos, description, instagram_url, youtube_url, maps_url, contact_email, contact_phone')
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data);
 });
 
 app.post('/api/venues/:id/approve', async (req: Request, res: Response) => {
@@ -409,9 +489,9 @@ app.patch('/api/users/me', requireUser, async (req: AuthedRequest, res: Response
     return;
   }
 
-  const updates: Partial<Record<ComedianEditableField, string | null>> = {};
+  const updates: Partial<Record<ProfileEditableField, string | null>> = {};
 
-  for (const field of COMEDIAN_EDITABLE_FIELDS) {
+  for (const field of PROFILE_EDITABLE_FIELDS) {
     if (!(field in body)) {
       continue;
     }
@@ -444,7 +524,7 @@ app.patch('/api/users/me', requireUser, async (req: AuthedRequest, res: Response
     return;
   }
 
-  for (const urlField of ['youtube_url', 'x_url', 'instagram_url'] as const) {
+  for (const urlField of ['youtube_url', 'x_url', 'instagram_url', 'maps_url'] as const) {
     const value = updates[urlField];
     if (value && !/^https?:\/\//i.test(value)) {
       res.status(400).json({ error: `${urlField} must start with http:// or https://` });
@@ -456,7 +536,7 @@ app.patch('/api/users/me', requireUser, async (req: AuthedRequest, res: Response
     .from('users')
     .update(updates)
     .eq('id', userId)
-    .select('id, name, email, phone, bio, contact_email, youtube_url, x_url, instagram_url, role, created_at')
+    .select('id, name, email, phone, bio, contact_email, youtube_url, x_url, instagram_url, maps_url, role, created_at')
     .single();
 
   if (error) {
@@ -697,6 +777,71 @@ async function venueNamesByProducerIds(producerIds: string[]): Promise<Record<st
   });
   return map;
 }
+
+app.get('/api/spots', async (_req: Request, res: Response) => {
+  const { data: venues, error: venuesError } = await supabase
+    .from('venues')
+    .select('id, owner_id')
+    .eq('admin_approved', true)
+    .eq('is_active', true)
+    .eq('is_hidden', false)
+    .not('owner_id', 'is', null);
+
+  if (venuesError) {
+    res.status(500).json({ error: venuesError.message });
+    return;
+  }
+
+  const venueIdByOwnerId: Record<string, string> = {};
+  (venues ?? []).forEach((v: { id: string; owner_id: string }) => {
+    venueIdByOwnerId[v.owner_id] = v.id;
+  });
+
+  const ownerIds = Object.keys(venueIdByOwnerId);
+  if (ownerIds.length === 0) {
+    res.status(200).json([]);
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: spots, error: spotsError } = await supabaseAdmin
+    .from('spots')
+    .select(SPOT_SELECT)
+    .in('venue_producer_id', ownerIds)
+    .eq('is_cancelled', false)
+    .gte('date', today)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true });
+
+  if (spotsError) {
+    res.status(500).json({ error: spotsError.message });
+    return;
+  }
+
+  const results = (spots ?? []).map((spot: {
+    id: string;
+    venue_producer_id: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    spot_type: 'busking' | 'non_busking';
+    total_spots: number;
+    available_spots: number;
+    price: number | null;
+  }) => ({
+    id: spot.id,
+    venue_id: venueIdByOwnerId[spot.venue_producer_id],
+    date: spot.date,
+    start_time: spot.start_time,
+    end_time: spot.end_time,
+    spot_type: spot.spot_type,
+    total_spots: spot.total_spots,
+    available_spots: spot.available_spots,
+    charge: spot.price ?? 0,
+  }));
+
+  res.status(200).json(results);
+});
 
 app.post('/api/spots', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;

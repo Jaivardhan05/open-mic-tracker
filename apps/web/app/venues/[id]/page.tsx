@@ -11,8 +11,11 @@ import Navbar from '../../../src/components/Navbar';
 import Sidebar from '../../../src/components/Sidebar';
 import { useAuth } from '../../../src/context/AuthContext';
 import { SpotlightCard } from '../../../src/components/venues/SpotlightCard';
+import { VenueSocialLinks } from '../../../src/components/venues/VenueSocialLinks';
 import { useComedianBookings } from '../../../src/hooks/useComedianBookings';
 import { useMySpotRequests } from '../../../src/hooks/useMySpotRequests';
+import { formatDateOrdinal } from '../../../src/lib/formatDate';
+import { formatTime12h } from '../../../src/lib/formatTime';
 
 const SPOT_REQUEST_STATUS_LABEL: Record<string, string> = {
   pending: 'Requested',
@@ -101,6 +104,18 @@ export default function VenueDetailPage() {
   }
 
   return (
+    <>
+      <style>{`
+        .content-glass {
+          backdrop-filter: blur(40px) saturate(120%);
+          -webkit-backdrop-filter: blur(40px) saturate(120%);
+        }
+        .spotlight-card-wrap:hover .content-glass {
+          border-color: rgba(255, 255, 255, 0.26);
+          transition: border-color 0.3s ease;
+        }
+      `}</style>
+
     <div className="layout-root">
       <Navbar />
       <div className="flex">
@@ -130,7 +145,7 @@ export default function VenueDetailPage() {
           ) : error ? (
             <div className="text-center text-red-400 mt-20">{error}</div>
           ) : venue ? (
-            <div className="max-w-3xl">
+            <div className="max-w-3xl mx-auto">
               <SpotlightCard className="rounded-2xl overflow-hidden mb-6">
                 <div className="relative aspect-video w-full">
                   <Image
@@ -165,28 +180,22 @@ export default function VenueDetailPage() {
                     <SpotlightCard key={show.id} className="rounded-xl p-4">
                       <div className="flex items-center justify-between mb-2">
                         <span
-                          className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                            show.spot_type === 'busking'
-                              ? 'bg-amber-500/20 text-amber-400'
-                              : 'bg-purple-500/20 text-purple-400'
+                          className={`text-xs font-medium ${
+                            show.spot_type === 'busking' ? 'text-[#38BDF8]' : 'text-[#F472B6]'
                           }`}
                         >
                           {show.spot_type === 'busking' ? 'Busking' : 'Non-Busking'}
                         </span>
-                        <span
-                          className={`text-xs font-medium ${
-                            Number(show.available_spots) <= 3 ? 'text-red-400' : 'text-green-400'
-                          }`}
-                        >
+                        <span className="text-xs font-medium text-white">
                           {show.available_spots} spots left
                         </span>
                       </div>
 
                       <p className="text-white text-sm font-semibold mb-0.5">
-                        {String(show.start_time ?? '').slice(0, 5)}
-                        {show.end_time ? ` – ${String(show.end_time).slice(0, 5)}` : ''}
+                        {formatTime12h(String(show.start_time ?? ''))}
+                        {show.end_time ? ` – ${formatTime12h(String(show.end_time))}` : ''}
                       </p>
-                      <p className="text-zinc-500 text-xs">{show.date}</p>
+                      <p className="text-zinc-500 text-xs">{formatDateOrdinal(show.date)}</p>
 
                       <div className="mt-3 flex items-center justify-between">
                         <span className="text-white text-sm font-bold">
@@ -201,7 +210,7 @@ export default function VenueDetailPage() {
                             type="button"
                             disabled={bookingShowId === show.id || show.available_spots <= 0}
                             onClick={() => handleBook(show.id)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#0a1628] text-white hover:bg-[#38bdf8] hover:text-black motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[32px] disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black hover:bg-[#0a1628] hover:text-[#38bdf8] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[32px] disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {bookingShowId === show.id ? 'Booking…' : 'Book Spot'}
                           </button>
@@ -227,27 +236,21 @@ export default function VenueDetailPage() {
                       <SpotlightCard key={spot.id} className="rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span
-                            className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                              spot.spot_type === 'busking'
-                                ? 'bg-amber-500/20 text-amber-400'
-                                : 'bg-purple-500/20 text-purple-400'
+                            className={`text-xs font-medium ${
+                              spot.spot_type === 'busking' ? 'text-[#38BDF8]' : 'text-[#F472B6]'
                             }`}
                           >
                             {spot.spot_type === 'busking' ? 'Busking' : 'Non-Busking'}
                           </span>
-                          <span
-                            className={`text-xs font-medium ${
-                              spot.available_spots <= 3 ? 'text-red-400' : 'text-green-400'
-                            }`}
-                          >
+                          <span className="text-xs font-medium text-white">
                             {spot.available_spots} spots left
                           </span>
                         </div>
 
                         <p className="text-white text-sm font-semibold mb-0.5">
-                          {spot.start_time.slice(0, 5)} – {spot.end_time.slice(0, 5)}
+                          {formatTime12h(spot.start_time)} – {formatTime12h(spot.end_time)}
                         </p>
-                        <p className="text-zinc-500 text-xs">{spot.date}</p>
+                        <p className="text-zinc-500 text-xs">{formatDateOrdinal(spot.date)}</p>
 
                         <div className="mt-3 flex items-center justify-between">
                           <span className="text-white text-sm font-bold">
@@ -262,7 +265,7 @@ export default function VenueDetailPage() {
                               type="button"
                               disabled={applyingSpotId === spot.id || spot.available_spots <= 0}
                               onClick={() => handleApply(spot.id)}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#0a1628] text-white hover:bg-[#38bdf8] hover:text-black motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[32px] disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black hover:bg-[#0a1628] hover:text-[#38bdf8] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[32px] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {applyingSpotId === spot.id ? 'Applying…' : 'Apply'}
                             </button>
@@ -273,11 +276,14 @@ export default function VenueDetailPage() {
                   })}
                 </div>
               )}
+
+              <VenueSocialLinks venue={venue} />
             </div>
           ) : null}
           </div>
         </main>
       </div>
     </div>
+    </>
   );
 }

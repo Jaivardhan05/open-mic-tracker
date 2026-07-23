@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { Show, Venue } from '@repo/types';
 
 import { enter } from '../../hooks/useVisible';
+import { formatTime12h } from '../../lib/formatTime';
 import { IconChevronRight, IconMapPin } from '../icons/NavIcons';
 import { SpotlightCard } from './SpotlightCard';
 
@@ -18,7 +19,6 @@ interface VenueListCardProps {
 
 export function VenueListCard({ venue, shows, index, visible }: VenueListCardProps) {
   const totalSpots = shows.reduce((sum, s) => sum + Number(s.available_spots ?? 0), 0);
-  const lowAvailability = shows.some((s) => Number(s.available_spots ?? 0) <= 3);
   const hasFree = shows.some((s) => Number(s.charge ?? 0) === 0);
   const priceLabel = hasFree
     ? 'Free'
@@ -49,18 +49,22 @@ export function VenueListCard({ venue, shows, index, visible }: VenueListCardPro
 
           {shows.length > 0 && (
             <span
-              className={`absolute top-3 right-3 rounded-full px-2.5 py-1 text-xs font-bold backdrop-blur-md ${
-                lowAvailability ? 'bg-red-500/80 text-white' : 'bg-green-500/80 text-white'
-              }`}
+              className="absolute top-3 right-3 px-2.5 py-1 text-xs font-bold text-white shadow-lg"
+              style={{
+                backgroundColor: '#0a0f2c',
+                clipPath: 'polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px))',
+              }}
             >
               {totalSpots} left
             </span>
           )}
 
           <span
-            className={`absolute bottom-3 left-3 rounded-full bg-black/60 backdrop-blur-sm px-2.5 py-1 text-xs font-semibold ${
-              hasFree ? 'text-[#38bdf8]' : 'text-white'
-            }`}
+            className="absolute bottom-3 left-3 px-2.5 py-1 text-xs font-semibold text-white shadow-lg"
+            style={{
+              backgroundColor: '#0a0f2c',
+              clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%)',
+            }}
           >
             {priceLabel}
           </span>
@@ -78,13 +82,9 @@ export function VenueListCard({ venue, shows, index, visible }: VenueListCardPro
             {visibleShows.map((show) => (
               <span
                 key={show.id}
-                className={`text-xs px-2 py-1 rounded-full font-medium ${
-                  show.spot_type === 'busking'
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : 'bg-purple-500/20 text-purple-400'
-                }`}
+                className="text-xs px-2 py-1 rounded-full font-medium bg-[#38bdf8] text-black"
               >
-                {String(show.start_time ?? '').slice(0, 5)}
+                {formatTime12h(String(show.start_time ?? ''))}
               </span>
             ))}
             {extraCount > 0 && (

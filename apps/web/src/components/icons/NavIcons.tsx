@@ -181,6 +181,25 @@ export function IconAt({ className }: IconProps) {
   );
 }
 
+export function IconInstagram({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" rx="3.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8" cy="8" r="2.75" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="11.25" cy="4.75" r="0.75" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconYoutube({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="1.5" y="3.5" width="13" height="9" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6.75 6.25v3.5l3-1.75-3-1.75Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function IconLogout({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

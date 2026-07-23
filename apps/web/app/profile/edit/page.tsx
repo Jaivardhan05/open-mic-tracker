@@ -21,13 +21,14 @@ export default function EditProfilePage() {
   const [cityValue, setCityValue] = useState('Delhi');
   const [venueNameValue, setVenueNameValue] = useState('');
 
-  // Comedian-only editable fields.
+  // Social/bio fields — shown for comedian and venue_producer roles.
   const [phoneValue, setPhoneValue] = useState('');
   const [bioValue, setBioValue] = useState('');
   const [contactEmailValue, setContactEmailValue] = useState('');
   const [youtubeUrlValue, setYoutubeUrlValue] = useState('');
   const [xUrlValue, setXUrlValue] = useState('');
   const [instagramUrlValue, setInstagramUrlValue] = useState('');
+  const [mapsUrlValue, setMapsUrlValue] = useState('');
 
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -62,6 +63,7 @@ export default function EditProfilePage() {
     setYoutubeUrlValue(user.youtubeUrl ?? '');
     setXUrlValue(user.xUrl ?? '');
     setInstagramUrlValue(user.instagramUrl ?? '');
+    setMapsUrlValue(user.mapsUrl ?? '');
   }, [user]);
 
   if (isLoading) {
@@ -78,6 +80,7 @@ export default function EditProfilePage() {
 
   const currentUser = user;
   const isComedian = currentUser.role === 'comedian';
+  const isVenueProducer = currentUser.role === 'venue_producer';
 
   const navItems: Array<{ label: string; href: string; icon: ReactNode }> = [
     {
@@ -299,8 +302,78 @@ export default function EditProfilePage() {
     }
   }
 
+  async function handleSaveVenueProducerProfile() {
+    setSaveLoading(true);
+    setSaveError('');
+    setSaveSuccess('');
+
+    try {
+      const { error: legacyError } = await supabase
+        .from('users')
+        .update({
+          name: nameValue.trim(),
+          city: cityValue,
+        })
+        .eq('id', currentUser.id);
+
+      if (legacyError) {
+        setSaveError(legacyError.message);
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        setSaveError('Your session has expired. Please log in again.');
+        return;
+      }
+
+      const payload = {
+        bio: bioValue.trim(),
+        contact_email: contactEmailValue.trim(),
+        youtube_url: youtubeUrlValue.trim(),
+        instagram_url: instagramUrlValue.trim(),
+        maps_url: mapsUrlValue.trim(),
+      };
+
+      const response = await fetch(`${API_URL}/api/users/me`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setSaveError(result.error ?? 'Failed to save profile');
+        return;
+      }
+
+      updateUser({
+        name: nameValue.trim(),
+        city: cityValue,
+        bio: payload.bio || undefined,
+        contactEmail: payload.contact_email || undefined,
+        youtubeUrl: payload.youtube_url || undefined,
+        instagramUrl: payload.instagram_url || undefined,
+        mapsUrl: payload.maps_url || undefined,
+      });
+      setSaveSuccess('Profile saved successfully');
+    } catch {
+      setSaveError('Failed to save profile');
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
   function handleSaveProfile() {
-    return isComedian ? handleSaveComedianProfile() : handleSaveLegacyProfile();
+    if (currentUser.role === 'comedian') return handleSaveComedianProfile();
+    if (currentUser.role === 'venue_producer') return handleSaveVenueProducerProfile();
+    return handleSaveLegacyProfile();
   }
 
   return (
@@ -524,7 +597,7 @@ export default function EditProfilePage() {
                     </select>
                   </BrutalistField>
 
-                  {user.role === 'venue_producer' && (
+                  {isVenueProducer && (
                     <BrutalistField label="Venue Name" htmlFor="venue-name-value">
                       <input
                         id="venue-name-value"
@@ -534,6 +607,66 @@ export default function EditProfilePage() {
                         className={fieldStyles.field}
                       />
                     </BrutalistField>
+                  )}
+
+                  {isVenueProducer && (
+                    <>
+                      <BrutalistField label="Bio" htmlFor="venue-bio-value">
+                        <textarea
+                          id="venue-bio-value"
+                          value={bioValue}
+                          onChange={(e) => setBioValue(e.target.value)}
+                          maxLength={500}
+                          rows={4}
+                          placeholder="Tell comedians a bit about your venue (optional)"
+                          className={fieldStyles.field}
+                        />
+                      </BrutalistField>
+
+                      <BrutalistField label="Contact Email" htmlFor="venue-contact-email-value">
+                        <input
+                          id="venue-contact-email-value"
+                          type="email"
+                          value={contactEmailValue}
+                          onChange={(e) => setContactEmailValue(e.target.value)}
+                          placeholder="Public email for bookings/inquiries (optional)"
+                          className={fieldStyles.field}
+                        />
+                      </BrutalistField>
+
+                      <BrutalistField label="YouTube" htmlFor="venue-youtube-url-value">
+                        <input
+                          id="venue-youtube-url-value"
+                          type="url"
+                          value={youtubeUrlValue}
+                          onChange={(e) => setYoutubeUrlValue(e.target.value)}
+                          placeholder="https://youtube.com/@yourvenue (optional)"
+                          className={fieldStyles.field}
+                        />
+                      </BrutalistField>
+
+                      <BrutalistField label="Instagram" htmlFor="venue-instagram-url-value">
+                        <input
+                          id="venue-instagram-url-value"
+                          type="url"
+                          value={instagramUrlValue}
+                          onChange={(e) => setInstagramUrlValue(e.target.value)}
+                          placeholder="https://instagram.com/yourvenue (optional)"
+                          className={fieldStyles.field}
+                        />
+                      </BrutalistField>
+
+                      <BrutalistField label="Google Maps Link" htmlFor="venue-maps-url-value">
+                        <input
+                          id="venue-maps-url-value"
+                          type="url"
+                          value={mapsUrlValue}
+                          onChange={(e) => setMapsUrlValue(e.target.value)}
+                          placeholder="https://maps.app.goo.gl/... (optional)"
+                          className={fieldStyles.field}
+                        />
+                      </BrutalistField>
+                    </>
                   )}
                 </>
               )}

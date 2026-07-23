@@ -26,6 +26,14 @@ export function YouTubeIcon({ className }: IconProps) {
   );
 }
 
+export function MapsIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M12 2C7.589 2 4 5.589 4 9.995 4 15.812 11.104 21.51 11.404 21.75a.998.998 0 0 0 1.192 0C12.896 21.51 20 15.812 20 9.995 20 5.589 16.411 2 12 2zm0 10.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+    </svg>
+  );
+}
+
 export function GmailIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">

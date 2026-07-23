@@ -42,14 +42,19 @@ export default function VenuesPage() {
     async function fetchAll() {
       setIsFetching(true);
       try {
-        const [venuesRes, showsRes] = await Promise.all([
+        const [venuesRes, showsRes, spotsRes] = await Promise.all([
           fetch('/api/venues'),
           fetch('/api/shows'),
+          fetch('/api/spots'),
         ]);
         const venuesData = await venuesRes.json();
         const showsData = await showsRes.json();
+        const spotsData = await spotsRes.json();
         setVenues(Array.isArray(venuesData) ? venuesData : []);
-        setShows(Array.isArray(showsData) ? showsData : []);
+        setShows([
+          ...(Array.isArray(showsData) ? showsData : []),
+          ...(Array.isArray(spotsData) ? spotsData : []),
+        ]);
       } catch {
         setError('Failed to load venues.');
       } finally {
