@@ -9,7 +9,7 @@ import type { AuthUser } from "@/lib/auth";
 import AddSpotForm from "./AddSpotForm";
 import CancelSpotDialog from "./CancelSpotDialog";
 import RequestsPanel from "./RequestsPanel";
-import VenueCalendarSection from "./VenueCalendarSection";
+import VenueSpotsListSection from "./VenueSpotsListSection";
 import VenueNoticesSection from "./VenueNoticesSection";
 
 interface VenueProducerDashboardProps {
@@ -47,7 +47,7 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
 
       <VenueNoticesSection />
 
-      <VenueCalendarSection
+      <VenueSpotsListSection
         spots={spots}
         isLoading={isLoading}
         onViewRequests={(spotId) => setRequestsSpotId(spotId)}

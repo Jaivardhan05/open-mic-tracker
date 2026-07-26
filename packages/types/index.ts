@@ -98,6 +98,7 @@ export interface SpotRequest {
   requested_at: string;
   decided_at: string | null;
   spot?: Spot;
+  venue_id?: string | null;
   venue_name?: string;
   comedian_name?: string;
 }

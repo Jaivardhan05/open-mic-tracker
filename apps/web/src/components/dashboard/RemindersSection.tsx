@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import type { Booking, SpotRequest } from "@repo/types";
 
+import SpotRequestCard from "./SpotRequestCard";
+
 interface RemindersSectionProps {
   bookings: Booking[];
   isLoading: boolean;
@@ -13,12 +15,6 @@ interface RemindersSectionProps {
   isSpotRequestsLoading?: boolean;
   onCancelSpotRequest?: (requestId: string) => Promise<{ success: boolean; error?: string }>;
 }
-
-const SPOT_REQUEST_STATUS_LABEL: Record<string, string> = {
-  accepted: "Accepted",
-  waitlisted: "Waitlisted",
-  cancelled_by_venue: "Cancelled by venue",
-};
 
 export default function RemindersSection({
   bookings,
@@ -82,42 +78,22 @@ export default function RemindersSection({
         </p>
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {visibleSpotRequests.map((request) => (
-            <div key={request.id} className="content-glass rounded-2xl p-4">
-              <p className="text-sm font-semibold text-white">{request.venue_name ?? "Venue"}</p>
-              {request.spot ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  {request.spot.date} · {request.spot.start_time}–{request.spot.end_time}
-                </p>
-              ) : null}
-              <div className="mt-3">
-                <span
-                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
-                    request.status === "accepted"
-                      ? "border-[#38bdf8]/60 text-[#38bdf8]"
-                      : request.status === "cancelled_by_venue"
-                        ? "border-red-800 text-red-400"
-                        : "border-zinc-600 text-zinc-400"
-                  }`}
-                >
-                  {SPOT_REQUEST_STATUS_LABEL[request.status] ?? request.status}
-                </span>
-              </div>
-              {request.venue_message ? (
-                <p className="mt-2 text-xs text-zinc-400">Note: {request.venue_message}</p>
-              ) : null}
-              {request.status === "accepted" && onCancelSpotRequest ? (
-                <button
-                  type="button"
-                  disabled={pendingActionId === request.id}
-                  onClick={() => handleCancelSpotRequest(request.id)}
-                  className="mt-3 w-full rounded-xl border border-red-800 bg-red-900/40 px-3 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50"
-                >
-                  {pendingActionId === request.id ? "Cancelling…" : "Cancel"}
-                </button>
-              ) : null}
-            </div>
-          ))}
+          {visibleSpotRequests.map((request) =>
+            request.spot ? (
+              <SpotRequestCard
+                key={request.id}
+                venueName={request.venue_name ?? "Venue"}
+                venueId={request.venue_id}
+                date={request.spot.date}
+                startTime={request.spot.start_time}
+                spotType={request.spot.spot_type}
+                status={request.status}
+                venueMessage={request.venue_message}
+                onCancel={onCancelSpotRequest ? () => handleCancelSpotRequest(request.id) : undefined}
+                isCancelling={pendingActionId === request.id}
+              />
+            ) : null
+          )}
 
           {bookings.map((booking) => {
             const isAwaitingVenue = booking.booking_status === "awaiting_confirmation";

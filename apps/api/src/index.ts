@@ -607,41 +607,6 @@ app.get('/api/me/bookings/pending', requireUser, async (req: AuthedRequest, res:
   res.status(200).json(((data ?? []) as unknown as BookingRow[]).map(serializeBooking));
 });
 
-app.get('/api/me/bookings/upcoming', requireUser, async (req: AuthedRequest, res: Response) => {
-  const userId = req.userId as string;
-  const daysParam = typeof req.query.days === 'string' ? Number(req.query.days) : 7;
-  const days = Number.isFinite(daysParam) && daysParam > 0 ? Math.min(daysParam, 30) : 7;
-
-  const today = new Date();
-  const toDateString = (d: Date) => d.toISOString().slice(0, 10);
-  const startDate = toDateString(today);
-  const endDate = toDateString(new Date(today.getTime() + (days - 1) * 24 * 60 * 60 * 1000));
-
-  const { data, error } = await supabaseAdmin
-    .from('bookings')
-    .select(BOOKING_SELECT)
-    .eq('comedian_id', userId)
-    .not('booking_status', 'in', '(declined_by_comedian,cancelled_by_comedian)')
-    .gte('shows.date', startDate)
-    .lte('shows.date', endDate);
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  const results = ((data ?? []) as unknown as BookingRow[])
-    .filter((row) => row.shows && row.shows.date >= startDate && row.shows.date <= endDate)
-    .map(serializeBooking)
-    .sort((a, b) => {
-      if (!a.show || !b.show) return 0;
-      if (a.show.date !== b.show.date) return a.show.date < b.show.date ? -1 : 1;
-      return a.show.start_time < b.show.start_time ? -1 : 1;
-    });
-
-  res.status(200).json(results);
-});
-
 app.get('/api/me/favorite-venues', requireUser, async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
 
@@ -761,19 +726,21 @@ app.post('/api/bookings/:id/confirm', async (req: Request, res: Response) => {
 const SPOT_SELECT =
   'id, venue_producer_id, date, start_time, end_time, spot_type, total_spots, available_spots, price, is_cancelled, cancellation_message, created_at';
 
-async function venueNamesByProducerIds(producerIds: string[]): Promise<Record<string, string>> {
+async function venuesByProducerIds(
+  producerIds: string[]
+): Promise<Record<string, { id: string; name: string }>> {
   if (producerIds.length === 0) {
     return {};
   }
 
   const { data } = await supabaseAdmin
     .from('venues')
-    .select('owner_id, name')
+    .select('id, owner_id, name')
     .in('owner_id', producerIds);
 
-  const map: Record<string, string> = {};
-  (data ?? []).forEach((v: { owner_id: string; name: string }) => {
-    map[v.owner_id] = v.name;
+  const map: Record<string, { id: string; name: string }> = {};
+  (data ?? []).forEach((v: { id: string; owner_id: string; name: string }) => {
+    map[v.owner_id] = { id: v.id, name: v.name };
   });
   return map;
 }
@@ -1114,7 +1081,7 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
 
   const rows = (requests ?? []) as unknown as RequestRow[];
   const producerIds = rows.map((r) => r.spots?.venue_producer_id).filter(Boolean);
-  const venueNames = await venueNamesByProducerIds(producerIds);
+  const venues = await venuesByProducerIds(producerIds);
 
   const result = rows.map((r) => ({
     id: r.id,
@@ -1125,7 +1092,8 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
     requested_at: r.requested_at,
     decided_at: r.decided_at,
     spot: r.spots,
-    venue_name: venueNames[r.spots?.venue_producer_id] ?? 'Venue',
+    venue_id: venues[r.spots?.venue_producer_id]?.id ?? null,
+    venue_name: venues[r.spots?.venue_producer_id]?.name ?? 'Venue',
   }));
 
   res.status(200).json(result);

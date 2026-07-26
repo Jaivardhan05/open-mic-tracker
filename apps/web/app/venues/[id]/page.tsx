@@ -5,14 +5,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
-import type { Show, Spot, Venue } from '@repo/types';
+import type { Spot, Venue } from '@repo/types';
 
 import Navbar from '../../../src/components/Navbar';
 import Sidebar from '../../../src/components/Sidebar';
 import { useAuth } from '../../../src/context/AuthContext';
 import { SpotlightCard } from '../../../src/components/venues/SpotlightCard';
 import { VenueSocialLinks } from '../../../src/components/venues/VenueSocialLinks';
-import { useComedianBookings } from '../../../src/hooks/useComedianBookings';
 import { useMySpotRequests } from '../../../src/hooks/useMySpotRequests';
 import { formatDateOrdinal } from '../../../src/lib/formatDate';
 import { formatTime12h } from '../../../src/lib/formatTime';
@@ -31,14 +30,10 @@ export default function VenueDetailPage() {
   const id = params.id as string;
 
   const [venue, setVenue] = useState<Venue | null>(null);
-  const [shows, setShows] = useState<Show[]>([]);
   const [spots, setSpots] = useState<Spot[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState('');
-  const { bookings, bookSpot } = useComedianBookings();
   const { spotRequests, applyToSpot } = useMySpotRequests();
-  const [bookingShowId, setBookingShowId] = useState<string | null>(null);
-  const [bookingError, setBookingError] = useState('');
   const [applyingSpotId, setApplyingSpotId] = useState<string | null>(null);
   const [applyError, setApplyError] = useState('');
 
@@ -59,9 +54,8 @@ export default function VenueDetailPage() {
           setError('Venue not found.');
           return;
         }
-        const data: { venue: Venue; shows: Show[]; spots?: Spot[] } = await res.json();
+        const data: { venue: Venue; spots?: Spot[] } = await res.json();
         setVenue(data.venue);
-        setShows(data.shows ?? []);
         setSpots(data.spots ?? []);
       } catch {
         setError('Failed to load venue.');
@@ -82,16 +76,6 @@ export default function VenueDetailPage() {
   }
 
   if (!user) return null;
-
-  async function handleBook(showId: string) {
-    setBookingShowId(showId);
-    setBookingError('');
-    const result = await bookSpot(showId);
-    if (!result.success) {
-      setBookingError(result.error ?? 'Failed to book spot');
-    }
-    setBookingShowId(null);
-  }
 
   async function handleApply(spotId: string) {
     setApplyingSpotId(spotId);
@@ -169,59 +153,7 @@ export default function VenueDetailPage() {
                 </div>
               </SpotlightCard>
 
-              <h2 className="text-lg font-bold text-white mb-4">Upcoming Shows</h2>
-              {bookingError ? <p className="mb-4 text-sm text-red-400">{bookingError}</p> : null}
-
-              {shows.length === 0 ? (
-                <p className="text-zinc-500 text-sm">No upcoming shows at this venue.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {shows.map((show) => (
-                    <SpotlightCard key={show.id} className="rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span
-                          className={`text-xs font-medium ${
-                            show.spot_type === 'busking' ? 'text-[#38BDF8]' : 'text-[#F472B6]'
-                          }`}
-                        >
-                          {show.spot_type === 'busking' ? 'Busking' : 'Non-Busking'}
-                        </span>
-                        <span className="text-xs font-medium text-white">
-                          {show.available_spots} spots left
-                        </span>
-                      </div>
-
-                      <p className="text-white text-sm font-semibold mb-0.5">
-                        {formatTime12h(String(show.start_time ?? ''))}
-                        {show.end_time ? ` – ${formatTime12h(String(show.end_time))}` : ''}
-                      </p>
-                      <p className="text-zinc-500 text-xs">{formatDateOrdinal(show.date)}</p>
-
-                      <div className="mt-3 flex items-center justify-between">
-                        <span className="text-white text-sm font-bold">
-                          {Number(show.charge) === 0 ? 'Free' : `₹${show.charge}`}
-                        </span>
-                        {bookings.some((b) => b.show?.id === show.id) ? (
-                          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-zinc-600 text-zinc-400">
-                            Waiting for confirmation
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={bookingShowId === show.id || show.available_spots <= 0}
-                            onClick={() => handleBook(show.id)}
-                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black hover:bg-[#0a1628] hover:text-[#38bdf8] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[32px] disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {bookingShowId === show.id ? 'Booking…' : 'Book Spot'}
-                          </button>
-                        )}
-                      </div>
-                    </SpotlightCard>
-                  ))}
-                </div>
-              )}
-
-              <h2 className="text-lg font-bold text-white mb-4 mt-8">Open Spots</h2>
+              <h2 className="text-lg font-bold text-white mb-4">Open Spots</h2>
               {applyError ? <p className="mb-4 text-sm text-red-400">{applyError}</p> : null}
 
               {spots.length === 0 ? (
