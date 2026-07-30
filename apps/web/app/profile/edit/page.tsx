@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import Navbar from '../../../src/components/Navbar';
+import CtaButton from '../../../src/components/CtaButton';
 import { useAuth } from '../../../src/context/AuthContext';
 import { supabase } from '../../../src/lib/supabaseClient';
 import { BrutalistField } from './BrutalistField';
@@ -781,15 +782,13 @@ export default function EditProfilePage() {
               ) : null}
 
               <div className="text-center mt-6">
-                <button
+                <CtaButton
                   type="button"
                   onClick={() => void handleSaveProfile()}
                   disabled={saveLoading}
-                  className="btn-sweep bg-[#38bdf8] text-white font-bold px-8 rounded-xl hover:bg-[#0ea5e9] disabled:opacity-50 transition-colors duration-150"
-                  style={{ minHeight: '44px' }}
                 >
                   {saveLoading ? 'Saving...' : 'Save Changes'}
-                </button>
+                </CtaButton>
               </div>
             </>
           </div>

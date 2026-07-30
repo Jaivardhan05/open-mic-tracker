@@ -9,6 +9,7 @@ import type { Spot, Venue } from '@repo/types';
 
 import Navbar from '../../../src/components/Navbar';
 import Sidebar from '../../../src/components/Sidebar';
+import CtaButton from '../../../src/components/CtaButton';
 import { useAuth } from '../../../src/context/AuthContext';
 import { SpotlightCard } from '../../../src/components/venues/SpotlightCard';
 import { VenueSocialLinks } from '../../../src/components/venues/VenueSocialLinks';
@@ -193,14 +194,13 @@ export default function VenueDetailPage() {
                               {SPOT_REQUEST_STATUS_LABEL[existingRequest.status] ?? existingRequest.status}
                             </span>
                           ) : (
-                            <button
+                            <CtaButton
                               type="button"
                               disabled={applyingSpotId === spot.id || spot.available_spots <= 0}
                               onClick={() => handleApply(spot.id)}
-                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black hover:bg-[#0a1628] hover:text-[#38bdf8] motion-safe:transition-all motion-safe:duration-75 motion-safe:ease-out motion-safe:active:scale-[0.97] min-h-[32px] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {applyingSpotId === spot.id ? 'Applying…' : 'Apply'}
-                            </button>
+                            </CtaButton>
                           )}
                         </div>
                       </SpotlightCard>

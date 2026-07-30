@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import BrandMark from "@/components/BrandMark";
+import CtaButton from "@/components/CtaButton";
 import { useVenueSpots } from "@/hooks/useVenueSpots";
 import type { AuthUser } from "@/lib/auth";
 
@@ -35,14 +36,10 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
         </p>
       </section>
 
-      <section className="mt-6 px-4 md:px-6">
-        <button
-          type="button"
-          onClick={() => setShowAddForm(true)}
-          className="w-full rounded-xl bg-[#38bdf8] py-3 font-bold text-white transition-colors hover:bg-[#0ea5e9] md:w-auto md:px-6"
-        >
+      <section className="mt-6 px-4 md:px-6 text-center md:text-left">
+        <CtaButton type="button" onClick={() => setShowAddForm(true)}>
           + Add a new Spot
-        </button>
+        </CtaButton>
       </section>
 
       <VenueNoticesSection />

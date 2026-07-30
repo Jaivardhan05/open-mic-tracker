@@ -199,6 +199,79 @@ body {
   }
 }
 
+/* CTA button (from Uiverse.io by alexmaracinaru, recolored to accent cyan) */
+.cta {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	margin: 0;
+	padding: 0;
+	background: none;
+	border: none;
+	box-shadow: none;
+	border-radius: 0;
+	cursor: pointer;
+	outline: none;
+}
+
+.cta span {
+	font-size: 16px;
+	color: #38BDF8;
+}
+
+.cta svg {
+	position: relative;
+	top: 0;
+	margin-left: 10px;
+	fill: none;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke: #38BDF8;
+	stroke-width: 2;
+	transform: translateX(-8px);
+	transition: transform 0.3s ease;
+}
+
+.cta:hover svg,
+.cta.cta-active svg {
+	transform: translateX(0);
+}
+
+.cta:active svg {
+	transform: scale(0.9);
+}
+
+.cta:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.hover-underline-animation {
+	position: relative;
+	display: inline-block;
+	color: #38BDF8;
+	padding-bottom: 5px;
+}
+
+.hover-underline-animation::after {
+	content: "";
+	position: absolute;
+	width: 100%;
+	transform: scaleX(0);
+	height: 2px;
+	bottom: 0;
+	left: 0;
+	background-color: #38BDF8;
+	transform-origin: bottom right;
+	transition: transform 0.25s ease-out;
+}
+
+.cta:hover .hover-underline-animation::after,
+.cta.cta-active .hover-underline-animation::after {
+	transform: scaleX(1);
+	transform-origin: bottom left;
+}
+
 /* Custom Dark Scrollbar */
 ::-webkit-scrollbar {
 	width: 8px;

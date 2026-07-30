@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '../../src/components/Navbar';
+import CtaButton from '../../src/components/CtaButton';
 import { SpotlightCard } from '../../src/components/venues/SpotlightCard';
 import { useVisible, enter } from '../../src/hooks/useVisible';
 
@@ -347,13 +348,9 @@ export default function SupportPage() {
 
             {/* ── Back to home ─────────────────────────────── */}
             <div className="text-center pb-8">
-              <button
-                onClick={() => router.push('/home')}
-                className="btn-sweep bg-[#38bdf8] text-black font-bold px-8 rounded-xl hover:bg-[#0ea5e9] transition-colors duration-150"
-                style={{ minHeight: '44px' }}
-              >
+              <CtaButton type="button" onClick={() => router.push('/home')}>
                 Back to Home
-              </button>
+              </CtaButton>
             </div>
 
           </div>

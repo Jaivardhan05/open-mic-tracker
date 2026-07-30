@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../../src/context/AuthContext";
+import CtaButton from "../../src/components/CtaButton";
 import {
   signInUser,
   signUpComedian,
@@ -187,9 +188,6 @@ export default function AuthPage() {
     }
   }
 
-  const inputClassName = `${styles.fieldInput} mb-0`;
-  const labelClassName = styles.fieldLabel;
-  const tabButtonClassName = (active: boolean) => `${styles.modeTab} ${active ? styles.modeTabActive : ""}`;
   const roleCardClassName = (active: boolean) => `${styles.roleCard} ${active ? styles.roleCardActive : ""}`;
 
   return (
@@ -210,27 +208,27 @@ export default function AuthPage() {
         </div>
 
         <div className={styles.modeTabs}>
-          <button
+          <CtaButton
             type="button"
-              onClick={() => {
-                setMode("login");
-                setError("");
-                setShowLoginPassword(false);
-              }}
-            className={tabButtonClassName(mode === "login")}
+            active={mode === "login"}
+            onClick={() => {
+              setMode("login");
+              setError("");
+              setShowLoginPassword(false);
+            }}
           >
             Log In
-          </button>
-          <button
+          </CtaButton>
+          <CtaButton
             type="button"
-              onClick={() => {
-                setMode("signup");
-                setError("");
-              }}
-            className={tabButtonClassName(mode === "signup")}
+            active={mode === "signup"}
+            onClick={() => {
+              setMode("signup");
+              setError("");
+            }}
           >
             Sign Up
-          </button>
+          </CtaButton>
         </div>
 
         {mode === "signup" ? (
@@ -288,32 +286,36 @@ export default function AuthPage() {
               }}
             >
               <div className={styles.fieldGroup}>
-                <label className={labelClassName} htmlFor="login-email">
-                  Email
-                </label>
-                <input
-                  id="login-email"
-                  type="email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  className={inputClassName}
-                  placeholder="username@gmail.com"
-                />
+                <div className={styles.floatField}>
+                  <input
+                    id="login-email"
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className={styles.floatInput}
+                    placeholder=" "
+                  />
+                  <label className={styles.floatLabel} htmlFor="login-email">
+                    Email
+                  </label>
+                  <span className={styles.floatBar} aria-hidden="true" />
+                </div>
               </div>
 
               <div className={styles.fieldGroup}>
-                <label className={labelClassName} htmlFor="login-password">
-                  Password
-                </label>
-                <div className={styles.inputShell}>
+                <div className={`${styles.floatField} ${styles.inputShell}`}>
                   <input
                     id="login-password"
                     type={showLoginPassword ? "text" : "password"}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    className={`${inputClassName} ${styles.passwordInput}`}
-                    placeholder="Enter your password"
+                    className={`${styles.floatInput} ${styles.passwordField}`}
+                    placeholder=" "
                   />
+                  <label className={styles.floatLabel} htmlFor="login-password">
+                    Password
+                  </label>
+                  <span className={styles.floatBar} aria-hidden="true" />
                   <button
                     type="button"
                     className={styles.passwordToggle}
@@ -351,9 +353,11 @@ export default function AuthPage() {
 
               {error ? <div className={styles.errorBox}>{error}</div> : null}
 
-              <button type="submit" disabled={isLoading} className={styles.submitButton}>
-                {isLoading ? "Signing in..." : "Sign in"}
-              </button>
+              <div className={styles.submitButtonRow}>
+                <CtaButton type="submit" disabled={isLoading}>
+                  {isLoading ? "Signing in..." : "Sign in"}
+                </CtaButton>
+              </div>
             </form>
 
             <div className={styles.divider}>
@@ -398,61 +402,78 @@ export default function AuthPage() {
             }}
           >
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="comedian-name">
-                Full name
-              </label>
-              <input
-                id="comedian-name"
-                value={comedianName}
-                onChange={(e) => setComedianName(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="comedian-name"
+                  value={comedianName}
+                  onChange={(e) => setComedianName(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="comedian-name">
+                  Full name
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="comedian-email">
-                Email
-              </label>
-              <input
-                id="comedian-email"
-                type="email"
-                value={comedianEmail}
-                onChange={(e) => setComedianEmail(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="comedian-email"
+                  type="email"
+                  value={comedianEmail}
+                  onChange={(e) => setComedianEmail(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="comedian-email">
+                  Email
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="comedian-phone">
-                Phone number
-              </label>
-              <input
-                id="comedian-phone"
-                value={comedianPhone}
-                onChange={(e) => setComedianPhone(e.target.value)}
-                className={inputClassName}
-                placeholder="10-digit mobile number"
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="comedian-phone"
+                  value={comedianPhone}
+                  onChange={(e) => setComedianPhone(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="comedian-phone">
+                  Phone number
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="comedian-password">
-                Password
-              </label>
-              <input
-                id="comedian-password"
-                type="password"
-                value={comedianPassword}
-                onChange={(e) => setComedianPassword(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="comedian-password"
+                  type="password"
+                  value={comedianPassword}
+                  onChange={(e) => setComedianPassword(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="comedian-password">
+                  Password
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             {error ? <div className={styles.errorBox}>{error}</div> : null}
 
-            <button type="submit" disabled={isLoading} className={styles.submitButton}>
-              {isLoading ? "Creating account..." : "Sign Up"}
-            </button>
+            <div className={styles.submitButtonRow}>
+              <CtaButton type="submit" disabled={isLoading}>
+                {isLoading ? "Creating account..." : "Sign Up"}
+              </CtaButton>
+            </div>
           </form>
         ) : (
           <form
@@ -463,72 +484,94 @@ export default function AuthPage() {
             }}
           >
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="venue-name">
-                Venue name
-              </label>
-              <input
-                id="venue-name"
-                value={venueName}
-                onChange={(e) => setVenueName(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="venue-name"
+                  value={venueName}
+                  onChange={(e) => setVenueName(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="venue-name">
+                  Venue name
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="venue-producer-name">
-                Your full name
-              </label>
-              <input
-                id="venue-producer-name"
-                value={venueProducerName}
-                onChange={(e) => setVenueProducerName(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="venue-producer-name"
+                  value={venueProducerName}
+                  onChange={(e) => setVenueProducerName(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="venue-producer-name">
+                  Your full name
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="venue-producer-email">
-                Email
-              </label>
-              <input
-                id="venue-producer-email"
-                type="email"
-                value={venueProducerEmail}
-                onChange={(e) => setVenueProducerEmail(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="venue-producer-email"
+                  type="email"
+                  value={venueProducerEmail}
+                  onChange={(e) => setVenueProducerEmail(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="venue-producer-email">
+                  Email
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="venue-producer-phone">
-                Phone number
-              </label>
-              <input
-                id="venue-producer-phone"
-                value={venueProducerPhone}
-                onChange={(e) => setVenueProducerPhone(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="venue-producer-phone"
+                  value={venueProducerPhone}
+                  onChange={(e) => setVenueProducerPhone(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="venue-producer-phone">
+                  Phone number
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={labelClassName} htmlFor="venue-producer-password">
-                Password
-              </label>
-              <input
-                id="venue-producer-password"
-                type="password"
-                value={venueProducerPassword}
-                onChange={(e) => setVenueProducerPassword(e.target.value)}
-                className={inputClassName}
-              />
+              <div className={styles.floatField}>
+                <input
+                  id="venue-producer-password"
+                  type="password"
+                  value={venueProducerPassword}
+                  onChange={(e) => setVenueProducerPassword(e.target.value)}
+                  className={styles.floatInput}
+                  placeholder=" "
+                />
+                <label className={styles.floatLabel} htmlFor="venue-producer-password">
+                  Password
+                </label>
+                <span className={styles.floatBar} aria-hidden="true" />
+              </div>
             </div>
 
             {error ? <div className={styles.errorBox}>{error}</div> : null}
 
-            <button type="submit" disabled={isLoading} className={styles.submitButton}>
-              {isLoading ? "Creating account..." : "Sign Up"}
-            </button>
+            <div className={styles.submitButtonRow}>
+              <CtaButton type="submit" disabled={isLoading}>
+                {isLoading ? "Creating account..." : "Sign Up"}
+              </CtaButton>
+            </div>
 
             <p className={styles.supportText}>Your venue will be reviewed by our team before going live.</p>
           </form>
