@@ -6,7 +6,7 @@ export interface Venue {
   photos: string[];
   description: string;
   instagram_url?: string | null;
-  youtube_url?: string | null;
+  x_url?: string | null;
   maps_url?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;

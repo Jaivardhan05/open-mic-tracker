@@ -62,7 +62,7 @@ type ProfileEditableField = (typeof PROFILE_EDITABLE_FIELDS)[number];
 
 const VENUE_EDITABLE_FIELDS = [
   'instagram_url',
-  'youtube_url',
+  'x_url',
   'maps_url',
   'contact_email',
   'contact_phone',
@@ -225,7 +225,7 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
 
   const { data: venueRow, error: venueError } = await supabase
     .from('venues')
-    .select('id, name, address, city, photos, description, instagram_url, youtube_url, maps_url, contact_email, contact_phone, owner_id')
+    .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id')
     .eq('id', id)
     .eq('admin_approved', true)
     .eq('is_active', true)
@@ -324,7 +324,7 @@ app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (
     return;
   }
 
-  for (const urlField of ['instagram_url', 'youtube_url', 'maps_url'] as const) {
+  for (const urlField of ['instagram_url', 'x_url', 'maps_url'] as const) {
     const value = updates[urlField];
     if (value && !/^https?:\/\//i.test(value)) {
       res.status(400).json({ error: `${urlField} must start with http:// or https://` });
@@ -336,7 +336,7 @@ app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (
     .from('venues')
     .update(updates)
     .eq('id', id)
-    .select('id, name, address, city, photos, description, instagram_url, youtube_url, maps_url, contact_email, contact_phone')
+    .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone')
     .single();
 
   if (error) {

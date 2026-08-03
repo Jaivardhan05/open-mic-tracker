@@ -1,171 +1,156 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { Venue } from '@repo/types';
 
-import { IconInstagram, IconMail, IconMapPin, IconYoutube } from '../icons/NavIcons';
+import { GmailIcon, InstagramIcon, MapsIcon, XIcon } from '../profile/flashcards/BrandIcons';
+import { parseSocialHandle } from '../../lib/socialHandle';
+import styles from './VenueSocialLinks.module.css';
 
 interface VenueSocialLinksProps {
   venue: Venue;
 }
 
-interface SocialEntry {
+interface SocialItem {
   key: string;
-  href?: string;
-  icon: ReactNode;
+  themeClass: string | undefined;
   label: string;
+  icon: ReactNode;
+  href?: string | null;
+  detail: string;
+  isContact?: boolean;
 }
 
 export function VenueSocialLinks({ venue }: VenueSocialLinksProps) {
-  const entries: SocialEntry[] = [];
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
-  const hasContact = Boolean(venue.contact_email || venue.contact_phone);
-  if (hasContact) {
-    entries.push({ key: 'contact', icon: <IconMail className="w-full h-full" />, label: 'Contact' });
-  }
-  if (venue.instagram_url) {
-    entries.push({
+  const items: SocialItem[] = [
+    {
+      key: 'x',
+      themeClass: styles.x,
+      label: 'X',
+      icon: <XIcon className={styles.icon} />,
+      href: venue.x_url ?? undefined,
+      detail: venue.x_url ? (parseSocialHandle(venue.x_url) ?? 'View profile') : 'Not linked',
+    },
+    {
       key: 'instagram',
-      href: venue.instagram_url,
-      icon: <IconInstagram className="w-full h-full" />,
+      themeClass: styles.instagram,
       label: 'Instagram',
-    });
-  }
-  if (venue.youtube_url) {
-    entries.push({
-      key: 'youtube',
-      href: venue.youtube_url,
-      icon: <IconYoutube className="w-full h-full" />,
-      label: 'YouTube',
-    });
-  }
-  if (venue.maps_url) {
-    entries.push({
+      icon: <InstagramIcon className={styles.icon} />,
+      href: venue.instagram_url ?? undefined,
+      detail: venue.instagram_url ? (parseSocialHandle(venue.instagram_url) ?? 'View profile') : 'Not linked',
+    },
+    {
       key: 'maps',
-      href: venue.maps_url,
-      icon: <IconMapPin className="w-full h-full" />,
-      label: 'Google Maps',
-    });
+      themeClass: styles.maps,
+      label: 'Maps',
+      icon: <MapsIcon className={styles.icon} />,
+      href: venue.maps_url ?? undefined,
+      detail: venue.maps_url ? 'View on Google Maps' : 'Not linked',
+    },
+    {
+      key: 'contact',
+      themeClass: styles.contact,
+      label: 'Contact',
+      icon: <GmailIcon className={styles.icon} />,
+      detail:
+        venue.contact_email || venue.contact_phone
+          ? [venue.contact_email, venue.contact_phone].filter(Boolean).join('\n')
+          : 'Not linked',
+      isContact: true,
+    },
+  ];
+
+  function activate(item: SocialItem, e: MouseEvent | KeyboardEvent) {
+    if (item.isContact) {
+      e.preventDefault();
+      setExpandedKey((cur) => (cur === item.key ? null : item.key));
+      return;
+    }
+
+    if (!item.href) {
+      e.preventDefault();
+      return;
+    }
+
+    if (expandedKey !== item.key) {
+      e.preventDefault();
+      setExpandedKey(item.key);
+    }
   }
 
-  if (entries.length === 0) {
-    return null;
+  function handleKeyDown(item: SocialItem, e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      activate(item, e);
+    }
   }
 
   return (
     <div className="mt-8">
       <h2 className="text-lg font-bold text-white mb-4">Connect</h2>
 
-      <style>{`
-        .vsp-card {
-          position: relative;
-          width: 220px;
-          height: 220px;
-          border-radius: 30px;
-          overflow: hidden;
-          background: rgba(0, 0, 0, 0.52);
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          backdrop-filter: blur(24px) saturate(120%);
-          -webkit-backdrop-filter: blur(24px) saturate(120%);
-          transition: transform 0.5s ease-in-out;
-        }
-        .vsp-card:hover {
-          transform: scale(1.04);
-        }
-        .vsp-label {
-          position: absolute;
-          right: 50%;
-          bottom: 50%;
-          transform: translate(50%, 50%);
-          transition: all 0.6s ease-in-out;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #38bdf8;
-          letter-spacing: 3px;
-          white-space: nowrap;
-        }
-        .vsp-card:hover .vsp-label {
-          transform: translate(65px, -70px);
-          letter-spacing: 1px;
-        }
-        .vsp-box {
-          position: absolute;
-          bottom: -100%;
-          left: -100%;
-          display: flex;
-          align-items: flex-end;
-          justify-content: flex-end;
-          padding: 10px;
-          background: rgba(255, 255, 255, 0.05);
-          border-top: 1px solid rgba(255, 255, 255, 0.18);
-          border-right: 1px solid rgba(255, 255, 255, 0.18);
-          border-radius: 10% 13% 42% 0% / 10% 12% 75% 0%;
-          transform-origin: bottom left;
-          transition: bottom 0.8s ease-in-out, left 0.8s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
-        }
-        .vsp-card:hover .vsp-box {
-          bottom: -1px;
-          left: -1px;
-        }
-        .vsp-box:hover {
-          background: rgba(56, 189, 248, 0.16);
-          border-color: rgba(56, 189, 248, 0.55);
-        }
-        .vsp-box1 { width: 70%; height: 70%; }
-        .vsp-box2 { width: 50%; height: 50%; transition-delay: 0.15s; }
-        .vsp-box3 { width: 32%; height: 32%; transition-delay: 0.3s; }
-        .vsp-box4 { width: 18%; height: 18%; transition-delay: 0.45s; }
-        .vsp-icon {
-          width: 20px;
-          height: 20px;
-          flex-shrink: 0;
-          color: rgba(255, 255, 255, 0.8);
-          transition: color 0.3s ease-in-out;
-        }
-        .vsp-box:hover .vsp-icon {
-          color: #38bdf8;
-        }
-        .vsp-contact-text {
-          font-size: 0.65rem;
-          line-height: 1.3;
-          color: #ffffff;
-          text-align: right;
-          opacity: 0;
-          transition: opacity 0.3s ease-in-out;
-          margin-right: 6px;
-        }
-        .vsp-box:hover .vsp-contact-text {
-          opacity: 1;
-        }
-      `}</style>
+      <div className={styles.card}>
+        {items.map((item) => {
+          const isExpanded = expandedKey === item.key;
+          const isDisabled = !item.isContact && !item.href;
+          const className = [
+            styles.item,
+            item.themeClass,
+            isExpanded ? styles.expanded : '',
+            isDisabled ? styles.disabled : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
 
-      <div className="vsp-card">
-        <span className="vsp-label">Connect</span>
-        {entries.map((entry, index) => {
-          const boxClassName = `vsp-box vsp-box${index + 1}`;
-
-          if (entry.key === 'contact') {
-            return (
-              <div key={entry.key} className={boxClassName} aria-label={entry.label}>
-                <span className="vsp-contact-text">
-                  {venue.contact_email ? <span className="block">{venue.contact_email}</span> : null}
-                  {venue.contact_phone ? <span className="block">{venue.contact_phone}</span> : null}
+          const content = (
+            <>
+              {item.icon}
+              {isExpanded ? (
+                <span className={styles.detail} style={{ whiteSpace: 'pre-line' }}>
+                  {item.detail}
                 </span>
-                <span className="vsp-icon">{entry.icon}</span>
+              ) : null}
+            </>
+          );
+
+          if (item.isContact) {
+            return (
+              <div
+                key={item.key}
+                role="button"
+                tabIndex={0}
+                aria-label={item.label}
+                aria-expanded={isExpanded}
+                className={className}
+                onMouseEnter={() => setExpandedKey(item.key)}
+                onMouseLeave={() => setExpandedKey((cur) => (cur === item.key ? null : cur))}
+                onClick={(e) => activate(item, e)}
+                onKeyDown={(e) => handleKeyDown(item, e)}
+              >
+                {content}
               </div>
             );
           }
 
           return (
             <a
-              key={entry.key}
-              href={entry.href}
+              key={item.key}
+              href={item.href ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
-              className={boxClassName}
-              aria-label={entry.label}
+              aria-label={item.label}
+              aria-expanded={isExpanded}
+              aria-disabled={isDisabled}
+              tabIndex={0}
+              className={className}
+              onMouseEnter={() => setExpandedKey(item.key)}
+              onMouseLeave={() => setExpandedKey((cur) => (cur === item.key ? null : cur))}
+              onClick={(e) => activate(item, e)}
+              onKeyDown={(e) => handleKeyDown(item, e)}
             >
-              <span className="vsp-icon">{entry.icon}</span>
+              {content}
             </a>
           );
         })}

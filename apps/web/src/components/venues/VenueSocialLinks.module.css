@@ -1,0 +1,104 @@
+.card {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  max-width: 480px;
+  height: 260px;
+  padding: 0.5rem;
+  border-radius: 12px;
+  background: #141414;
+}
+
+.item {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--vsl-border);
+  background: var(--vsl-bg);
+  color: var(--vsl-fg);
+  transition: flex 0.5s ease, filter 0.3s ease, box-shadow 0.3s ease;
+}
+
+.item:hover,
+.item.expanded {
+  flex: 4;
+  filter: brightness(1.12) saturate(1.15);
+  box-shadow: 0 8px 24px -8px var(--vsl-glow);
+}
+
+.item.disabled:hover,
+.item.disabled.expanded {
+  filter: none;
+  box-shadow: none;
+}
+
+.item:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+
+.item.disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.detail {
+  max-width: 100%;
+  padding: 0 0.4rem;
+  text-align: center;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  word-break: break-word;
+  opacity: 0;
+  transition: opacity 0.3s ease 0.15s;
+}
+
+.item:hover .detail,
+.item.expanded .detail {
+  opacity: 1;
+}
+
+/* Instagram: purplish-blue brand gradient, applied at rest */
+.instagram {
+  --vsl-bg: linear-gradient(160deg, #3f51d1, #6d3aa8);
+  --vsl-border: #8385ef;
+  --vsl-fg: #ffffff;
+  --vsl-glow: rgba(131, 133, 239, 0.45);
+}
+
+/* X: black with white logo, at rest */
+.x {
+  --vsl-bg: #000000;
+  --vsl-border: rgb(255, 255, 255);
+  --vsl-fg: #ffffff;
+  --vsl-glow: rgb(255, 255, 255);
+}
+
+/* Google Maps: peach theme, applied at rest */
+.maps {
+  --vsl-bg: #ffb877;
+  --vsl-border: #ff9f55;
+  --vsl-fg: #4a2e12;
+  --vsl-glow: rgb(255, 159, 85);
+}
+
+/* Contact: cream background, same family at rest and expanded */
+.contact {
+  --vsl-bg: #ffefc2;
+  --vsl-border: rgba(255, 255, 255, 0.45);
+  --vsl-fg: #ea4335;
+  --vsl-glow: rgba(234, 67, 53, 0.3);
+}
