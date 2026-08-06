@@ -30,7 +30,7 @@ export default function RemindersSection({
   const [error, setError] = useState("");
 
   const visibleSpotRequests = spotRequests.filter((r) =>
-    ["accepted", "waitlisted", "cancelled_by_venue"].includes(r.status)
+    ["pending", "accepted", "waitlisted", "cancelled_by_venue"].includes(r.status)
   );
 
   async function handleCancelSpotRequest(requestId: string) {

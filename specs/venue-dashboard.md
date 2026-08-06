@@ -139,14 +139,29 @@ Grouped per spot, three sections:
 
 ## 6. Comedian-Side Changes (minimal, scoped)
 
-The comedian's existing reminders window already shows applied spots (currently just venue name, per current behavior). This spec adds status + message to that same existing UI element — **no new comedian-facing screen**:
+The comedian's reminders window (`SpotRequestCard` inside `RemindersSection`, part
+of the Reminders & Confirmations section on `/home`) shows one ticket-stub style
+card per applied spot request, redesigned to a two-part layout: a main stub
+(venue name as the primary focal point, date/time/type, actions) and a
+perforated status stub showing the current state. No glow/text-shadow on any
+card text — the outer glass panel is the only glassmorphism layer.
 
-- `accepted` → shows accepted state, plus venue owner's optional message if present.
-- `waitlisted` → shows waitlisted state.
-- `cancelled_by_venue` → shows cancellation state + the cancellation message (custom or default `"Spot canceled by venue"`).
-- Comedian can trigger `cancel` on their own `accepted` request from this same view.
+- `pending` → shows a "Waiting for Confirmation" state. Comedian can trigger
+  `cancel` on this request from this same view.
+- `accepted` → shows accepted state, plus venue owner's optional message if
+  present. Comedian can trigger `cancel` here too.
+- `waitlisted` → shows waitlisted state. No cancel action.
+- `cancelled_by_venue` → shows cancellation state + the cancellation message
+  (custom or default `"Spot canceled by venue"`). No cancel action. **Drops
+  out of `GET /api/spot-requests/mine` 24 hours after cancellation** — the
+  endpoint filters out `cancelled_by_venue` rows whose `decided_at` is older
+  than 24h. No new column was added for this: `decided_at` is overwritten on
+  every status transition (see §5.2/§5.3 functions), so for a row currently
+  at `cancelled_by_venue` it already holds the cancellation timestamp.
 
-Explicitly out of scope: redesigning the comedian calendar/reminders window layout itself.
+Explicitly out of scope: redesigning the comedian calendar/reminders window
+layout as a whole (only the spot-request card itself), and the legacy
+`bookings`-based reminder cards in the same section (unchanged).
 
 ---
 

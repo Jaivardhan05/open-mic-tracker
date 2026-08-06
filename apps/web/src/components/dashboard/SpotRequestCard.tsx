@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 
 import type { SpotRequestStatus } from "@repo/types";
 
+import CtaButton from "@/components/CtaButton";
+
 interface SpotRequestCardProps {
   venueName: string;
   venueId?: string | null;
@@ -17,20 +19,18 @@ interface SpotRequestCardProps {
 }
 
 const STATUS_LABEL: Partial<Record<SpotRequestStatus, string>> = {
-  accepted: "Confirmed",
+  pending: "Waiting for Confirmation",
+  accepted: "Accepted",
   waitlisted: "Waitlisted",
   cancelled_by_venue: "Cancelled by Venue",
 };
 
 const STATUS_COLOR: Partial<Record<SpotRequestStatus, string>> = {
+  pending: "#facc15",
   accepted: "#4ade80",
-  waitlisted: "#ffffff",
-  cancelled_by_venue: "#d43e3e",
+  waitlisted: "#e4e4e7",
+  cancelled_by_venue: "#f87171",
 };
-
-const headerTextShadow = "0 3px 10px rgba(248, 249, 250, 0.956)";
-const bodyTextShadow = "0 2px 8px rgba(255, 255, 255, 0.768)";
-const statusTextShadow = "0 2px 8px #fefbfbeb";
 
 function formatOrdinalDate(dateStr: string): string {
   const date = new Date(`${dateStr}T00:00:00`);
@@ -44,8 +44,7 @@ function formatOrdinalDate(dateStr: string): string {
           ? "rd"
           : "th";
   const month = date.toLocaleDateString(undefined, { month: "long" });
-  const year = date.getFullYear();
-  return `${day}${suffix} ${month}, ${year}`;
+  return `${day}${suffix} ${month}`;
 }
 
 function formatTime12h(timeStr: string): string {
@@ -69,7 +68,7 @@ export default function SpotRequestCard({
   isCancelling = false,
 }: SpotRequestCardProps) {
   const router = useRouter();
-  const canCancel = status === "accepted" && Boolean(onCancel);
+  const canCancel = (status === "pending" || status === "accepted") && Boolean(onCancel);
 
   function handleViewVenue() {
     if (venueId) {
@@ -79,71 +78,55 @@ export default function SpotRequestCard({
 
   return (
     <div
-      className="content-glass flex flex-col items-center gap-3 rounded-2xl p-5 text-center"
+      className="content-glass relative flex overflow-hidden rounded-2xl"
       style={{ backdropFilter: "blur(40px) saturate(120%)", WebkitBackdropFilter: "blur(40px) saturate(120%)" }}
     >
-      <p
-        className="font-[family-name:var(--font-bebas)] uppercase text-white"
-        style={{ fontSize: "clamp(1.7rem, 9vw, 2.3rem)", letterSpacing: "2px", textShadow: headerTextShadow }}
-      >
-        {venueName}
-      </p>
+      {/* Main stub: the "ticket" itself */}
+      <div className="flex min-w-0 flex-1 flex-col gap-5 p-5">
+        <p
+          className="font-[family-name:var(--font-bebas)] uppercase leading-[0.95] text-white"
+          style={{ fontSize: "clamp(1.8rem, 7vw, 2.4rem)", letterSpacing: "1px" }}
+        >
+          {venueName}
+        </p>
 
-      <div className="flex w-full flex-col items-center gap-2">
-        <p
-          className="font-[family-name:var(--font-bebas)] uppercase text-white"
-          style={{ fontSize: "clamp(1.4rem, 7.5vw, 1.75rem)", letterSpacing: "1px", textShadow: bodyTextShadow }}
-        >
-          {formatOrdinalDate(date)}
-        </p>
-        <p
-          className="font-[family-name:var(--font-bebas)] uppercase text-white"
-          style={{ fontSize: "clamp(1.2rem, 6.5vw, 1.5rem)", letterSpacing: "1.5px", textShadow: bodyTextShadow }}
-        >
-          {formatTime12h(startTime)}
-        </p>
-        <p
-          className="font-[family-name:var(--font-bebas)] uppercase text-white"
-          style={{ fontSize: "clamp(1.2rem, 6.5vw, 1.5rem)", letterSpacing: "1.5px", textShadow: bodyTextShadow }}
-        >
-          {spotType === "busking" ? "Busking" : "Non-Busking"}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-zinc-300">
+          <span>{formatOrdinalDate(date)}</span>
+          <span className="text-zinc-600">&middot;</span>
+          <span>{formatTime12h(startTime)}</span>
+          <span className="text-zinc-600">&middot;</span>
+          <span>{spotType === "busking" ? "Busking" : "Non-Busking"}</span>
+        </div>
+
+        {venueMessage ? <p className="text-xs text-zinc-400">Note: {venueMessage}</p> : null}
+
+        <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
+          <CtaButton onClick={handleViewVenue} disabled={!venueId}>
+            View Venue
+          </CtaButton>
+
+          {canCancel ? (
+            <CtaButton onClick={onCancel} disabled={isCancelling}>
+              {isCancelling ? "Cancelling…" : "Cancel Spot"}
+            </CtaButton>
+          ) : null}
+        </div>
       </div>
 
-      {venueMessage ? <p className="text-xs font-medium text-zinc-300">Note: {venueMessage}</p> : null}
-
-      <p
-        className="font-[family-name:var(--font-bebas)] uppercase"
-        style={{
-          fontSize: "clamp(1rem, 5.5vw, 1.2rem)",
-          letterSpacing: "2.5px",
-          textShadow: statusTextShadow,
-          color: STATUS_COLOR[status] ?? "#ffffff",
-        }}
-      >
-        {STATUS_LABEL[status] ?? status}
-      </p>
-
-      <div className="mt-1 flex w-full flex-col gap-2">
-        <button
-          type="button"
-          onClick={handleViewVenue}
-          disabled={!venueId}
-          className="w-full rounded-xl bg-[#38bdf8] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#0ea5e9] disabled:opacity-50"
+      {/* Perforated tear-off: the status stub */}
+      <div className="relative flex w-12 flex-shrink-0 items-center justify-center border-l border-dashed border-white/20 sm:w-14">
+        <span className="absolute -top-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-black/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]" />
+        <span className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-black/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]" />
+        <span
+          className="font-[family-name:var(--font-bebas)] text-xs uppercase tracking-[0.25em]"
+          style={{
+            writingMode: "vertical-rl",
+            transform: "rotate(180deg)",
+            color: STATUS_COLOR[status] ?? "#e4e4e7",
+          }}
         >
-          View Venue
-        </button>
-
-        {canCancel ? (
-          <button
-            type="button"
-            disabled={isCancelling}
-            onClick={onCancel}
-            className="w-full rounded-xl border border-red-800 bg-red-900/40 px-3 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50"
-          >
-            {isCancelling ? "Cancelling…" : "Cancel Spot"}
-          </button>
-        ) : null}
+          {STATUS_LABEL[status] ?? status}
+        </span>
       </div>
     </div>
   );

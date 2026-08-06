@@ -1057,10 +1057,17 @@ app.post('/api/spot-requests/:id/cancel', requireUser, requireRole('comedian'), 
 app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
 
+  // cancelled_by_venue requests drop off the comedian's view 24h after the
+  // cancellation (decided_at is overwritten on every status transition, so
+  // it doubles as the cancellation timestamp for this status). All other
+  // statuses are unaffected by this cutoff.
+  const cancelledVisibilityCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
   const { data: requests, error } = await supabaseAdmin
     .from('spot_requests')
     .select(`id, spot_id, comedian_id, status, venue_message, requested_at, decided_at, spots:spot_id(${SPOT_SELECT})`)
     .eq('comedian_id', userId)
+    .or(`status.neq.cancelled_by_venue,decided_at.gt.${cancelledVisibilityCutoff}`)
     .order('requested_at', { ascending: false });
 
   if (error) {
