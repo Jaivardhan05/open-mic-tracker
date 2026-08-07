@@ -100,21 +100,42 @@ export default function SpotRequestCard({
 
         {venueMessage ? <p className="text-xs text-zinc-400">Note: {venueMessage}</p> : null}
 
-        <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
-          <CtaButton onClick={handleViewVenue} disabled={!venueId}>
-            View Venue
-          </CtaButton>
+        <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
+          {/* min-h-[44px] gives each button a ≥44px touch target without
+              boxing the `.cta` element itself (shared across other pages) —
+              see specs/spot-card-mobile-fix-progress.md. */}
+          <span className="inline-flex min-h-[44px] items-center">
+            <CtaButton onClick={handleViewVenue} disabled={!venueId}>
+              View Venue
+            </CtaButton>
+          </span>
 
           {canCancel ? (
-            <CtaButton onClick={onCancel} disabled={isCancelling}>
-              {isCancelling ? "Cancelling…" : "Cancel Spot"}
-            </CtaButton>
+            <span className="inline-flex min-h-[44px] items-center">
+              <CtaButton onClick={onCancel} disabled={isCancelling}>
+                {isCancelling ? "Cancelling…" : "Cancel Spot"}
+              </CtaButton>
+            </span>
           ) : null}
         </div>
       </div>
 
-      {/* Perforated tear-off: the status stub */}
-      <div className="relative flex w-12 flex-shrink-0 items-center justify-center border-l border-dashed border-white/20 sm:w-14">
+      {/* Perforated tear-off: the status stub. `py-4 md:py-0` is a
+          measured minimum buffer for single-column widths ONLY (<768px,
+          matching RemindersSection's own `md:grid-cols-2` breakpoint):
+          this column's height is driven purely by the vertical status
+          text's own length, and at some single-column card widths the
+          main content column is shorter than that text needs, pushing
+          the text into the punch-hole circles. Measured with Playwright
+          (getBoundingClientRect) across 320–1280px: the real (negative)
+          overlap band is ~600–767px, not just narrow phones. The
+          `md:py-0` reset makes it structurally impossible for this to
+          add any height at 768px+ — verified byte-for-byte identical
+          card heights there before/after. Do not remove the `md:py-0`
+          half without re-measuring; a previous unscoped `py-4`/`py-5`
+          (no `md:` reset) leaked into the 2-/3-column desktop layout via
+          this column being the tallest item in its CSS Grid row. */}
+      <div className="relative flex w-12 flex-shrink-0 items-center justify-center border-l border-dashed border-white/20 py-4 sm:w-14 md:py-0">
         <span className="absolute -top-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-black/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]" />
         <span className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-black/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]" />
         <span

@@ -10,7 +10,10 @@ import { supabase } from '../../../src/lib/supabaseClient';
 import { BrutalistField } from './BrutalistField';
 import fieldStyles from './BrutalistField.module.css';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080';
+// See apps/web/src/lib/apiClient.ts for why this falls back to "" (relative,
+// routed through the Next.js /api/* rewrite proxy) instead of hardcoding
+// "http://localhost:8080" — the hardcoded value breaks on mobile/LAN clients.
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function EditProfilePage() {
   const { user, isLoading, logout, updateUser } = useAuth();
@@ -463,7 +466,7 @@ export default function EditProfilePage() {
           <div className="mx-auto w-full max-w-2xl">
             <h1 className="text-2xl font-bold text-white mb-8">Edit Profile</h1>
 
-            <>
+            <div className="content-glass rounded-2xl p-5 md:p-8 backdrop-blur-[40px] backdrop-saturate-[120%]">
               {isComedian ? (
                 <>
                   <div className="mb-8 flex flex-col items-center">
@@ -679,18 +682,17 @@ export default function EditProfilePage() {
                   setPasswordError('');
                   setPasswordSuccess('');
                 }}
-                className="flex items-center gap-2 w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-sm font-medium text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors duration-200 mb-4 min-h-[44px]"
+                className="flex items-center gap-2 w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-colors duration-200 mb-4 min-h-[44px]"
               >
                 <svg
                   width="16"
                   height="16"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="#38bdf8"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-zinc-400"
                 >
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -712,7 +714,7 @@ export default function EditProfilePage() {
               </button>
 
               {isChangingPassword && (
-                <div className="mt-3 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4">
+                <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
                   {passwordError ? (
                     <div className="bg-red-900/30 border border-red-800 text-red-400 text-sm rounded-xl px-4 py-3 mb-3">
                       {passwordError}
@@ -758,14 +760,15 @@ export default function EditProfilePage() {
                     />
                   </BrutalistField>
 
-                  <button
-                    type="button"
-                    onClick={() => void handlePasswordChange()}
-                    disabled={passwordLoading}
-                    className="w-full bg-zinc-700 text-white font-semibold py-3 rounded-xl text-sm hover:bg-zinc-600 disabled:opacity-50 transition-colors duration-200 min-h-[44px] mt-2"
-                  >
-                    {passwordLoading ? 'Updating...' : 'Update Password'}
-                  </button>
+                  <div className="text-center mt-4">
+                    <CtaButton
+                      type="button"
+                      onClick={() => void handlePasswordChange()}
+                      disabled={passwordLoading}
+                    >
+                      {passwordLoading ? 'Updating...' : 'Update Password'}
+                    </CtaButton>
+                  </div>
                 </div>
               )}
 
@@ -790,7 +793,7 @@ export default function EditProfilePage() {
                   {saveLoading ? 'Saving...' : 'Save Changes'}
                 </CtaButton>
               </div>
-            </>
+            </div>
           </div>
         </main>
       </div>

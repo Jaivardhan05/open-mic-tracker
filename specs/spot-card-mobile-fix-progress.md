@@ -1,8 +1,87 @@
 # Spot Card Mobile Rendering Fix — In-Progress Notes
 
-Status as of 2026-08-07. This file exists so a fresh session can pick up
+Status as of 2026-08-08. This file exists so a fresh session can pick up
 exactly where this one left off, without re-deriving the investigation.
 Delete this file once the mobile fix ships and is verified.
+
+## 2026-08-08 update — both known bugs now have code fixes, unverified
+
+Two fixes were made this session, code-level only — **not yet visually
+verified on-device**, per the user's instruction that they'll check
+rendering themselves by running the dev server.
+
+1. **Tap-target fix** (the bug already confirmed in the section below):
+   `SpotRequestCard.tsx`'s two `CtaButton`s are now each wrapped in
+   `<span className="inline-flex min-h-[44px] items-center">`, and the
+   button row's `gap-y-2` became `gap-y-3`. `.cta` itself and
+   `CtaButton.tsx` were left untouched, per scope.
+
+2. **New bug reported this session, root-caused and fixed**: the "Failed
+   to fetch" `TypeError` in `authorizedFetch` (`apiClient.ts:13`), seen on
+   a real phone hitting the dev server over LAN (screenshot showed the
+   page loaded fine at `168.29.13:3000` but every API call failed).
+   Root cause, confirmed by reading code (not guessed):
+   - `apiClient.ts` and `app/profile/edit/page.tsx` both defaulted
+     `API_URL` to the **absolute** string `"http://localhost:8080"` when
+     `NEXT_PUBLIC_API_URL` isn't set — and it isn't set anywhere
+     (`apps/web/.env.local` only has the two `NEXT_PUBLIC_SUPABASE_*`
+     keys, confirmed by reading the file).
+   - Every `authorizedFetch(path)` call site already passes paths like
+     `/api/me/bookings/pending` (confirmed by grepping every call site),
+     so the resulting request was `fetch("http://localhost:8080/api/...")`
+     — an absolute URL, issued directly from the browser.
+   - On a phone, "localhost" in that absolute URL resolves to the phone
+     itself (nothing listens on port 8080 there), hence "Failed to fetch".
+     Desktop "worked" only because desktop's `localhost` happens to be the
+     same machine as the dev server.
+   - `apps/web/next.config.js` already has an `/api/:path*` rewrite to
+     `http://localhost:8080` that runs **server-side** inside the Next.js
+     process (so its `localhost` is always correct, regardless of which
+     device the browser is on) — and `app/venues/page.tsx` already calls
+     `fetch('/api/venues')` with a **relative** path for exactly this
+     reason, which is why `/venues` worked fine on the same phone once the
+     API dev server was started (see the "detour" note below). This is
+     confirming precedent inside the same codebase, not a guess.
+   - Fix: changed the fallback in both `apiClient.ts` and
+     `app/profile/edit/page.tsx` from `"http://localhost:8080"` to `""`,
+     so unset-env-var requests go out as relative paths and ride the
+     existing rewrite proxy, same as `/venues` already does. Behavior when
+     `NEXT_PUBLIC_API_URL` *is* explicitly set (e.g. a real prod API
+     domain) is unchanged.
+   - Grepped for remaining `localhost:8080` references after the fix:
+     only `next.config.js` (correct, server-side) and stale
+     `.next/` build output remain (regenerates on next dev run) — no other
+     source file needs the same fix.
+
+## 2026-08-08 update #3 — root cause of "laptop stretched" was the 600–767px band, not padding
+
+User reverted `py-4` entirely (back to the button-tap-target fix only, zero
+status-column padding) and still saw the laptop view "stretched." Re-swept
+clearance with Playwright on that exact reverted state and found the real
+bug: with **zero** padding, clearance between the top punch-hole circle and
+the status text goes **negative (~‑4px, real overlap)** across roughly
+**600–767px** — a band that includes plausible laptop-with-sidebar content
+widths, not just phones. The earlier investigation (session #1/#2) only
+swept up to 414px and missed this because the layout is non-monotonic:
+clearance improves 390→550px, then collapses again right before the
+`md:` (768px) 2-column breakpoint gives cards room back.
+
+Fix: reapplied the padding but scoped to `py-4 md:py-0` (was previously
+unscoped `py-4`/`py-5`), so it's structurally impossible for it to add any
+height at 768px+ — verified the 768/900/1024/1280px card heights are
+byte-for-byte identical with and without the padding class. `<768px`
+clearance is now ≥6px everywhere in a re-swept 320–767px range (previously
+dipped to ‑4px around 600–750px and to +5px around 390–414px).
+
+### Still to do next session
+- Visually re-verify the tap-target fix at 320/375/390/414px (desktop
+  unaffected check too) — not done this session per user instruction.
+- Verify the "Failed to fetch" fix on the actual phone used for the
+  screenshot (reload `/home`, confirm the Reminders section loads without
+  the Turbopack error overlay).
+- Delete the debug route (`apps/web/app/debug-spot-card-preview/`) once
+  everything is confirmed — still present, see below.
+- Delete/trim this progress file once both fixes are confirmed shipped.
 
 ## Context: what preceded this task
 
