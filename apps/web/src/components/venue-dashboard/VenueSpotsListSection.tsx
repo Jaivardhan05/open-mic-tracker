@@ -2,6 +2,8 @@
 
 import type { Spot } from "@repo/types";
 
+import VenueSpotCard from "./VenueSpotCard";
+
 interface VenueSpotsListSectionProps {
   spots: Spot[];
   isLoading: boolean;
@@ -32,48 +34,14 @@ export default function VenueSpotsListSection({
           No spots scheduled yet.
         </p>
       ) : (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-3 flex flex-col gap-3">
           {sortedSpots.map((spot) => (
-            <div
+            <VenueSpotCard
               key={spot.id}
-              className={`content-glass rounded-xl border px-4 py-3 text-sm ${
-                spot.is_cancelled ? "border-zinc-700 text-zinc-500" : "border-white/10 text-zinc-200"
-              }`}
-            >
-              <p className={`font-semibold ${spot.is_cancelled ? "line-through" : ""}`}>
-                {new Date(`${spot.date}T00:00:00`).toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}{" "}
-                · {spot.start_time}–{spot.end_time} ·{" "}
-                {spot.spot_type === "busking" ? "Busking" : "Non-Busking"}
-              </p>
-              <p className="mt-1 text-xs text-zinc-400">
-                {spot.available_spots}/{spot.total_spots} spots ·{" "}
-                {spot.price ? `₹${spot.price}` : "Free"}
-              </p>
-              {spot.is_cancelled ? (
-                <p className="mt-1 text-xs text-red-400">{spot.cancellation_message}</p>
-              ) : (
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onViewRequests(spot.id)}
-                    className="rounded-lg border border-[#38bdf8]/50 px-2 py-1 text-[11px] font-semibold text-[#38bdf8] transition-colors hover:bg-[#38bdf8]/10"
-                  >
-                    View Requests
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onCancelSpot(spot.id)}
-                    className="rounded-lg border border-red-800 px-2 py-1 text-[11px] font-semibold text-red-400 transition-colors hover:bg-red-900/40"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
+              spot={spot}
+              onViewRequests={onViewRequests}
+              onCancelSpot={onCancelSpot}
+            />
           ))}
         </div>
       )}

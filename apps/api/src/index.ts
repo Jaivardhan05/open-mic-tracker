@@ -871,10 +871,15 @@ app.post('/api/spots', requireUser, requireRole('venue_producer'), async (req: A
 app.get('/api/spots/mine', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
 
+  // Cancelled spots drop off this list once their own date has passed,
+  // regardless of when they were cancelled. Active spots are unaffected —
+  // they keep showing regardless of date. See specs/venue-dashboard.md §5.1.
+  const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabaseAdmin
     .from('spots')
     .select(SPOT_SELECT)
     .eq('venue_producer_id', userId)
+    .or(`is_cancelled.eq.false,date.gte.${today}`)
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
 
