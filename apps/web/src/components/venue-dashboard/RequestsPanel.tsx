@@ -4,10 +4,15 @@ import { useState } from "react";
 
 import { useSpotRequests, type SpotRequestRow } from "@/hooks/useSpotRequests";
 import { IconClose } from "@/components/icons/NavIcons";
+import CtaButton from "@/components/CtaButton";
+import { formatDateTimeOrdinal, formatSpotDate, formatTime12h } from "@/lib/formatDate";
 
 interface RequestsPanelProps {
   spotId: string;
   spotAvailableSpots: number;
+  spotDate: string;
+  spotStartTime: string;
+  spotEndTime: string;
   onClose: () => void;
 }
 
@@ -18,6 +23,11 @@ const STATUS_SPINE: Record<SectionStatus, string> = {
   accepted: "#38bdf8",
   waitlisted: "#a1a1aa",
 };
+
+// Solid dark-navy panel fill — the notch on each entry is punched in this
+// exact color so it reads as a hole through to the panel behind it.
+const PANEL_BG = "rgba(6,12,32,0.97)";
+const CARD_BG = "rgba(19,30,58,0.92)";
 
 function RequestCard({
   request,
@@ -40,12 +50,19 @@ function RequestCard({
 
   return (
     <div
-      className="border border-white/10 p-3.5"
-      style={{ backgroundColor: "rgba(255,255,255,0.045)" }}
+      className="notch-entry rounded-xl py-3.5 pl-5 pr-3.5 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.55)]"
+      style={
+        {
+          backgroundColor: CARD_BG,
+          "--notch-bg": PANEL_BG,
+        } as React.CSSProperties
+      }
     >
-      <p className="text-sm font-semibold text-white">{request.comedian_name ?? "Comedian"}</p>
-      <p className="mt-1 text-[11px] text-zinc-500">
-        Requested {new Date(request.requested_at).toLocaleString()}
+      <p className="text-base font-bold tracking-tight text-white">
+        {request.comedian_name ?? "Comedian"}
+      </p>
+      <p className="mt-1.5 text-[11px] uppercase tracking-wide text-zinc-500">
+        Requested {formatDateTimeOrdinal(request.requested_at)}
       </p>
       {request.venue_message ? (
         <p className="mt-1 text-xs text-zinc-400">Note: {request.venue_message}</p>
@@ -56,26 +73,30 @@ function RequestCard({
           style={{ borderColor: `${STATUS_SPINE[status]}55` }}
         >
           {showMessageInput ? (
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Optional message"
-              className="min-h-[44px] w-full rounded-lg border border-white/10 bg-black/30 px-3 text-xs text-white outline-none focus:border-[#38bdf8]/60"
-            />
+            <div className="float-field">
+              <input
+                id={`request-message-${request.id}`}
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="float-input"
+                placeholder=" "
+              />
+              <label className="float-label" htmlFor={`request-message-${request.id}`}>
+                Optional message
+              </label>
+              <span className="float-bar" aria-hidden="true" />
+            </div>
           ) : null}
-          <button
+          <CtaButton
             type="button"
             disabled={disabled}
+            variant={variant === "danger" ? "danger" : "default"}
+            className="min-h-[44px] w-full justify-center"
             onClick={() => onAction(message)}
-            className={
-              variant === "danger"
-                ? "min-h-[44px] w-full rounded-lg border border-red-800 bg-red-900/40 px-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-900/60 disabled:opacity-50"
-                : "min-h-[44px] w-full rounded-lg bg-[#38bdf8] px-2 text-xs font-bold text-white transition-colors hover:bg-[#0ea5e9] disabled:opacity-50"
-            }
           >
             {actionLabel}
-          </button>
+          </CtaButton>
         </div>
       ) : null}
     </div>
@@ -95,7 +116,14 @@ function SectionHeading({ status, children }: { status: SectionStatus; children:
   );
 }
 
-export default function RequestsPanel({ spotId, spotAvailableSpots, onClose }: RequestsPanelProps) {
+export default function RequestsPanel({
+  spotId,
+  spotAvailableSpots,
+  spotDate,
+  spotStartTime,
+  spotEndTime,
+  onClose,
+}: RequestsPanelProps) {
   const { requests, isLoading, acceptRequest, cancelRequest } = useSpotRequests(spotId);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -121,20 +149,25 @@ export default function RequestsPanel({ spotId, spotAvailableSpots, onClose }: R
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-14 z-50 flex items-center justify-center bg-black/60 p-4 lg:left-[var(--sidebar-w)]">
+    <div className="fixed inset-x-0 bottom-0 top-14 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-lg lg:left-[var(--sidebar-w)]">
       <div
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/[0.14] p-6"
+        className="surface-grain max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/[0.08] p-6"
         style={{
-          backgroundColor: "rgba(24,24,27,0.94)",
+          backgroundColor: PANEL_BG,
           backdropFilter: "blur(40px) saturate(140%)",
           WebkitBackdropFilter: "blur(40px) saturate(140%)",
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 64px -12px rgba(0,0,0,0.65)",
         }}
       >
-        <div className="flex items-center justify-between">
-          <h2 className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white">
-            Requests
-          </h2>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white">
+              Requests
+            </h2>
+            <p className="mt-0.5 font-[family-name:var(--font-bebas)] text-sm uppercase tracking-[0.12em] text-zinc-400">
+              {formatSpotDate(spotDate)} &middot; {formatTime12h(spotStartTime)} &ndash; {formatTime12h(spotEndTime)}
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}

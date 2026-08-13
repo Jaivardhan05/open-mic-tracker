@@ -4,6 +4,7 @@ import type { Spot } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
 import { IconBusking, IconClock, IconInfo, IconStage } from "@/components/icons/NavIcons";
+import { formatSpotDate as formatCardDate, formatTime12h } from "@/lib/formatDate";
 
 interface VenueSpotCardProps {
   spot: Spot;
@@ -12,23 +13,6 @@ interface VenueSpotCardProps {
 }
 
 const MAX_METER_BLOCKS = 12;
-
-function formatCardDate(dateStr: string): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  const day = date.getDate();
-  const month = date.toLocaleDateString(undefined, { month: "short" });
-  const year = date.getFullYear();
-  return `${day} ${month}, ${year}`;
-}
-
-function formatTime12h(timeStr: string): string {
-  const [hourStr, minuteStr] = timeStr.split(":");
-  const hour = Number(hourStr);
-  const minute = Number(minuteStr ?? 0);
-  const period = hour >= 12 ? "pm" : "am";
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
-}
 
 export default function VenueSpotCard({ spot, onViewRequests, onCancelSpot }: VenueSpotCardProps) {
   const filled = spot.total_spots - spot.available_spots;

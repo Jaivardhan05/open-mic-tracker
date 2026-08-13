@@ -5,10 +5,25 @@ import type { ButtonHTMLAttributes } from "react";
 interface CtaButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Keeps the underline + arrow in their hover position, for use as an active tab/toggle state. */
   active?: boolean;
+  /** "danger" recolors the label/underline/arrow red for destructive actions. */
+  variant?: "default" | "danger";
 }
 
-export default function CtaButton({ children, className = "", active = false, ...props }: CtaButtonProps) {
-  const classes = ["cta", active ? "cta-active" : "", className].filter(Boolean).join(" ");
+export default function CtaButton({
+  children,
+  className = "",
+  active = false,
+  variant = "default",
+  ...props
+}: CtaButtonProps) {
+  const classes = [
+    "cta",
+    active ? "cta-active" : "",
+    variant === "danger" ? "cta-danger" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <button {...props} className={classes}>

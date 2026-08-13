@@ -59,6 +59,9 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
         <RequestsPanel
           spotId={requestsSpot.id}
           spotAvailableSpots={requestsSpot.available_spots}
+          spotDate={requestsSpot.date}
+          spotStartTime={requestsSpot.start_time}
+          spotEndTime={requestsSpot.end_time}
           onClose={() => setRequestsSpotId(null)}
         />
       ) : null}

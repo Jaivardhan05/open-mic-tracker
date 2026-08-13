@@ -296,6 +296,148 @@ untouched):
 - On confirm with no message entered → stored message defaults to `"Spot canceled by venue"`.
 - No un-cancel action.
 
+**2026-08-14 follow-up.** The previous pass explicitly left three things
+untouched: the panel/card surfaces stayed flat single-rgba fills once
+separated by hue, the Cancel button on an accepted request predated the
+site-wide `CtaButton` redesign, and the message input used a boxed style
+instead of the underline floating-label pattern from `/auth`. All three
+addressed here, without touching modal positioning, section heading style,
+section-label markers, typography, or text colors:
+
+- **Panel and nested card — texture/depth added on top of the existing
+  luminance-elevation model, not a replacement for it.** Both surfaces keep
+  their established base fill (`rgba(24,24,27,0.94)` panel /
+  `rgba(255,255,255,0.045)` card) and hue — only their flatness is
+  addressed:
+  - **Panel** gets a faint top-down radial highlight (~4% white, sheen
+    rather than a visible gradient) layered under the flat fill, a subtle
+    SVG-grain texture overlay (`feTurbulence`, ~3% opacity) for tactile
+    depth, and a gradient border (brighter top edge fading to dimmer
+    sides/bottom) replacing the flat `white/[0.14]` border — mimicking an
+    edge-lit pane of glass catching light from above.
+  - **Nested request card** gets a subtle top-to-bottom gradient fill
+    (marginally lighter at the top edge, fading to the existing base rgba)
+    so it reads as a physical object catching light rather than a flat
+    tint, plus the same grain texture as the panel for material
+    consistency between the two surfaces. Sharp corners, the dashed
+    per-status divider, and all text/label colors are unchanged.
+  - Both additions are luminance/texture only — no hue shift, no colored
+    glow, consistent with the "no neon glow" rule already established for
+    this panel.
+- **Cancel button (Accepted section) — moved onto `CtaButton`.** The
+  hand-rolled `border-red-800 bg-red-900/40` button is replaced by the
+  shared `CtaButton` component used everywhere else on the site, given a
+  new `variant="danger"` prop. `CtaButton` previously only rendered in its
+  default cyan (`#38bdf8`); the danger variant recolors the label, the
+  underline-on-hover bar, and the arrow icon to `#f87171` (red-400) —
+  matching the red already used for this panel's own error banner, rather
+  than introducing a second red. Motion (underline sweep, arrow slide-in on
+  hover) is identical to the default variant; only color changes.
+- **Message input — moved onto the `/auth` underline floating-label
+  pattern.** The boxed `rounded-lg border bg-black/30` input is replaced
+  with the same floating-label structure `/auth` uses (`floatField` /
+  `floatInput` / `floatLabel` / `floatBar`). Since `/auth`'s version lives
+  scoped inside `auth.module.css`, the pattern is lifted into `globals.css`
+  as shared `.float-field` / `.float-input` / `.float-label` / `.float-bar`
+  classes — the same place the shared `.cta` button classes already live —
+  so both `/auth` and this panel (and any future usage) draw from one
+  definition instead of duplicating it. Visual behavior (label floats up
+  and shrinks on focus/filled, bottom bar sweeps in on focus, cyan accent)
+  is unchanged from `/auth`.
+
+**2026-08-14 second follow-up.** Two smaller fixes on top of the above:
+
+- **Panel/card surface tint — cyan instead of colorless.** The gradient
+  border and radial sheen added on the panel in the prior pass used plain
+  white (`rgba(255,255,255,…)`), which read as neutral grey rather than
+  part of the site's blue theme. Both are now tinted with the site's cyan
+  accent (`#38bdf8`) instead — same layers, same opacities/stops, only the
+  hue changed (`rgba(56,189,248,…)` in place of `rgba(255,255,255,…)` for
+  the border gradient and the radial sheen). The nested request card's
+  top-to-bottom gradient fill gets the same treatment on its lighter top
+  stop. The grain texture layer is left achromatic — it's a shared
+  `.surface-grain` utility used elsewhere and isn't specific to this
+  panel's color.
+- **Request timestamp — ordinal format, reusing the shared date utility.**
+  "Requested 8/7/2026, 10:12:29 PM" (`Date.prototype.toLocaleString()`)
+  is replaced with the same ordinal-date convention used on spot cards
+  (`src/lib/formatDate.ts`, already used by `formatDateOrdinal` on
+  `/venues/[id]`) — extended with a new `formatDateTimeOrdinal` export
+  that additionally renders abbreviated month + 12-hour time, no seconds:
+  "7th Aug, 2026, 10:12 PM". No one-off formatter was added to the panel
+  itself.
+
+**2026-08-14 third follow-up.** The cyan-sheen surface treatment from the
+prior pass read as off rather than as an improvement; rolled back in favor
+of a different direction, plus three unrelated fixes surfaced in the same
+review:
+
+- **Backdrop — actual blur, not just a scrim.** The overlay behind the
+  panel was a flat `bg-black/60` with no blur, so the dashboard behind it
+  stayed fully in focus. Added `backdrop-blur-lg` to the overlay so the
+  page content is genuinely defocused, making the panel the only sharp
+  element on screen — the dark scrim stays for contrast, blur is additive.
+- **Panel — solid dark navy, sheen/gradient-border treatment removed.**
+  The radial sheen + gradient border from the cyan-tint pass is gone. The
+  panel is back to a flat single-color fill, moved off zinc-grey onto a
+  solid dark blue — `rgba(6,12,32,0.97)` — so it reads as part of the
+  site's navy/cyan palette by hue, not by an applied tint effect. Border
+  is a plain `white/[0.08]` hairline. The panel's own `blur(40px)
+  saturate(140%)` backdrop-filter (the glass-over-page-content effect,
+  independent of the outer scrim blur above) and the inset-highlight /
+  drop-shadow pairing are unchanged. `.surface-grain` (achromatic texture)
+  stays on the panel.
+- **Accept/Promote buttons — moved onto `CtaButton`.** The one-off
+  `bg-[#38bdf8] rounded-lg` fill button (the last piece of this panel not
+  already on the shared component, now that Cancel was migrated in the
+  prior pass) is replaced by `CtaButton` in its default cyan variant — the
+  same component `View Requests`/`Cancel` (spot) and `Add a new Spot` use
+  elsewhere in this dashboard. `RequestCard` now always renders
+  `CtaButton`, switching `variant="danger"` vs `"default"` off the
+  existing `variant` prop instead of branching between two different
+  button implementations.
+- **Requester name — given visual weight over the timestamp.** Was
+  `text-sm font-semibold` directly above an `text-[11px]` timestamp with
+  only `mt-1` between them — too close in size/weight/spacing to read as
+  primary vs secondary. Name is now `text-base font-bold tracking-tight`;
+  the timestamp gets `mt-1.5` (more separation) and `uppercase
+  tracking-wide` (a distinct small-caps treatment, not just smaller text)
+  so the two are unambiguously different tiers of information rather than
+  two lines of the same style.
+- **Entry surface — ticket-stub notch, replacing the bordered rectangle.**
+  The flat `border border-white/10` box read as a generic bordered
+  rectangle. Replaced with a borderless, softly-shadowed card (elevated
+  off the panel via `box-shadow`, not an outline) carrying a die-cut
+  semicircle notch on its left edge — a literal punched-through hole, not
+  a colored decoration: the notch's fill is set to the exact same color as
+  the panel behind it (`--notch-bg`, shared via a CSS custom property so
+  the two surfaces can't drift out of sync), so it reads as the panel
+  showing through rather than a status-colored chip. This extends the
+  panel's existing ticket idiom (the per-card dashed divider already
+  stands in for a tear/perforation line) to the entry's outer shape rather
+  than inventing an unrelated motif. Status identity continues to live on
+  the dashed divider and section-heading accent bar, not the notch, so
+  there's no duplicate color-coding. This also supersedes the prior
+  "sharp corners, no `border-radius`" decision for the nested card — the
+  ticket-stub notch reads naturally on a rounded (`rounded-xl`) shape, so
+  entries are rounded again.
+
+**2026-08-14 fourth follow-up.** With the backdrop now blurred (§ above),
+the dashboard's spot cards behind the modal are no longer legible, so
+there was no way to tell which spot the open panel's requests belong to.
+Fixed by adding a subtitle line under the "Requests" heading — same font
+and theme as the heading itself (`--font-bebas`, uppercase), one size down
+and in `zinc-400` to read as secondary: `{date} · {start}–{end}`, e.g.
+"30 AUG, 2026 · 7:00 PM – 9:00 PM". Sourced from the same `Spot` fields
+`VenueProducerDashboard` already holds (`date`, `start_time`, `end_time`),
+passed down as three new `RequestsPanel` props. Formatting reuses the
+exact convention already shown on the spot card itself (`formatCardDate` /
+`formatTime12h` from `VenueSpotCard.tsx`), rather than introducing a new
+one — those two functions were extracted into the shared
+`src/lib/formatDate.ts` (as `formatSpotDate` / `formatTime12h`, alongside
+`formatDateOrdinal` / `formatDateTimeOrdinal`) so both `VenueSpotCard` and
+`RequestsPanel` draw from one definition.
+
 ---
 
 ## 6. Comedian-Side Changes (minimal, scoped)
