@@ -438,6 +438,44 @@ one — those two functions were extracted into the shared
 `formatDateOrdinal` / `formatDateTimeOrdinal`) so both `VenueSpotCard` and
 `RequestsPanel` draw from one definition.
 
+**2026-08-21 follow-up — comedian socials, always visible.** Comedian
+profiles store social links (`instagram_url`, `x_url`, `youtube_url`,
+`contact_email`, on `users` — added by `001_comedian_profile_fields.sql`),
+and venue producers wanted to check a comedian's socials before accepting a
+request. An initial pass gated the icon row behind a click on the
+comedian's name (zero footprint until expanded), but the preference turned
+out to be the opposite — always-on display, no trigger. Implemented as:
+
+- **Icon row, always rendered.** `request.comedian_name` stays plain static
+  text (no button/toggle); a row of icon-only links renders directly
+  beneath it unconditionally whenever the request carries at least one
+  linked social/contact — no click needed to reveal it, no collapsed
+  state. A comedian with nothing linked simply gets no row, so the row's
+  presence still tracks "this comedian has something to show" rather than
+  padding every card with an empty row.
+- **Icon row, not a repeat of `VenueSocialLinks`.** Reuses the same SVG
+  icon set already shared between the venue's own "Connect" panel
+  (`VenueSocialLinks`) and the comedian's profile flashcards
+  (`InstagramIcon`/`XIcon`/`YouTubeIcon`/`GmailIcon` from
+  `profile/flashcards/BrandIcons.tsx`) — no new icon assets. Styling is
+  deliberately plainer than `VenueSocialLinks`' per-brand gradient tiles:
+  bare `zinc-400` icons on transparent background, `#38bdf8` (the panel's
+  existing cyan accent) on hover, matching the header's `IconClose`
+  treatment rather than introducing a new colored/gradient chip pattern —
+  this card's rhythm is "SVG icons only, no gradients," which the brand-
+  gradient tiles would have broken. Unlinked platforms render dimmed
+  (`zinc-700`, non-interactive) rather than being omitted, so the row's
+  width doesn't jump around per comedian.
+- **Data — widened an existing join, no new fetch.** `GET
+  /api/spots/:id/requests` already joins `users` by `comedian_id` for the
+  display name; the `select()` was widened to also pull
+  `instagram_url, x_url, youtube_url, contact_email`, and `SpotRequestRow`
+  (both API response shape and the `useSpotRequests` hook type) grew four
+  matching optional fields. The comedian's contact email becomes a
+  `mailto:` link behind the Gmail icon rather than a separate affordance.
+- Accept/Cancel styling, the message input, section structure, and modal
+  centering/backdrop-blur are all untouched by this change.
+
 ---
 
 ## 6. Comedian-Side Changes (minimal, scoped)

@@ -9,6 +9,10 @@ export interface SpotRequestRow {
   spot_id: string;
   comedian_id: string;
   comedian_name?: string;
+  comedian_instagram_url?: string | null;
+  comedian_x_url?: string | null;
+  comedian_youtube_url?: string | null;
+  comedian_contact_email?: string | null;
   status: string;
   venue_message: string | null;
   requested_at: string;

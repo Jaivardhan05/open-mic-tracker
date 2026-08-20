@@ -958,18 +958,40 @@ app.get('/api/spots/:id/requests', requireUser, requireRole('venue_producer'), a
   }
 
   const comedianIds = (requests ?? []).map((r) => r.comedian_id);
-  let comedianNames: Record<string, string> = {};
+  type ComedianInfo = {
+    name: string;
+    instagram_url: string | null;
+    x_url: string | null;
+    youtube_url: string | null;
+    contact_email: string | null;
+  };
+  let comedianInfo: Record<string, ComedianInfo> = {};
   if (comedianIds.length > 0) {
     const { data: comedians } = await supabaseAdmin
       .from('users')
-      .select('id, name')
+      .select('id, name, instagram_url, x_url, youtube_url, contact_email')
       .in('id', comedianIds);
-    (comedians ?? []).forEach((c: { id: string; name: string }) => {
-      comedianNames[c.id] = c.name;
-    });
+    (comedians ?? []).forEach(
+      (c: { id: string } & ComedianInfo) => {
+        comedianInfo[c.id] = {
+          name: c.name,
+          instagram_url: c.instagram_url,
+          x_url: c.x_url,
+          youtube_url: c.youtube_url,
+          contact_email: c.contact_email,
+        };
+      }
+    );
   }
 
-  const enriched = (requests ?? []).map((r) => ({ ...r, comedian_name: comedianNames[r.comedian_id] }));
+  const enriched = (requests ?? []).map((r) => ({
+    ...r,
+    comedian_name: comedianInfo[r.comedian_id]?.name,
+    comedian_instagram_url: comedianInfo[r.comedian_id]?.instagram_url ?? null,
+    comedian_x_url: comedianInfo[r.comedian_id]?.x_url ?? null,
+    comedian_youtube_url: comedianInfo[r.comedian_id]?.youtube_url ?? null,
+    comedian_contact_email: comedianInfo[r.comedian_id]?.contact_email ?? null,
+  }));
 
   const grouped = {
     pending: enriched.filter((r) => r.status === 'pending'),

@@ -6,6 +6,12 @@ import { useSpotRequests, type SpotRequestRow } from "@/hooks/useSpotRequests";
 import { IconClose } from "@/components/icons/NavIcons";
 import CtaButton from "@/components/CtaButton";
 import { formatDateTimeOrdinal, formatSpotDate, formatTime12h } from "@/lib/formatDate";
+import {
+  GmailIcon,
+  InstagramIcon,
+  XIcon,
+  YouTubeIcon,
+} from "@/components/profile/flashcards/BrandIcons";
 
 interface RequestsPanelProps {
   spotId: string;
@@ -48,6 +54,19 @@ function RequestCard({
 }) {
   const [message, setMessage] = useState("");
 
+  const socials = [
+    { key: "instagram", href: request.comedian_instagram_url, Icon: InstagramIcon, label: "Instagram" },
+    { key: "x", href: request.comedian_x_url, Icon: XIcon, label: "X" },
+    { key: "youtube", href: request.comedian_youtube_url, Icon: YouTubeIcon, label: "YouTube" },
+    {
+      key: "contact",
+      href: request.comedian_contact_email ? `mailto:${request.comedian_contact_email}` : null,
+      Icon: GmailIcon,
+      label: "Email",
+    },
+  ] as const;
+  const hasSocials = socials.some((s) => s.href);
+
   return (
     <div
       className="notch-entry rounded-xl py-3.5 pl-5 pr-3.5 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.55)]"
@@ -61,6 +80,32 @@ function RequestCard({
       <p className="text-base font-bold tracking-tight text-white">
         {request.comedian_name ?? "Comedian"}
       </p>
+      {hasSocials ? (
+        <div className="mt-2 flex items-center gap-3">
+          {socials.map(({ key, href, Icon, label }) =>
+            href ? (
+              <a
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className="flex h-7 w-7 items-center justify-center text-zinc-400 transition-colors hover:text-[#38bdf8]"
+              >
+                <Icon className="h-4 w-4" />
+              </a>
+            ) : (
+              <span
+                key={key}
+                aria-hidden="true"
+                className="flex h-7 w-7 items-center justify-center text-zinc-700"
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+            )
+          )}
+        </div>
+      ) : null}
       <p className="mt-1.5 text-[11px] uppercase tracking-wide text-zinc-500">
         Requested {formatDateTimeOrdinal(request.requested_at)}
       </p>
