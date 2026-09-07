@@ -2,25 +2,32 @@
 
 import { useState } from "react";
 
-import type { NewSpotInput } from "@/hooks/useVenueSpots";
+import type { Spot } from "@repo/types";
+
+import type { EditSpotInput } from "@/hooks/useVenueSpots";
 import CtaButton from "@/components/CtaButton";
 import { IconClose } from "@/components/icons/NavIcons";
+import { useToast } from "@/context/ToastContext";
 
 import { DateTimeField, NumberField, SpotFormModal, ToggleCta } from "./SpotFormShared";
 
-interface AddSpotFormProps {
-  onSubmit: (input: NewSpotInput) => Promise<{ success: boolean; error?: string }>;
+interface EditSpotFormProps {
+  spot: Spot;
+  onSubmit: (spotId: string, input: EditSpotInput) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }
 
-export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [totalSpots, setTotalSpots] = useState("1");
-  const [spotType, setSpotType] = useState<"busking" | "non_busking">("non_busking");
-  const [isFree, setIsFree] = useState(true);
-  const [price, setPrice] = useState("");
+// Editable fields, per spec: total spots, price, date, busking/non-busking
+// type. Start/end time are not editable here (not part of the request) —
+// styling and modal shell are lifted from AddSpotForm via SpotFormShared so
+// this never forks the panel/field/toggle look. See specs/venue-dashboard.md §5.4.
+export default function EditSpotForm({ spot, onSubmit, onClose }: EditSpotFormProps) {
+  const { showToast } = useToast();
+  const [date, setDate] = useState(spot.date);
+  const [totalSpots, setTotalSpots] = useState(String(spot.total_spots));
+  const [spotType, setSpotType] = useState<"busking" | "non_busking">(spot.spot_type);
+  const [isFree, setIsFree] = useState(!spot.price);
+  const [price, setPrice] = useState(spot.price ? String(spot.price) : "");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,8 +35,8 @@ export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
     e.preventDefault();
     setError("");
 
-    if (!date || !startTime || !endTime) {
-      setError("Date, start time, and end time are required");
+    if (!date) {
+      setError("Date is required");
       return;
     }
 
@@ -40,10 +47,8 @@ export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
     }
 
     setIsSubmitting(true);
-    const result = await onSubmit({
+    const result = await onSubmit(spot.id, {
       date,
-      start_time: startTime,
-      end_time: endTime,
       spot_type: spotType,
       total_spots: total,
       price: isFree ? null : Number(price) || 0,
@@ -51,10 +56,11 @@ export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
     setIsSubmitting(false);
 
     if (!result.success) {
-      setError(result.error ?? "Failed to create spot");
+      setError(result.error ?? "Failed to update spot");
       return;
     }
 
+    showToast("Changes saved successfully!");
     onClose();
   }
 
@@ -71,22 +77,17 @@ export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
         </button>
         <div className="flex-1">
           <h2 className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white">
-            Add a new Spot
+            Edit Spot
           </h2>
-          <p className="mt-0.5 text-sm text-zinc-400">Set the details for this open mic slot.</p>
+          <p className="mt-0.5 text-sm text-zinc-400">Update the details for this open mic slot.</p>
         </div>
       </div>
 
       <form className="flex flex-col gap-5 px-6 pb-6 pt-5" onSubmit={handleSubmit}>
-        <DateTimeField id="add-spot-date" type="date" label="Date" value={date} onChange={setDate} />
-
-        <div className="grid grid-cols-2 gap-4">
-          <DateTimeField id="add-spot-start" type="time" label="Start time" value={startTime} onChange={setStartTime} />
-          <DateTimeField id="add-spot-end" type="time" label="End time" value={endTime} onChange={setEndTime} />
-        </div>
+        <DateTimeField id="edit-spot-date" type="date" label="Date" value={date} onChange={setDate} />
 
         <NumberField
-          id="add-spot-total"
+          id="edit-spot-total"
           label="Total spots available"
           value={totalSpots}
           onChange={setTotalSpots}
@@ -114,7 +115,7 @@ export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
             </ToggleCta>
             <div className="flex-1">
               <NumberField
-                id="add-spot-price"
+                id="edit-spot-price"
                 label="Amount"
                 prefix="₹"
                 value={price}
@@ -134,7 +135,7 @@ export default function AddSpotForm({ onSubmit, onClose }: AddSpotFormProps) {
 
         <div className="mt-1 flex justify-center">
           <CtaButton type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating…" : "Create Spot"}
+            {isSubmitting ? "Saving…" : "Save Changes"}
           </CtaButton>
         </div>
       </form>

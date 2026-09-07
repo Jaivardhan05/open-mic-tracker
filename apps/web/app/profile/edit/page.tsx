@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Navbar from '../../../src/components/Navbar';
 import CtaButton from '../../../src/components/CtaButton';
 import { useAuth } from '../../../src/context/AuthContext';
+import { useToast } from '../../../src/context/ToastContext';
 import { supabase } from '../../../src/lib/supabaseClient';
 import { BrutalistField } from './BrutalistField';
 import fieldStyles from './BrutalistField.module.css';
@@ -17,6 +18,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function EditProfilePage() {
   const { user, isLoading, logout, updateUser } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -36,7 +38,6 @@ export default function EditProfilePage() {
 
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState('');
 
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -127,50 +128,6 @@ export default function EditProfilePage() {
     },
   ];
 
-  if (user.role === 'venue_producer') {
-    navItems.push({
-      label: 'My Venues',
-      href: '/profile/venues',
-      icon: (
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-      ),
-    });
-  }
-
-  if (user.role === 'admin') {
-    navItems.push({
-      label: 'Admin Controls',
-      href: '/admin-dashboard',
-      icon: (
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      ),
-    });
-  }
-
   async function handlePasswordChange() {
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError('All password fields are required');
@@ -224,7 +181,6 @@ export default function EditProfilePage() {
   async function handleSaveLegacyProfile() {
     setSaveLoading(true);
     setSaveError('');
-    setSaveSuccess('');
 
     try {
       const { error } = await supabase
@@ -242,7 +198,7 @@ export default function EditProfilePage() {
           name: nameValue.trim(),
           city: cityValue,
         });
-        setSaveSuccess('Profile saved successfully');
+        showToast('Changes saved successfully!');
       }
     } catch {
       setSaveError('Failed to save profile');
@@ -254,7 +210,6 @@ export default function EditProfilePage() {
   async function handleSaveComedianProfile() {
     setSaveLoading(true);
     setSaveError('');
-    setSaveSuccess('');
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -298,7 +253,7 @@ export default function EditProfilePage() {
         xUrl: payload.x_url || undefined,
         instagramUrl: payload.instagram_url || undefined,
       });
-      setSaveSuccess('Profile saved successfully');
+      showToast('Changes saved successfully!');
     } catch {
       setSaveError('Failed to save profile');
     } finally {
@@ -309,7 +264,6 @@ export default function EditProfilePage() {
   async function handleSaveVenueProducerProfile() {
     setSaveLoading(true);
     setSaveError('');
-    setSaveSuccess('');
 
     try {
       const { error: legacyError } = await supabase
@@ -366,7 +320,7 @@ export default function EditProfilePage() {
         instagramUrl: payload.instagram_url || undefined,
         mapsUrl: payload.maps_url || undefined,
       });
-      setSaveSuccess('Profile saved successfully');
+      showToast('Changes saved successfully!');
     } catch {
       setSaveError('Failed to save profile');
     } finally {
@@ -775,12 +729,6 @@ export default function EditProfilePage() {
               {saveError ? (
                 <div className="bg-red-900/30 border border-red-800 text-red-400 text-sm rounded-xl px-4 py-3 mb-3 mt-6">
                   {saveError}
-                </div>
-              ) : null}
-
-              {saveSuccess ? (
-                <div className="bg-green-900/30 border border-green-800 text-green-400 text-sm rounded-xl px-4 py-3 mb-3 mt-6">
-                  {saveSuccess}
                 </div>
               ) : null}
 

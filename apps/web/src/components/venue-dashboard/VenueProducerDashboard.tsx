@@ -9,6 +9,7 @@ import type { AuthUser } from "@/lib/auth";
 
 import AddSpotForm from "./AddSpotForm";
 import CancelSpotDialog from "./CancelSpotDialog";
+import EditSpotForm from "./EditSpotForm";
 import RequestsPanel from "./RequestsPanel";
 import VenueSpotsListSection from "./VenueSpotsListSection";
 import VenueNoticesSection from "./VenueNoticesSection";
@@ -18,12 +19,14 @@ interface VenueProducerDashboardProps {
 }
 
 export default function VenueProducerDashboard({ user }: VenueProducerDashboardProps) {
-  const { spots, isLoading, createSpot, cancelSpot } = useVenueSpots();
+  const { spots, isLoading, createSpot, editSpot, cancelSpot } = useVenueSpots();
   const [showAddForm, setShowAddForm] = useState(false);
   const [requestsSpotId, setRequestsSpotId] = useState<string | null>(null);
+  const [editSpotId, setEditSpotId] = useState<string | null>(null);
   const [cancelSpotId, setCancelSpotId] = useState<string | null>(null);
 
   const requestsSpot = spots.find((s) => s.id === requestsSpotId) ?? null;
+  const editSpotTarget = spots.find((s) => s.id === editSpotId) ?? null;
 
   return (
     <>
@@ -48,11 +51,16 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
         spots={spots}
         isLoading={isLoading}
         onViewRequests={(spotId) => setRequestsSpotId(spotId)}
+        onEditSpot={(spotId) => setEditSpotId(spotId)}
         onCancelSpot={(spotId) => setCancelSpotId(spotId)}
       />
 
       {showAddForm ? (
         <AddSpotForm onSubmit={createSpot} onClose={() => setShowAddForm(false)} />
+      ) : null}
+
+      {editSpotTarget ? (
+        <EditSpotForm spot={editSpotTarget} onSubmit={editSpot} onClose={() => setEditSpotId(null)} />
       ) : null}
 
       {requestsSpot ? (

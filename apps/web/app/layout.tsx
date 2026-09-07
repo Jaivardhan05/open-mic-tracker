@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bebas_Neue, Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 import { AuthProvider } from "../src/context/AuthContext";
+import { ToastProvider } from "../src/context/ToastContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -53,7 +54,9 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       </head>
       <body className="bg-zinc-950 text-white font-[family-name:var(--font-inter)]">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

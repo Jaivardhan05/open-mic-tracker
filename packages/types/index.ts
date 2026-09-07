@@ -95,6 +95,8 @@ export interface SpotRequest {
   comedian_id: string;
   status: SpotRequestStatus;
   venue_message: string | null;
+  edit_notice?: string | null;
+  edit_notice_at?: string | null;
   requested_at: string;
   decided_at: string | null;
   spot?: Spot;

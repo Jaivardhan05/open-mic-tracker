@@ -89,6 +89,7 @@ export default function RemindersSection({
                 spotType={request.spot.spot_type}
                 status={request.status}
                 venueMessage={request.venue_message}
+                editNotice={request.edit_notice}
                 onCancel={onCancelSpotRequest ? () => handleCancelSpotRequest(request.id) : undefined}
                 isCancelling={pendingActionId === request.id}
               />

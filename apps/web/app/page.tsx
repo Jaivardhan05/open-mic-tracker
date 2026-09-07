@@ -27,7 +27,7 @@ export default function RootPage() {
         router.push("/home");
         break;
       case "admin":
-        router.push("/admin-dashboard");
+        router.push("/home");
         break;
       default:
         router.push("/auth");

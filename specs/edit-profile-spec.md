@@ -187,6 +187,15 @@ Scoped entirely to `apps/web/app/profile/edit/BrutalistField.tsx` +
   gradient inconsistent with the site's flat-color rule, but out of scope
   for this pass per product decision.
 
+## 10.1 Save confirmation (2026-09-07)
+
+A successful save (any of the three role paths) now shows the shared
+"Changes saved successfully!" toast (`specs/toast-notification-spec.md`)
+instead of the old static inline green `saveSuccess` banner. `saveError`
+and the password-change success message are unchanged — still inline,
+since a failure/inline confirmation there should stay visible rather than
+auto-dismiss.
+
 ## 11. Out of scope, left for later
 
 - Displaying bio/social links on the `/profile` view itself — that page's

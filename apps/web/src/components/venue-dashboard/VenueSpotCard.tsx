@@ -9,12 +9,13 @@ import { formatSpotDate as formatCardDate, formatTime12h } from "@/lib/formatDat
 interface VenueSpotCardProps {
   spot: Spot;
   onViewRequests: (spotId: string) => void;
+  onEditSpot: (spotId: string) => void;
   onCancelSpot: (spotId: string) => void;
 }
 
 const MAX_METER_BLOCKS = 12;
 
-export default function VenueSpotCard({ spot, onViewRequests, onCancelSpot }: VenueSpotCardProps) {
+export default function VenueSpotCard({ spot, onViewRequests, onEditSpot, onCancelSpot }: VenueSpotCardProps) {
   const filled = spot.total_spots - spot.available_spots;
   const isFull = spot.available_spots <= 0;
   const isFillingUp = !isFull && spot.available_spots <= 2;
@@ -116,9 +117,12 @@ export default function VenueSpotCard({ spot, onViewRequests, onCancelSpot }: Ve
             <p>{spot.cancellation_message || "Spot canceled by venue"}</p>
           </div>
         ) : (
-          <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
+          <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
             <span className="inline-flex min-h-[44px] items-center">
               <CtaButton onClick={() => onViewRequests(spot.id)}>View Requests</CtaButton>
+            </span>
+            <span className="inline-flex min-h-[44px] items-center">
+              <CtaButton onClick={() => onEditSpot(spot.id)}>Edit</CtaButton>
             </span>
             <span className="inline-flex min-h-[44px] items-center">
               <CtaButton onClick={() => onCancelSpot(spot.id)}>Cancel</CtaButton>

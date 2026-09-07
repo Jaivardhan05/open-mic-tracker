@@ -14,6 +14,7 @@ interface SpotRequestCardProps {
   spotType: "busking" | "non_busking";
   status: SpotRequestStatus;
   venueMessage?: string | null;
+  editNotice?: string | null;
   onCancel?: () => void;
   isCancelling?: boolean;
 }
@@ -64,6 +65,7 @@ export default function SpotRequestCard({
   spotType,
   status,
   venueMessage,
+  editNotice,
   onCancel,
   isCancelling = false,
 }: SpotRequestCardProps) {
@@ -99,6 +101,7 @@ export default function SpotRequestCard({
         </div>
 
         {venueMessage ? <p className="text-xs text-zinc-400">Note: {venueMessage}</p> : null}
+        {editNotice ? <p className="text-xs text-[#38bdf8]">{editNotice}</p> : null}
 
         <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
           {/* min-h-[44px] gives each button a ≥44px touch target without

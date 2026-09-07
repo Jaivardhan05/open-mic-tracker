@@ -15,6 +15,13 @@ export interface NewSpotInput {
   price: number | null;
 }
 
+export interface EditSpotInput {
+  date: string;
+  spot_type: "busking" | "non_busking";
+  total_spots: number;
+  price: number | null;
+}
+
 export function useVenueSpots() {
   const [spots, setSpots] = useState<Spot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,6 +73,22 @@ export function useVenueSpots() {
     [refetch]
   );
 
+  const editSpot = useCallback(
+    async (spotId: string, input: EditSpotInput) => {
+      const res = await authorizedFetch(`/api/spots/${spotId}/edit`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.success) {
+        return { success: false, error: result.error ?? "Failed to update spot" };
+      }
+      await refetch();
+      return { success: true };
+    },
+    [refetch]
+  );
+
   const cancelSpot = useCallback(
     async (spotId: string, message?: string) => {
       const res = await authorizedFetch(`/api/spots/${spotId}/cancel`, {
@@ -82,5 +105,5 @@ export function useVenueSpots() {
     [refetch]
   );
 
-  return { spots, isLoading, refetch, createSpot, cancelSpot };
+  return { spots, isLoading, refetch, createSpot, editSpot, cancelSpot };
 }

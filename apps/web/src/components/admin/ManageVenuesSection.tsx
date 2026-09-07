@@ -6,7 +6,7 @@ import type { AdminVenue } from "@repo/types";
 
 import { useAdminVenues } from "@/hooks/useAdminVenues";
 import { matchesVenueSearch } from "@/lib/venueSearch";
-import { IconClose, IconSearch } from "@/components/icons/NavIcons";
+import { IconClose } from "@/components/icons/NavIcons";
 
 import HideVenueDialog from "./HideVenueDialog";
 import VenueActionSheet from "./VenueActionSheet";
@@ -32,23 +32,29 @@ export default function ManageVenuesSection() {
 
   return (
     <section className="mt-8 px-4 md:px-6">
-      <h2 className="text-lg font-bold text-white">Manage Venues</h2>
+      <h2 className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white">
+        Manage Venues
+      </h2>
 
-      <div className="relative mt-3">
-        <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+      <div className="float-field mt-3 max-w-md">
         <input
+          id="manage-venues-search"
           type="text"
-          placeholder="Search venues by name or address..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="content-glass w-full rounded-xl py-3 pl-10 pr-10 text-base text-white placeholder-zinc-500 outline-none focus:border-[#38bdf8]"
+          placeholder=" "
+          className="float-input pr-8"
         />
+        <label className="float-label" htmlFor="manage-venues-search">
+          Search venues by name or address...
+        </label>
+        <span className="float-bar" aria-hidden="true" />
         {query !== "" ? (
           <button
             type="button"
             onClick={() => setQuery("")}
             aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+            className="absolute right-0 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
           >
             <IconClose className="h-4 w-4" />
           </button>

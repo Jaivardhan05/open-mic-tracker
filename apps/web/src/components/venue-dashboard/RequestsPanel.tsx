@@ -194,7 +194,10 @@ export default function RequestsPanel({
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-14 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-lg lg:left-[var(--sidebar-w)]">
+    <div
+      className="fixed inset-x-0 bottom-0 top-14 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-lg lg:left-[var(--sidebar-w)]"
+      onClick={onClose}
+    >
       <div
         className="surface-grain max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/[0.08] p-6"
         style={{
@@ -203,6 +206,7 @@ export default function RequestsPanel({
           WebkitBackdropFilter: "blur(40px) saturate(140%)",
           boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 24px 64px -12px rgba(0,0,0,0.65)",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
           <div>

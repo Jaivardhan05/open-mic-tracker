@@ -23,7 +23,7 @@ function getRedirectPath(role: AuthUser["role"]): string {
     case "venue_producer":
       return "/home";
     case "admin":
-      return "/admin-dashboard";
+      return "/home";
     default:
       return "/auth";
   }
@@ -88,7 +88,7 @@ export default function AuthPage() {
           router.push("/home");
           break;
         case "admin":
-          router.push("/admin-dashboard");
+          router.push("/home");
           break;
         default:
           router.push("/home");

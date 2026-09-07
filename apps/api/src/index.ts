@@ -927,6 +927,51 @@ app.post('/api/spots/:id/cancel', requireUser, requireRole('venue_producer'), as
   res.status(200).json(data);
 });
 
+app.post('/api/spots/:id/edit', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const { id } = req.params;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const { date, spot_type, total_spots, price } = body;
+
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: 'date must be a YYYY-MM-DD string' });
+    return;
+  }
+  if (spot_type !== 'busking' && spot_type !== 'non_busking') {
+    res.status(400).json({ error: 'spot_type must be busking or non_busking' });
+    return;
+  }
+  if (typeof total_spots !== 'number' || !Number.isInteger(total_spots) || total_spots <= 0 || total_spots > 100) {
+    res.status(400).json({ error: 'total_spots must be an integer between 1 and 100' });
+    return;
+  }
+  let normalizedPrice: number | null = null;
+  if (price !== undefined && price !== null && price !== '') {
+    if (typeof price !== 'number' || price < 0) {
+      res.status(400).json({ error: 'price must be a non-negative number' });
+      return;
+    }
+    normalizedPrice = price;
+  }
+
+  const { data, error } = await supabaseAdmin.rpc('update_spot', {
+    p_spot_id: id,
+    p_venue_producer_id: userId,
+    p_date: date,
+    p_spot_type: spot_type,
+    p_total_spots: total_spots,
+    p_price: normalizedPrice,
+  });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(200).json(data);
+});
+
 app.get('/api/spots/:id/requests', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
   const { id } = req.params;
@@ -1092,7 +1137,7 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
 
   const { data: requests, error } = await supabaseAdmin
     .from('spot_requests')
-    .select(`id, spot_id, comedian_id, status, venue_message, requested_at, decided_at, spots:spot_id(${SPOT_SELECT})`)
+    .select(`id, spot_id, comedian_id, status, venue_message, edit_notice, edit_notice_at, requested_at, decided_at, spots:spot_id(${SPOT_SELECT})`)
     .eq('comedian_id', userId)
     .or(`status.neq.cancelled_by_venue,decided_at.gt.${cancelledVisibilityCutoff}`)
     .order('requested_at', { ascending: false });
@@ -1108,6 +1153,8 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
     comedian_id: string;
     status: string;
     venue_message: string | null;
+    edit_notice: string | null;
+    edit_notice_at: string | null;
     requested_at: string;
     decided_at: string | null;
     spots: Record<string, unknown> & { venue_producer_id: string };
@@ -1123,6 +1170,8 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
     comedian_id: r.comedian_id,
     status: r.status,
     venue_message: r.venue_message,
+    edit_notice: r.edit_notice,
+    edit_notice_at: r.edit_notice_at,
     requested_at: r.requested_at,
     decided_at: r.decided_at,
     spot: r.spots,

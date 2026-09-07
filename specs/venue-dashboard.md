@@ -1,8 +1,8 @@
 # Venue Producer Dashboard — Spec
 
 **Status:** Ready for implementation
-**Scope:** venue_producer dashboard — calendar, spot creation, request management, cancellation
-**Out of scope:** payments, recurring spots, editing spot details post-creation, comedian-side calendar redesign (beyond the reminders-window status update described in §6)
+**Scope:** venue_producer dashboard — calendar, spot creation, request management, cancellation, spot editing
+**Out of scope:** payments, recurring spots, comedian-side calendar redesign (beyond the reminders-window status update described in §6)
 
 ---
 
@@ -47,6 +47,8 @@ This replaces the old "book instantly" assumption from the original requirements
 | comedian_id | uuid, FK → users | |
 | status | enum: `pending`, `accepted`, `waitlisted`, `cancelled_by_comedian`, `cancelled_by_venue` | |
 | venue_message | text, nullable | attached when venue owner accepts (optional note) |
+| edit_notice | text, nullable | set when the venue owner edits the spot while this request is `accepted`/`waitlisted` (see §5.4) |
+| edit_notice_at | timestamptz, nullable | set alongside `edit_notice` |
 | requested_at | timestamp | |
 | decided_at | timestamp, nullable | set when status moves off `pending`/`waitlisted` |
 
@@ -80,7 +82,18 @@ venue owner cancels the whole spot
 → ALL spot_requests on this spot (any status) → cancelled_by_venue
 → each cancelled_by_venue request inherits spots.cancellation_message
 → spot can no longer accept new requests, promotions, or be un-cancelled
-No reject action exists in this version. No edit-after-creation for spot details (date/time/type/price) — only cancellation.
+
+venue owner edits a spot (total_spots, price, date, spot_type)
+→ IF new total_spots < count(status='accepted' for this spot): rejected,
+  no changes applied — venue owner must cancel enough accepted requests
+  first to bring accepted count at or below the new total
+→ ELSE: spots row updated; spots.available_spots recalculated as
+  new_total_spots - accepted_count
+→ every spot_request with status IN (accepted, waitlisted) on this spot
+  gets edit_notice set describing what changed, edit_notice_at = now()
+  (pending requests are not notified — see §5.4)
+
+No reject action exists in this version.
 
 ---
 
@@ -92,6 +105,7 @@ All routes authenticated; role-guarded to `venue_producer` unless noted. Follow 
 |---|---|---|
 | POST | `/api/spots` | Create a spot (date, start_time, end_time, spot_type, total_spots, price) |
 | GET | `/api/spots/mine` | List venue producer's own spots (for calendar) |
+| POST | `/api/spots/:id/edit` | Edit a spot's date, spot_type, total_spots, price; body: `{ date, spot_type, total_spots, price? }`. Blocked with an error if `total_spots` would drop below the spot's current accepted-request count. |
 | POST | `/api/spots/:id/cancel` | Cancel a spot; body: `{ message?: string }` |
 | GET | `/api/spots/:id/requests` | List all requests for a spot, grouped by status |
 | POST | `/api/spot-requests` | Comedian applies to a spot; body: `{ spot_id }`. Role-guarded to `comedian`. |
@@ -476,6 +490,51 @@ out to be the opposite — always-on display, no trigger. Implemented as:
 - Accept/Cancel styling, the message input, section structure, and modal
   centering/backdrop-blur are all untouched by this change.
 
+### 5.4 "Edit Spot" modal
+
+**2026-09-07.** Adds the edit capability explicitly deferred by the
+original version of this spec. Each active spot card (`VenueSpotCard.tsx`)
+gets a third action, "Edit", alongside "View Requests" and "Cancel" (same
+`CtaButton`, same `min-h-[44px]` tap-target wrapper as the other two; the
+row's `gap-y-2` was bumped to `gap-y-3` to keep three stacked 44px targets
+from touching on narrow widths, per the same measurement approach as
+`specs/spot-card-mobile-fix-progress.md`).
+
+- **Editable fields:** total spots available, price/amount, date, and
+  busking/non-busking type. Start/end time are not editable.
+- **Modal — reuses `AddSpotForm`'s look exactly, not a new style.** The
+  panel chrome, `DateTimeField`/`NumberField`/`ToggleCta` fields, and the
+  `fixed inset-x-0 bottom-0 top-14 ... lg:left-[var(--sidebar-w)]` dynamic
+  centering (confined to the dashboard's content frame, matching every
+  other modal since the §5.3 2026-08-14 follow-up) were extracted from
+  `AddSpotForm.tsx` into `SpotFormShared.tsx` so `AddSpotForm` and the new
+  `EditSpotForm` draw from one definition instead of forking it.
+- **Decrement validation.** Lowering `total_spots` below the spot's current
+  count of `accepted` requests is rejected server-side (`update_spot()` SQL
+  function, `014_update_spot.sql`) with an error naming exactly how many
+  accepted requests exist and what the owner needs to bring that count down
+  to before the new total is allowed. Increasing `total_spots` has no such
+  check. `available_spots` is recalculated as `new_total - accepted_count`
+  on every successful edit, keeping the same invariant
+  `accept_spot_request()` already maintains.
+- **Notifications — in-app only, no push/email/SMS added.** No
+  notification/messaging mechanism existed anywhere in the codebase before
+  this change (confirmed by inspection — see §7, this was and remains
+  explicitly deferred at the infrastructure level). Rather than build one,
+  this reuses the same pull-based, in-app-only shape the `venue_notices` /
+  `VenueNoticesSection` precedent already established for admin→venue
+  notices: a new `edit_notice` / `edit_notice_at` pair of columns on
+  `spot_requests`, set on every `accepted`/`waitlisted` row for the edited
+  spot (never `pending` — those comedians haven't been confirmed onto the
+  spot). `GET /api/spot-requests/mine` returns both fields; the comedian's
+  existing `SpotRequestCard` (already the sole surface for `venue_message`)
+  renders `edit_notice` as an additional note line in the site's cyan
+  accent, picked up next time that view loads — no new table, no new
+  section, no polling change.
+- **Save confirmation.** A successful edit shows the shared "Changes saved
+  successfully!" toast (`specs/toast-notification-spec.md`) before the
+  modal closes.
+
 ---
 
 ## 6. Comedian-Side Changes (minimal, scoped)
@@ -509,7 +568,8 @@ layout as a whole (only the spot-request card itself), and the legacy
 ## 7. Explicitly Deferred
 
 - Payments (per existing phase plan).
-- Editing a spot's date/time/type/price after creation.
+- Editing a spot's start/end time after creation (date/total_spots/price/type
+  are now editable, see §5.4).
 - Manual reject action (superseded by auto-waitlist).
 - Un-cancelling a spot.
 - Push/email/SMS notifications — status changes surface only in-app, in the reminders window.

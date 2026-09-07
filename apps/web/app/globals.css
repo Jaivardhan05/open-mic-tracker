@@ -78,6 +78,24 @@ body {
 	-webkit-backdrop-filter: blur(24px) saturate(120%);
 }
 
+/* Canonical glassmorphism panel — /support (app/support/page.tsx) is the
+   single source of truth for this site's glass treatment (locked, see
+   specs/admin-dashboard-spec.md §6.8). /support's panels render on
+   .content-glass but scope its backdrop-filter up to blur(40px) via a
+   page-local <style> override; this class inlines that same computed
+   result (same background/border as .content-glass, /support's stronger
+   blur, no box-shadow — none exists anywhere in that chain) as one
+   self-contained, reusable class so it doesn't depend on any page-local
+   override or hand-copied values. Use this — not a fresh
+   backdrop-filter/background/border trio — for any glass panel anywhere
+   in the app going forward. */
+.glass-panel {
+	background: rgba(0, 0, 0, 0.52);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	backdrop-filter: blur(40px) saturate(120%);
+	-webkit-backdrop-filter: blur(40px) saturate(120%);
+}
+
 /* Button ── diagonal light sweep on hover */
 .btn-sweep {
 	position: relative;
@@ -199,6 +217,67 @@ body {
   }
 }
 
+/* Toast (see src/components/Toast.tsx, specs/toast-notification-spec.md).
+   Asymmetric in/out on purpose: entrance overshoots slightly (a "settling"
+   feel) as the one deliberately playful beat on this small confirmation;
+   exit is a plain fade+drop, since a bounce on the way out reads as
+   bouncy/silly rather than confident. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.toast-in {
+  animation: toast-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.toast-out {
+  animation: toast-out 220ms ease-in both;
+}
+
+/* Checkmark draws itself in over the same window as the pill's entrance —
+   pathLength="1" on the <path> (IconCheck) lets stroke-dash* work in
+   normalized units regardless of the path's actual geometry. */
+.toast-check-mark {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: toast-check-draw 280ms 120ms ease-out both;
+}
+
+@keyframes toast-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-in,
+  .toast-out {
+    animation-duration: 1ms;
+  }
+  .toast-check-mark {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
 /* CTA button (from Uiverse.io by alexmaracinaru, recolored to accent cyan) */
 .cta {
 	position: relative;
@@ -286,6 +365,35 @@ body {
 	background-color: #f87171;
 }
 
+/* CTA button — busking variant (same shape + motion, recolored to the pink
+   used for busking spots on /venues, e.g. apps/web/app/venues/[id]/page.tsx) */
+.cta-busking span,
+.cta-busking .hover-underline-animation {
+	color: #f472b6;
+}
+
+.cta-busking svg {
+	stroke: #f472b6;
+}
+
+.cta-busking .hover-underline-animation::after {
+	background-color: #f472b6;
+}
+
+/* CTA button — free variant (same shape + motion, recolored green) */
+.cta-free span,
+.cta-free .hover-underline-animation {
+	color: #34d399;
+}
+
+.cta-free svg {
+	stroke: #34d399;
+}
+
+.cta-free .hover-underline-animation::after {
+	background-color: #34d399;
+}
+
 /* Shared underline floating-label input (mirrors /auth's float field pattern) */
 .float-field {
 	position: relative;
@@ -310,6 +418,17 @@ body {
 
 .float-input::placeholder {
 	color: transparent;
+}
+
+/* Cancel-spot dialog's message field shows its placeholder as an inline hint
+   while focused (the label has already minimized out of the way by then). */
+.float-input.cancel-spot-message::placeholder {
+	color: rgba(161, 161, 170, 0.65);
+}
+
+.float-input.cancel-spot-message:focus,
+.float-input.cancel-spot-message:not(:placeholder-shown) {
+	border-bottom-color: transparent;
 }
 
 .float-label {
@@ -346,6 +465,17 @@ body {
 .float-input:focus ~ .float-bar,
 .float-input:not(:placeholder-shown) ~ .float-bar {
 	transform: scaleX(1);
+}
+
+/* Hides the native number input spinner (up/down stepper) across browsers. */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+	-webkit-appearance: none !important;
+	margin: 0 !important;
+}
+.no-spinner {
+	-moz-appearance: textfield !important;
+	appearance: textfield !important;
 }
 
 /* Subtle grain texture overlay (shared by elevated glass surfaces) */

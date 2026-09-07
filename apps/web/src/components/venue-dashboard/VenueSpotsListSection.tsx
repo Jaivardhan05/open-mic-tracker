@@ -8,6 +8,7 @@ interface VenueSpotsListSectionProps {
   spots: Spot[];
   isLoading: boolean;
   onViewRequests: (spotId: string) => void;
+  onEditSpot: (spotId: string) => void;
   onCancelSpot: (spotId: string) => void;
 }
 
@@ -15,6 +16,7 @@ export default function VenueSpotsListSection({
   spots,
   isLoading,
   onViewRequests,
+  onEditSpot,
   onCancelSpot,
 }: VenueSpotsListSectionProps) {
   if (isLoading) {
@@ -40,6 +42,7 @@ export default function VenueSpotsListSection({
               key={spot.id}
               spot={spot}
               onViewRequests={onViewRequests}
+              onEditSpot={onEditSpot}
               onCancelSpot={onCancelSpot}
             />
           ))}
