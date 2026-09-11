@@ -577,6 +577,183 @@ layout as a whole (only the spot-request card itself), and the legacy
 
 ---
 
+## 9. 2026-09-11 — Shows with 3 spot pools (busking / non-busking / hosting)
+
+**Scope:** venue-producer dashboard only (this section). The comedian-facing
+`/venues` browse pages (`app/venues/page.tsx`, `app/venues/[id]/page.tsx`)
+still read the pre-existing flat shape via a compatibility layer described
+below and are explicitly deferred to a separate follow-up.
+
+**Business rule.** What was previously a single "spot" (one date/time +
+one `spot_type` + one `total_spots`/`price`) is now a **Show**, which has
+up to three independent **spot pools**:
+
+| Pool | Count | Amount |
+|---|---|---|
+| Busking | integer, 0–100 | ₹ per spot, nullable = Free |
+| Non-Busking | integer, 0–100 | ₹ per spot, nullable = Free |
+| Hosting | 0 or 1 (max one host per show) | ₹, only meaningful when 1 |
+
+A show must have at least one pool with a count greater than zero; any
+individual pool may be zero (e.g. a busking-only show, or a show with no
+hosting spot). A comedian may hold active requests against multiple pools
+of the same show simultaneously (e.g. apply for both Non-Busking and
+Hosting on one show) — it's up to the venue producer which request(s) to
+accept; nothing in the request model prevents this since each pool is
+still its own request target (see below).
+
+### 9.1 Data model
+
+**`venue_shows` (new table)** — the Show entity (the parent). Named
+`venue_shows` rather than `shows` because a `shows` table already exists
+for the legacy comedian-facing system (`apps/api/src/db/schema.sql`),
+which this change does not touch.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | uuid, PK | |
+| venue_producer_id | uuid, FK → users | owner of the show |
+| date | date | |
+| start_time | time | |
+| end_time | time | |
+| is_cancelled | boolean | default `false` |
+| cancellation_message | text, nullable | defaults to `"Show canceled by venue"` |
+| created_at | timestamp | |
+
+**`spots` (repurposed as the child "Spot" = one pool row)** — gains a
+`show_id` FK → `venue_shows`. `spot_type` is extended with a third enum
+value, `hosting`. Each show has at most one `spots` row per `spot_type`;
+a pool with count 0 simply has no active row for that type (see edit
+semantics below — the row isn't necessarily deleted, since it may carry
+request history). `venue_producer_id`, `date`, `start_time`, `end_time`,
+and `is_cancelled` stay denormalized onto each pool row (copied from the
+parent show) so every existing query/RLS policy keyed on those columns
+keeps working unchanged.
+
+`spot_requests` is unchanged — it still targets a `spots.id` (one pool),
+so a comedian requesting busking + hosting on the same show simply creates
+two separate `spot_requests` rows, one per pool, reusing the existing
+unique-active-request-per-`(spot_id, comedian_id)` constraint as-is (now
+scoped per pool rather than per show, which is exactly what allows the
+same comedian to hold simultaneous requests against different pools of
+one show).
+
+**Migration (`015_shows_and_spot_pools.sql`)** backfills existing data:
+every pre-existing `spots` row (which, before this change, represented an
+entire show) gets a matching new `venue_shows` row created from its own
+date/time/producer/cancellation fields, and its `show_id` is pointed at
+that new row. No pre-existing pool's `spot_type` changes, and no hosting
+pools are synthesized retroactively.
+
+### 9.2 Edit semantics (per-pool, atomic, no history loss)
+
+`update_show()` (SQL function, replacing `update_spot()`) receives all
+three pools' target count + price in one call and, per pool independently:
+
+- Computes `accepted_count` = count of `accepted` `spot_requests` against
+  that pool's current `spots` row (0 if the pool doesn't have an active
+  row yet).
+- Rejects the whole edit (no partial apply) if any pool's target count is
+  below that pool's own `accepted_count` — same guard `update_spot()` used,
+  now applied per pool instead of once for the show.
+- Rejects the edit if all three targets would be zero (a show must keep at
+  least one open pool).
+- Target count 0, row exists: the row is **not deleted** (would cascade-
+  delete its `spot_requests` history) — it's marked `is_cancelled = true`
+  and any non-terminal (`pending`/`waitlisted`) requests against it move to
+  `cancelled_by_venue`, exactly like cancelling a whole show, but scoped to
+  this one pool.
+- Target count > 0, no active row (never created, or previously zeroed):
+  a `spots` row is inserted (or an existing zeroed one is reactivated —
+  `is_cancelled` reset to `false`, `total_spots`/`available_spots`/`price`
+  set fresh) at the new count/price.
+- Target count > 0, row exists and unchanged in kind: `total_spots`/`price`
+  updated, `available_spots` recomputed as `total_spots - accepted_count`,
+  same invariant `accept_spot_request()` already maintains.
+- `edit_notice` (unchanged mechanism from §5.4) is set on every
+  `accepted`/`waitlisted` request across *all three* pools, summarizing the
+  new date and all three pools' counts/prices in one message.
+
+`cancel_show()` (replacing `cancel_spot()`) cancels the parent
+`venue_shows` row and cascades `is_cancelled = true` to every one of its
+`spots` rows plus `cancelled_by_venue` to every non-terminal request
+across all of them — the same all-pools-at-once behavior the old
+`cancel_spot()` had for its single pool.
+
+`apply_to_spot`, `accept_spot_request`, `comedian_cancel_spot_request` are
+**unchanged** — they already operate per `spots.id` (one pool), which is
+still exactly the right unit now that a pool is a `spots` row.
+
+### 9.3 API
+
+New venue-producer routes (parallel to, not replacing, the unchanged
+pool-level routes below):
+
+| Method | Route | Purpose |
+|---|---|---|
+| POST | `/api/venue-shows` | Create a show: `{ date, start_time, end_time, busking_spots, busking_price, non_busking_spots, non_busking_price, hosting, hosting_price }` |
+| GET | `/api/venue-shows/mine` | List the venue producer's own shows, each with its `busking`/`non_busking`/`hosting` pools nested (`null` for a pool with no active row) |
+| POST | `/api/venue-shows/:id/edit` | Edit a show's date + all three pools in one call (`update_show()`) |
+| POST | `/api/venue-shows/:id/cancel` | Cancel a show + all its pools (`cancel_show()`) |
+
+Unchanged: `GET /api/spots/:id/requests`, `POST /api/spot-requests`,
+`POST /api/spot-requests/:id/accept`, `POST /api/spot-requests/:id/venue-cancel`,
+`POST /api/spot-requests/:id/cancel`, `GET /api/spot-requests/mine` — all
+still address an individual pool (`spots.id`) exactly as before.
+
+**Compatibility shim — scoped to the `/venues` list page only.** `GET
+/api/spots` (the flat, legacy-shaped endpoint `app/venues/page.tsx` calls
+for its filter pills / venue list) excludes `hosting`-type pool rows from
+its results — busking/non-busking pools keep returning in their original
+flat shape (`spot_type`, `total_spots`, `available_spots`, `charge`), so
+that list page keeps working unmodified. Hosting spots aren't visible
+there yet; making them visible is part of the deferred `/venues` list-page
+follow-up.
+
+**`/venues/[id]` (the venue detail / Apply page) — not part of that shim.**
+`GET /api/venues/:id` (a separate endpoint) never filtered by `spot_type`,
+so Hosting pool rows were already present in its `spots` array. **2026-09-11
+follow-up:** the page's spot-type label/color was a `busking ? A : B`
+binary ternary that mislabeled any Hosting row as "Non-Busking" (pink) —
+fixed to a 3-way `SPOT_TYPE_LABEL`/`SPOT_TYPE_COLOR_CLASS` lookup adding
+Hosting → flat yellow (`#FACC15`), matching the dashboard-side convention.
+No fetch, Apply-flow, or Busking/Non-Busking styling changes were needed:
+`applyToSpot`/`apply_to_spot()` already operate on a bare `spots.id`
+regardless of pool type, and "spots left" already only ever renders 0 or 1
+for Hosting since its pool row is always created with `total_spots = 1`.
+
+### 9.4 Venue-producer dashboard UI
+
+- **Button:** "+ Add a new Spot" → "+ Add new shows" (`VenueProducerDashboard.tsx`).
+- **`AddShowForm.tsx`** (renamed from `AddSpotForm.tsx`) replaces the single
+  type-toggle + total-spots + price fields with three always-visible,
+  independently-validated sections, same modal chrome/spacing as before:
+  - **Busking** — flat blue (`#38BDF8`, the color already used for busking
+    on `/venues/[id]`) — spot count + ₹ amount, both may be 0.
+  - **Non-Busking** — flat pink (`#F472B6`, the exact color already used
+    for non-busking on `/venues/[id]`) — spot count + ₹ amount, both may
+    be 0.
+  - **Hosting** — flat yellow (`#FACC15`, already used as the "filling up"
+    meter color on `VenueSpotCard`/`VenueShowCard`) — a Yes/No toggle
+    (0 or 1) + ₹ amount, amount only shown/required when Yes.
+  - Validation: each count/price in range, and at least one of the three
+    must be non-zero (busking > 0, non-busking > 0, or hosting = Yes).
+- **`EditShowForm.tsx`** (renamed from `EditSpotForm.tsx`) — same three
+  sections, pre-filled from the show's current pools; date remains
+  editable, start/end time remain not editable (unchanged from §5.4).
+- **`VenueShowCard.tsx`** (renamed from `VenueSpotCard.tsx`) — always
+  shows all three pools separately (never collapsed into one combined
+  number): one row per pool that has ever had a count, in the same
+  meter-block style as before, colored per the palette above. "Edit" and
+  "Cancel" act on the whole show (all pools at once). "View Requests" is
+  per pool (opens the existing, unchanged `RequestsPanel` scoped to that
+  pool's `spots.id`) since the request/accept/waitlist machinery itself
+  didn't change.
+- **`useVenueShows.ts`** (renamed from `useVenueSpots.ts`) — same shape,
+  now driven by `/api/venue-shows/*`.
+
+---
+
 ## 8. Implementation Order (suggested)
 
 1. `spots` + `spot_requests` tables + migrations, seeded with mock data.

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { Venue } from '@repo/types';
 
-import { GmailIcon, InstagramIcon, MapsIcon, XIcon } from '../profile/flashcards/BrandIcons';
+import { InstagramIcon, MapsIcon, PhoneIcon } from '../profile/flashcards/BrandIcons';
 import { parseSocialHandle } from '../../lib/socialHandle';
 import styles from './VenueSocialLinks.module.css';
 
@@ -27,14 +27,6 @@ export function VenueSocialLinks({ venue }: VenueSocialLinksProps) {
 
   const items: SocialItem[] = [
     {
-      key: 'x',
-      themeClass: styles.x,
-      label: 'X',
-      icon: <XIcon className={styles.icon} />,
-      href: venue.x_url ?? undefined,
-      detail: venue.x_url ? (parseSocialHandle(venue.x_url) ?? 'View profile') : 'Not linked',
-    },
-    {
       key: 'instagram',
       themeClass: styles.instagram,
       label: 'Instagram',
@@ -54,11 +46,8 @@ export function VenueSocialLinks({ venue }: VenueSocialLinksProps) {
       key: 'contact',
       themeClass: styles.contact,
       label: 'Contact',
-      icon: <GmailIcon className={styles.icon} />,
-      detail:
-        venue.contact_email || venue.contact_phone
-          ? [venue.contact_email, venue.contact_phone].filter(Boolean).join('\n')
-          : 'Not linked',
+      icon: <PhoneIcon className={styles.icon} />,
+      detail: venue.contact_phone || 'Not linked',
       isContact: true,
     },
   ];

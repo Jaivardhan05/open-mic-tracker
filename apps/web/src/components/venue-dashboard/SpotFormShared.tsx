@@ -6,10 +6,10 @@ import CtaButton from "@/components/CtaButton";
 import { IconCalendar, IconChevronLeft, IconChevronRight, IconClock } from "@/components/icons/NavIcons";
 import { formatSpotDate, formatTime12h } from "@/lib/formatDate";
 
-// Shared building blocks for the "Add a new Spot" / "Edit Spot" modals —
-// pulled out of AddSpotForm so both forms draw from one definition instead
+// Shared building blocks for the "Add new shows" / "Edit Show" modals —
+// pulled out of AddShowForm so both forms draw from one definition instead
 // of forking the panel chrome, fields, and calendar/time pickers.
-// See specs/venue-dashboard.md §5.2 / §5.4.
+// See specs/venue-dashboard.md §5.2 / §5.4 / §9.4.
 
 // Matches RequestsPanel's solid dark-navy panel fill / card fill.
 export const PANEL_BG = "rgba(6,12,32,0.97)";
@@ -45,7 +45,7 @@ export function ToggleCta({
   children,
 }: {
   selected: boolean;
-  variant?: "default" | "busking" | "free";
+  variant?: "default" | "busking" | "free" | "hosting";
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -116,6 +116,57 @@ export function NumberField({
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
           className="no-spinner w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-600"
+        />
+      </div>
+    </div>
+  );
+}
+
+// A pool section's colored heading — flat text color only (no gradient/glow),
+// per specs/venue-dashboard.md §9.4: busking blue, non-busking pink, hosting
+// yellow, matching the colors already used for spot_type elsewhere in the app.
+export function PoolLabel({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color }}>
+      {children}
+    </p>
+  );
+}
+
+// Free/Amount price control, shared across all three pool sections in
+// AddShowForm/EditShowForm (previously forked per-form as a single price
+// field before the 3-pool split — see specs/venue-dashboard.md §9.4).
+export function PriceField({
+  idPrefix,
+  isFree,
+  price,
+  setIsFree,
+  setPrice,
+}: {
+  idPrefix: string;
+  isFree: boolean;
+  price: string;
+  setIsFree: (value: boolean) => void;
+  setPrice: (value: string) => void;
+}) {
+  return (
+    <div className="flex items-end gap-5">
+      <ToggleCta selected={isFree} variant="free" onClick={() => setIsFree(true)}>
+        Free
+      </ToggleCta>
+      <div className="flex-1">
+        <NumberField
+          id={`${idPrefix}-price`}
+          label="Amount"
+          prefix="₹"
+          value={price}
+          onFocus={() => setIsFree(false)}
+          onChange={(v) => {
+            setIsFree(false);
+            setPrice(v);
+          }}
+          min={0}
+          placeholder="0"
         />
       </div>
     </div>
@@ -380,7 +431,7 @@ export function DateTimeField({
 
 // Shared modal shell: dim/blurred backdrop confined to the dashboard's
 // content frame (never the fixed navbar/sidebar), same panel surface as
-// RequestsPanel/CancelSpotDialog. Both AddSpotForm and EditSpotForm render
+// RequestsPanel/CancelShowDialog. Both AddShowForm and EditShowForm render
 // their own header/body inside this so the chrome can't drift apart.
 export function SpotFormModal({
   onClose,

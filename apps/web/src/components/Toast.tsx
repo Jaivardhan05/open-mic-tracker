@@ -51,8 +51,8 @@ export default function Toast({ message, variant, onDismiss }: ToastProps) {
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 40px -12px rgba(0,0,0,0.65)",
       }}
     >
-      {/* Status spine — same left-edge idiom as VenueSpotCard's meter spine
-          and CancelSpotDialog's warning spine, recolored to the site's one
+      {/* Status spine — same left-edge idiom as VenueShowCard's meter spine
+          and CancelShowDialog's warning spine, recolored to the site's one
           established green (.cta-free). */}
       <span aria-hidden="true" className="w-[3px] flex-shrink-0" style={{ backgroundColor: accent }} />
 

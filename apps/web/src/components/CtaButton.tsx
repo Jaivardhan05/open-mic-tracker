@@ -8,9 +8,11 @@ interface CtaButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /**
    * Recolors the label/underline/arrow: "danger" for destructive actions,
    * "busking" mirrors the busking-spot pink used on /venues, "free" mirrors
-   * the green used for free-price toggles.
+   * the green used for free-price toggles, "hosting" mirrors the flat
+   * yellow used for the hosting spot pool (AddShowForm/EditShowForm/
+   * VenueShowCard — see specs/venue-dashboard.md §9.4).
    */
-  variant?: "default" | "danger" | "busking" | "free";
+  variant?: "default" | "danger" | "busking" | "free" | "hosting";
 }
 
 const VARIANT_CLASS: Record<NonNullable<CtaButtonProps["variant"]>, string> = {
@@ -18,6 +20,7 @@ const VARIANT_CLASS: Record<NonNullable<CtaButtonProps["variant"]>, string> = {
   danger: "cta-danger",
   busking: "cta-busking",
   free: "cta-free",
+  hosting: "cta-hosting",
 };
 
 export default function CtaButton({

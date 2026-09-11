@@ -278,27 +278,13 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
   res.status(200).json({ venue, shows: shows ?? [], spots });
 });
 
-app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
-  const userId = req.userId as string;
-  const { id } = req.params;
-  const body = (req.body ?? {}) as Record<string, unknown>;
-
-  const { data: venueRow, error: venueError } = await supabaseAdmin
-    .from('venues')
-    .select('owner_id')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (venueError) {
-    res.status(500).json({ error: venueError.message });
-    return;
-  }
-
-  if (!venueRow || venueRow.owner_id !== userId) {
-    res.status(403).json({ error: 'Forbidden' });
-    return;
-  }
-
+// Shared by PATCH /api/venues/mine and PATCH /api/venues/:id — validates
+// and applies VENUE_EDITABLE_FIELDS to a venue row already confirmed to
+// belong to the requesting venue producer. See specs/venue-social-links.md
+// (bug: venue-producer profile edits were writing instagram_url/maps_url/
+// contact_email to the `users` table instead of `venues`, which is what
+// /venues' Connect component actually reads).
+async function applyVenueEditableUpdates(res: Response, venueId: string, body: Record<string, unknown>) {
   const updates: Partial<Record<VenueEditableField, string | null>> = {};
 
   for (const field of VENUE_EDITABLE_FIELDS) {
@@ -335,7 +321,7 @@ app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (
   const { data, error } = await supabaseAdmin
     .from('venues')
     .update(updates)
-    .eq('id', id)
+    .eq('id', venueId)
     .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone')
     .single();
 
@@ -345,6 +331,57 @@ app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (
   }
 
   res.status(200).json(data);
+}
+
+// Lets a venue producer update their own venue's social/contact links
+// without already knowing their venue's id (the profile-edit form only
+// has the logged-in user's id). Must be registered before /api/venues/:id
+// so Express doesn't match "mine" as an :id param.
+app.patch('/api/venues/mine', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const { data: venueRow, error: venueError } = await supabaseAdmin
+    .from('venues')
+    .select('id')
+    .eq('owner_id', userId)
+    .maybeSingle();
+
+  if (venueError) {
+    res.status(500).json({ error: venueError.message });
+    return;
+  }
+
+  if (!venueRow) {
+    res.status(404).json({ error: 'No venue found for this account' });
+    return;
+  }
+
+  await applyVenueEditableUpdates(res, venueRow.id, body);
+});
+
+app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const { id } = req.params;
+  const body = (req.body ?? {}) as Record<string, unknown>;
+
+  const { data: venueRow, error: venueError } = await supabaseAdmin
+    .from('venues')
+    .select('owner_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (venueError) {
+    res.status(500).json({ error: venueError.message });
+    return;
+  }
+
+  if (!venueRow || venueRow.owner_id !== userId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+
+  await applyVenueEditableUpdates(res, id, body);
 });
 
 app.post('/api/venues/:id/approve', async (req: Request, res: Response) => {
@@ -770,12 +807,16 @@ app.get('/api/spots', async (_req: Request, res: Response) => {
     return;
   }
 
+  // Compatibility shim for the (not-yet-updated) comedian-facing /venues
+  // pages: hosting pools are excluded so their flat busking/non_busking-only
+  // shape keeps working unmodified. See specs/venue-dashboard.md §9.3.
   const today = new Date().toISOString().slice(0, 10);
   const { data: spots, error: spotsError } = await supabaseAdmin
     .from('spots')
     .select(SPOT_SELECT)
     .in('venue_producer_id', ownerIds)
     .eq('is_cancelled', false)
+    .neq('spot_type', 'hosting')
     .gte('date', today)
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
@@ -810,11 +851,118 @@ app.get('/api/spots', async (_req: Request, res: Response) => {
   res.status(200).json(results);
 });
 
-app.post('/api/spots', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+// Extracts and validates the 3-pool body shared by create/edit. Returns
+// either the normalized fields or an error string. See
+// specs/venue-dashboard.md §9 for the busking/non_busking/hosting model.
+function parsePoolsBody(body: Record<string, unknown>):
+  | {
+      error: string;
+    }
+  | {
+      error?: undefined;
+      buskingSpots: number;
+      buskingPrice: number | null;
+      nonBuskingSpots: number;
+      nonBuskingPrice: number | null;
+      hosting: boolean;
+      hostingPrice: number | null;
+    } {
+  const { busking_spots, busking_price, non_busking_spots, non_busking_price, hosting, hosting_price } = body;
+
+  if (typeof busking_spots !== 'number' || !Number.isInteger(busking_spots) || busking_spots < 0 || busking_spots > 100) {
+    return { error: 'busking_spots must be an integer between 0 and 100' };
+  }
+  if (typeof non_busking_spots !== 'number' || !Number.isInteger(non_busking_spots) || non_busking_spots < 0 || non_busking_spots > 100) {
+    return { error: 'non_busking_spots must be an integer between 0 and 100' };
+  }
+  if (typeof hosting !== 'boolean') {
+    return { error: 'hosting must be a boolean' };
+  }
+  if (busking_spots === 0 && non_busking_spots === 0 && !hosting) {
+    return { error: 'At least one of busking, non-busking, or hosting must have a spot' };
+  }
+
+  function normalizePrice(value: unknown, label: string): number | null | { error: string } {
+    if (value === undefined || value === null || value === '') return null;
+    if (typeof value !== 'number' || value < 0) return { error: `${label} must be a non-negative number` };
+    return value;
+  }
+
+  const buskingPrice = normalizePrice(busking_price, 'busking_price');
+  if (buskingPrice !== null && typeof buskingPrice === 'object') return buskingPrice;
+  const nonBuskingPrice = normalizePrice(non_busking_price, 'non_busking_price');
+  if (nonBuskingPrice !== null && typeof nonBuskingPrice === 'object') return nonBuskingPrice;
+  const hostingPrice = normalizePrice(hosting_price, 'hosting_price');
+  if (hostingPrice !== null && typeof hostingPrice === 'object') return hostingPrice;
+
+  return {
+    buskingSpots: busking_spots,
+    buskingPrice: buskingPrice as number | null,
+    nonBuskingSpots: non_busking_spots,
+    nonBuskingPrice: nonBuskingPrice as number | null,
+    hosting,
+    hostingPrice: hostingPrice as number | null,
+  };
+}
+
+const VENUE_SHOW_SELECT =
+  'id, venue_producer_id, date, start_time, end_time, is_cancelled, cancellation_message, created_at, spots(id, date, start_time, end_time, spot_type, total_spots, available_spots, price, is_cancelled, cancellation_message, created_at)';
+
+type VenueShowRow = {
+  id: string;
+  venue_producer_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  is_cancelled: boolean;
+  cancellation_message: string | null;
+  created_at: string;
+  spots: {
+    id: string;
+    date: string;
+    start_time: string;
+    end_time: string;
+    spot_type: 'busking' | 'non_busking' | 'hosting';
+    total_spots: number;
+    available_spots: number;
+    price: number | null;
+    is_cancelled: boolean;
+    cancellation_message: string | null;
+    created_at: string;
+  }[];
+};
+
+// Reshapes the joined venue_shows + spots rows into the VenueShow shape
+// (packages/types) the dashboard UI consumes: one named slot per pool
+// type, null when that pool has no active row. Each pool includes its own
+// date/start_time/end_time (denormalized from the show, see
+// specs/venue-dashboard.md §9.1) since RequestsPanel keys off a pool's own
+// spots.id and needs those fields directly on it.
+function toVenueShow(row: VenueShowRow) {
+  const activePool = (type: 'busking' | 'non_busking' | 'hosting') => {
+    const pool = row.spots.find((s) => s.spot_type === type && !s.is_cancelled);
+    return pool ? { ...pool, venue_producer_id: row.venue_producer_id } : null;
+  };
+
+  return {
+    id: row.id,
+    venue_producer_id: row.venue_producer_id,
+    date: row.date,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    is_cancelled: row.is_cancelled,
+    cancellation_message: row.cancellation_message,
+    created_at: row.created_at,
+    busking: activePool('busking'),
+    non_busking: activePool('non_busking'),
+    hosting: activePool('hosting'),
+  };
+}
+
+app.post('/api/venue-shows', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
   const body = (req.body ?? {}) as Record<string, unknown>;
-
-  const { date, start_time, end_time, spot_type, total_spots, price } = body;
+  const { date, start_time, end_time } = body;
 
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     res.status(400).json({ error: 'date must be a YYYY-MM-DD string' });
@@ -828,56 +976,48 @@ app.post('/api/spots', requireUser, requireRole('venue_producer'), async (req: A
     res.status(400).json({ error: 'end_time must be after start_time' });
     return;
   }
-  if (spot_type !== 'busking' && spot_type !== 'non_busking') {
-    res.status(400).json({ error: 'spot_type must be busking or non_busking' });
+
+  const pools = parsePoolsBody(body);
+  if (pools.error) {
+    res.status(400).json({ error: pools.error });
     return;
-  }
-  if (typeof total_spots !== 'number' || !Number.isInteger(total_spots) || total_spots <= 0 || total_spots > 100) {
-    res.status(400).json({ error: 'total_spots must be an integer between 1 and 100' });
-    return;
-  }
-  let normalizedPrice: number | null = null;
-  if (price !== undefined && price !== null && price !== '') {
-    if (typeof price !== 'number' || price < 0) {
-      res.status(400).json({ error: 'price must be a non-negative number' });
-      return;
-    }
-    normalizedPrice = price;
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('spots')
-    .insert({
-      venue_producer_id: userId,
-      date,
-      start_time,
-      end_time,
-      spot_type,
-      total_spots,
-      available_spots: total_spots,
-      price: normalizedPrice,
-    })
-    .select(SPOT_SELECT)
-    .single();
+  const { data, error } = await supabaseAdmin.rpc('create_show', {
+    p_venue_producer_id: userId,
+    p_date: date,
+    p_start_time: start_time,
+    p_end_time: end_time,
+    p_busking_spots: pools.buskingSpots,
+    p_busking_price: pools.buskingPrice,
+    p_non_busking_spots: pools.nonBuskingSpots,
+    p_non_busking_price: pools.nonBuskingPrice,
+    p_hosting: pools.hosting,
+    p_hosting_price: pools.hostingPrice,
+  });
 
   if (error) {
     res.status(500).json({ error: error.message });
+    return;
+  }
+  if (!data?.success) {
+    res.status(400).json({ error: data?.error ?? 'Failed to create show' });
     return;
   }
 
   res.status(200).json(data);
 });
 
-app.get('/api/spots/mine', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+app.get('/api/venue-shows/mine', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
 
-  // Cancelled spots drop off this list once their own date has passed,
-  // regardless of when they were cancelled. Active spots are unaffected —
+  // Cancelled shows drop off this list once their own date has passed,
+  // regardless of when they were cancelled. Active shows are unaffected —
   // they keep showing regardless of date. See specs/venue-dashboard.md §5.1.
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabaseAdmin
-    .from('spots')
-    .select(SPOT_SELECT)
+    .from('venue_shows')
+    .select(VENUE_SHOW_SELECT)
     .eq('venue_producer_id', userId)
     .or(`is_cancelled.eq.false,date.gte.${today}`)
     .order('date', { ascending: true })
@@ -888,7 +1028,7 @@ app.get('/api/spots/mine', requireUser, requireRole('venue_producer'), async (re
     return;
   }
 
-  res.status(200).json(data ?? []);
+  res.status(200).json(((data ?? []) as unknown as VenueShowRow[]).map(toVenueShow));
 });
 
 app.get('/api/venue-producer/notices', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
@@ -908,13 +1048,13 @@ app.get('/api/venue-producer/notices', requireUser, requireRole('venue_producer'
   res.status(200).json(data ?? []);
 });
 
-app.post('/api/spots/:id/cancel', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+app.post('/api/venue-shows/:id/cancel', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
   const { id } = req.params;
   const message = typeof req.body?.message === 'string' ? req.body.message : undefined;
 
-  const { data, error } = await supabaseAdmin.rpc('cancel_spot', {
-    p_spot_id: id,
+  const { data, error } = await supabaseAdmin.rpc('cancel_show', {
+    p_show_id: id,
     p_venue_producer_id: userId,
     p_message: message,
   });
@@ -927,41 +1067,33 @@ app.post('/api/spots/:id/cancel', requireUser, requireRole('venue_producer'), as
   res.status(200).json(data);
 });
 
-app.post('/api/spots/:id/edit', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+app.post('/api/venue-shows/:id/edit', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
   const userId = req.userId as string;
   const { id } = req.params;
   const body = (req.body ?? {}) as Record<string, unknown>;
-
-  const { date, spot_type, total_spots, price } = body;
+  const { date } = body;
 
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     res.status(400).json({ error: 'date must be a YYYY-MM-DD string' });
     return;
   }
-  if (spot_type !== 'busking' && spot_type !== 'non_busking') {
-    res.status(400).json({ error: 'spot_type must be busking or non_busking' });
+
+  const pools = parsePoolsBody(body);
+  if (pools.error) {
+    res.status(400).json({ error: pools.error });
     return;
-  }
-  if (typeof total_spots !== 'number' || !Number.isInteger(total_spots) || total_spots <= 0 || total_spots > 100) {
-    res.status(400).json({ error: 'total_spots must be an integer between 1 and 100' });
-    return;
-  }
-  let normalizedPrice: number | null = null;
-  if (price !== undefined && price !== null && price !== '') {
-    if (typeof price !== 'number' || price < 0) {
-      res.status(400).json({ error: 'price must be a non-negative number' });
-      return;
-    }
-    normalizedPrice = price;
   }
 
-  const { data, error } = await supabaseAdmin.rpc('update_spot', {
-    p_spot_id: id,
+  const { data, error } = await supabaseAdmin.rpc('update_show', {
+    p_show_id: id,
     p_venue_producer_id: userId,
     p_date: date,
-    p_spot_type: spot_type,
-    p_total_spots: total_spots,
-    p_price: normalizedPrice,
+    p_busking_spots: pools.buskingSpots,
+    p_busking_price: pools.buskingPrice,
+    p_non_busking_spots: pools.nonBuskingSpots,
+    p_non_busking_price: pools.nonBuskingPrice,
+    p_hosting: pools.hosting,
+    p_hosting_price: pools.hostingPrice,
   });
 
   if (error) {

@@ -198,11 +198,11 @@ export default function AuthPage() {
       <section className={styles.cardShell}>
         <div className={styles.brandBlock}>
           <h1 className={styles.brandTitle}>
-            <span className={styles.brandOpenMic}>OPENMIC</span>
+            <span className={styles.brandOpenMic}>GetYour</span>
             <span className={styles.brandTilde} aria-hidden="true">
               ~
             </span>
-            <span className={styles.brandDelhi}>Delhi</span>
+            <span className={styles.brandDelhi}>MIC</span>
           </h1>
           <p className={styles.brandSubtitle}>Take a stand, and find your spot.</p>
         </div>

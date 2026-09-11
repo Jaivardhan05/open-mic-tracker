@@ -380,6 +380,21 @@ body {
 	background-color: #f472b6;
 }
 
+/* CTA button — hosting variant (same shape + motion, recolored to the flat
+   yellow used for the hosting spot pool, e.g. VenueShowCard's meter color) */
+.cta-hosting span,
+.cta-hosting .hover-underline-animation {
+	color: #facc15;
+}
+
+.cta-hosting svg {
+	stroke: #facc15;
+}
+
+.cta-hosting .hover-underline-animation::after {
+	background-color: #facc15;
+}
+
 /* CTA button — free variant (same shape + motion, recolored green) */
 .cta-free span,
 .cta-free .hover-underline-animation {

@@ -19,7 +19,7 @@ function scrollToSection(id: string) {
 const FAQ_ITEMS = [
   {
     q: 'Is it free to sign up?',
-    a: 'Yes. Creating a comedian account on OPENMIC ~ Delhi is completely free. Some shows may have a spot charge set by the venue, which is shown clearly on the booking page before you confirm.',
+    a: 'Yes. Creating a comedian account on GetYourMIC is completely free. Some shows may have a spot charge set by the venue, which is shown clearly on the booking page before you confirm.',
   },
   {
     q: 'How do I register my venue?',
@@ -35,7 +35,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Which cities are supported?',
-    a: 'OPENMIC ~ Delhi currently covers venues across Delhi NCR. Mumbai, Bangalore, and Pune are planned for future expansion.',
+    a: 'GetYourMIC currently covers venues across Delhi NCR. Mumbai, Bangalore, and Pune are planned for future expansion.',
   },
 ];
 
@@ -193,7 +193,7 @@ export default function SupportPage() {
                 className="brand-delhi mx-auto max-w-xl"
                 style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.4rem)', color: '#38bdf8' }}
               >
-                Everything you need to know about OPENMIC ~ Delhi.
+                Everything you need to know about GetYourMIC.
               </p>
             </div>
 
@@ -261,7 +261,7 @@ export default function SupportPage() {
                 <SpotlightCard className="rounded-2xl p-7">
                   <h3 className="text-base font-semibold text-white mb-3 leading-snug">For Venue Producers</h3>
                   <p className="text-zinc-400 text-sm leading-7">
-                    Register your venue on OPENMIC ~ Delhi and reach hundreds of comedians actively looking for
+                    Register your venue on GetYourMIC and reach hundreds of comedians actively looking for
                     spots. Manage your shows, set spot availability, and track bookings - all from your venue
                     dashboard. New venues are reviewed and approved by our team before going live.
                   </p>
@@ -291,7 +291,7 @@ export default function SupportPage() {
                       </svg>
                     ),
                     title: 'General Inquiries',
-                    email: 'hello@openmic.delhi',
+                    email: 'hello@getyourmic.delhi',
                     desc: 'For general questions about the platform, partnerships, or press inquiries.',
                   },
                   {
@@ -302,7 +302,7 @@ export default function SupportPage() {
                       </svg>
                     ),
                     title: 'Venue Support',
-                    email: 'venues@openmic.delhi',
+                    email: 'venues@getyourmic.delhi',
                     desc: 'For venue registration help, approval status, or dashboard issues. Our team responds within 24 hours.',
                   },
                 ].map(({ icon, title, email, desc }, i) => (

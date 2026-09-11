@@ -74,19 +74,39 @@ export type SpotRequestStatus =
   | 'cancelled_by_comedian'
   | 'cancelled_by_venue';
 
+export type PoolType = 'busking' | 'non_busking' | 'hosting';
+
 export interface Spot {
   id: string;
   venue_producer_id: string;
   date: string;
   start_time: string;
   end_time: string;
-  spot_type: 'busking' | 'non_busking';
+  spot_type: PoolType;
   total_spots: number;
   available_spots: number;
   price: number | null;
   is_cancelled: boolean;
   cancellation_message: string | null;
   created_at: string;
+}
+
+// A Show has many Spots: up to one pool row per type (busking/non_busking/
+// hosting). `null` means that pool has no active spots. See
+// specs/venue-dashboard.md §9. Named VenueShow (not Show) because `Show`
+// above is the unrelated legacy comedian-facing entity.
+export interface VenueShow {
+  id: string;
+  venue_producer_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  is_cancelled: boolean;
+  cancellation_message: string | null;
+  created_at: string;
+  busking: Spot | null;
+  non_busking: Spot | null;
+  hosting: Spot | null;
 }
 
 export interface SpotRequest {

@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 
+import type { Spot } from "@repo/types";
+
 import BrandMark from "@/components/BrandMark";
 import CtaButton from "@/components/CtaButton";
-import { useVenueSpots } from "@/hooks/useVenueSpots";
+import { useVenueShows } from "@/hooks/useVenueShows";
 import type { AuthUser } from "@/lib/auth";
 
-import AddSpotForm from "./AddSpotForm";
-import CancelSpotDialog from "./CancelSpotDialog";
-import EditSpotForm from "./EditSpotForm";
+import AddShowForm from "./AddShowForm";
+import CancelShowDialog from "./CancelShowDialog";
+import EditShowForm from "./EditShowForm";
 import RequestsPanel from "./RequestsPanel";
-import VenueSpotsListSection from "./VenueSpotsListSection";
+import VenueShowsListSection from "./VenueShowsListSection";
 import VenueNoticesSection from "./VenueNoticesSection";
 
 interface VenueProducerDashboardProps {
@@ -19,14 +21,20 @@ interface VenueProducerDashboardProps {
 }
 
 export default function VenueProducerDashboard({ user }: VenueProducerDashboardProps) {
-  const { spots, isLoading, createSpot, editSpot, cancelSpot } = useVenueSpots();
+  const { shows, isLoading, createShow, editShow, cancelShow } = useVenueShows();
   const [showAddForm, setShowAddForm] = useState(false);
   const [requestsSpotId, setRequestsSpotId] = useState<string | null>(null);
-  const [editSpotId, setEditSpotId] = useState<string | null>(null);
-  const [cancelSpotId, setCancelSpotId] = useState<string | null>(null);
+  const [editShowId, setEditShowId] = useState<string | null>(null);
+  const [cancelShowId, setCancelShowId] = useState<string | null>(null);
 
-  const requestsSpot = spots.find((s) => s.id === requestsSpotId) ?? null;
-  const editSpotTarget = spots.find((s) => s.id === editSpotId) ?? null;
+  // "View Requests" is per pool (a spots.id), while Edit/Cancel act on the
+  // whole show — so the requests panel is looked up across every show's
+  // three pools rather than by show id. See specs/venue-dashboard.md §9.4.
+  const requestsSpot: Spot | null =
+    shows
+      .flatMap((s) => [s.busking, s.non_busking, s.hosting])
+      .find((pool): pool is Spot => pool?.id === requestsSpotId) ?? null;
+  const editShowTarget = shows.find((s) => s.id === editShowId) ?? null;
 
   return (
     <>
@@ -41,26 +49,26 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
 
       <section className="mt-6 px-4 md:px-6 text-center md:text-left">
         <CtaButton type="button" onClick={() => setShowAddForm(true)}>
-          + Add a new Spot
+          + Add new shows
         </CtaButton>
       </section>
 
       <VenueNoticesSection />
 
-      <VenueSpotsListSection
-        spots={spots}
+      <VenueShowsListSection
+        shows={shows}
         isLoading={isLoading}
         onViewRequests={(spotId) => setRequestsSpotId(spotId)}
-        onEditSpot={(spotId) => setEditSpotId(spotId)}
-        onCancelSpot={(spotId) => setCancelSpotId(spotId)}
+        onEditShow={(showId) => setEditShowId(showId)}
+        onCancelShow={(showId) => setCancelShowId(showId)}
       />
 
       {showAddForm ? (
-        <AddSpotForm onSubmit={createSpot} onClose={() => setShowAddForm(false)} />
+        <AddShowForm onSubmit={createShow} onClose={() => setShowAddForm(false)} />
       ) : null}
 
-      {editSpotTarget ? (
-        <EditSpotForm spot={editSpotTarget} onSubmit={editSpot} onClose={() => setEditSpotId(null)} />
+      {editShowTarget ? (
+        <EditShowForm show={editShowTarget} onSubmit={editShow} onClose={() => setEditShowId(null)} />
       ) : null}
 
       {requestsSpot ? (
@@ -74,10 +82,10 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
         />
       ) : null}
 
-      {cancelSpotId ? (
-        <CancelSpotDialog
-          onConfirm={(message) => cancelSpot(cancelSpotId, message)}
-          onClose={() => setCancelSpotId(null)}
+      {cancelShowId ? (
+        <CancelShowDialog
+          onConfirm={(message) => cancelShow(cancelShowId, message)}
+          onClose={() => setCancelShowId(null)}
         />
       ) : null}
     </>

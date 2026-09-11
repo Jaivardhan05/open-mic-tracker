@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import type { SpotRequestStatus } from "@repo/types";
+import type { PoolType, SpotRequestStatus } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
 
@@ -11,7 +11,7 @@ interface SpotRequestCardProps {
   venueId?: string | null;
   date: string;
   startTime: string;
-  spotType: "busking" | "non_busking";
+  spotType: PoolType;
   status: SpotRequestStatus;
   venueMessage?: string | null;
   editNotice?: string | null;
@@ -97,7 +97,7 @@ export default function SpotRequestCard({
           <span className="text-zinc-600">&middot;</span>
           <span>{formatTime12h(startTime)}</span>
           <span className="text-zinc-600">&middot;</span>
-          <span>{spotType === "busking" ? "Busking" : "Non-Busking"}</span>
+          <span>{spotType === "busking" ? "Busking" : spotType === "hosting" ? "Hosting" : "Non-Busking"}</span>
         </div>
 
         {venueMessage ? <p className="text-xs text-zinc-400">Note: {venueMessage}</p> : null}

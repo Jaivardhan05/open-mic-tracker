@@ -311,6 +311,33 @@ export default function EditProfilePage() {
         return;
       }
 
+      // The venue's own public social/contact links (shown in the "Connect"
+      // card on /venues) live on the `venues` table, not `users` — the PATCH
+      // above only ever wrote to this venue producer's own user row, so
+      // instagram_url/maps_url/contact_email never reached /venues. Mirror
+      // them onto the venue via /api/venues/mine so both stay in sync.
+      const venuePayload = {
+        contact_email: contactEmailValue.trim(),
+        instagram_url: instagramUrlValue.trim(),
+        maps_url: mapsUrlValue.trim(),
+      };
+
+      const venueResponse = await fetch(`${API_URL}/api/venues/mine`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(venuePayload),
+      });
+
+      const venueResult = await venueResponse.json().catch(() => ({}));
+
+      if (!venueResponse.ok) {
+        setSaveError(venueResult.error ?? 'Failed to save venue contact info');
+        return;
+      }
+
       updateUser({
         name: nameValue.trim(),
         city: cityValue,

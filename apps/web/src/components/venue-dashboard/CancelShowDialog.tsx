@@ -5,7 +5,7 @@ import { useState } from "react";
 import CtaButton from "@/components/CtaButton";
 import { IconClose, IconWarning } from "@/components/icons/NavIcons";
 
-interface CancelSpotDialogProps {
+interface CancelShowDialogProps {
   onConfirm: (message?: string) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }
@@ -13,7 +13,7 @@ interface CancelSpotDialogProps {
 // Matches RequestsPanel's solid dark-navy panel fill.
 const PANEL_BG = "rgba(6,12,32,0.97)";
 
-export default function CancelSpotDialog({ onConfirm, onClose }: CancelSpotDialogProps) {
+export default function CancelShowDialog({ onConfirm, onClose }: CancelShowDialogProps) {
   const [message, setMessage] = useState("");
   const [isMessageFocused, setIsMessageFocused] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +25,7 @@ export default function CancelSpotDialog({ onConfirm, onClose }: CancelSpotDialo
     const result = await onConfirm(message.trim() || undefined);
     setIsSubmitting(false);
     if (!result.success) {
-      setError(result.error ?? "Failed to cancel spot");
+      setError(result.error ?? "Failed to cancel show");
       return;
     }
     onClose();
@@ -65,11 +65,11 @@ export default function CancelSpotDialog({ onConfirm, onClose }: CancelSpotDialo
             </span>
             <div>
               <h2 className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white">
-                Cancel this spot?
+                Cancel this show?
               </h2>
               <p className="mt-1 text-sm leading-relaxed text-zinc-400">
-                All comedians with a pending, accepted, or waitlisted request will be notified.
-                This cannot be undone.
+                All comedians with a pending, accepted, or waitlisted request on any of its spots
+                will be notified. This cannot be undone.
               </p>
             </div>
           </div>
@@ -86,16 +86,16 @@ export default function CancelSpotDialog({ onConfirm, onClose }: CancelSpotDialo
         <div className="px-6 pb-6 pt-5">
           <div className="float-field">
             <textarea
-              id="cancel-spot-message"
+              id="cancel-show-message"
               value={message}
               onChange={handleMessageInput}
               onFocus={() => setIsMessageFocused(true)}
               onBlur={() => setIsMessageFocused(false)}
-              placeholder={isMessageFocused ? 'Defaults to "Spot canceled by venue" if left blank.' : " "}
+              placeholder={isMessageFocused ? 'Defaults to "Show canceled by venue" if left blank.' : " "}
               rows={1}
               className="float-input cancel-spot-message resize-none overflow-hidden"
             />
-            <label className="float-label" htmlFor="cancel-spot-message">
+            <label className="float-label" htmlFor="cancel-show-message">
               Message (optional)
             </label>
             <span className="float-bar" aria-hidden="true" />
@@ -105,7 +105,7 @@ export default function CancelSpotDialog({ onConfirm, onClose }: CancelSpotDialo
 
           <div className="mt-6 flex justify-center">
             <CtaButton type="button" variant="danger" disabled={isSubmitting} onClick={handleConfirm}>
-              {isSubmitting ? "Cancelling…" : "Cancel Spot"}
+              {isSubmitting ? "Cancelling…" : "Cancel Show"}
             </CtaButton>
           </div>
         </div>

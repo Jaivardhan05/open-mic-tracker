@@ -24,6 +24,20 @@ const SPOT_REQUEST_STATUS_LABEL: Record<string, string> = {
   cancelled_by_venue: 'Cancelled by venue',
 };
 
+// Flat label/color per pool type — busking/non-busking unchanged, hosting
+// added (flat yellow, matching the same convention used on the venue-
+// producer dashboard's Add Show modal / VenueShowCard).
+const SPOT_TYPE_LABEL: Record<Spot['spot_type'], string> = {
+  busking: 'Busking',
+  non_busking: 'Non-Busking',
+  hosting: 'Hosting',
+};
+const SPOT_TYPE_COLOR_CLASS: Record<Spot['spot_type'], string> = {
+  busking: 'text-[#38BDF8]',
+  non_busking: 'text-[#F472B6]',
+  hosting: 'text-[#FACC15]',
+};
+
 export default function VenueDetailPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const router = useRouter();
@@ -168,12 +182,8 @@ export default function VenueDetailPage() {
                     return (
                       <SpotlightCard key={spot.id} className="rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <span
-                            className={`text-xs font-medium ${
-                              spot.spot_type === 'busking' ? 'text-[#38BDF8]' : 'text-[#F472B6]'
-                            }`}
-                          >
-                            {spot.spot_type === 'busking' ? 'Busking' : 'Non-Busking'}
+                          <span className={`text-xs font-medium ${SPOT_TYPE_COLOR_CLASS[spot.spot_type]}`}>
+                            {SPOT_TYPE_LABEL[spot.spot_type]}
                           </span>
                           <span className="text-xs font-medium text-white">
                             {spot.available_spots} spots left

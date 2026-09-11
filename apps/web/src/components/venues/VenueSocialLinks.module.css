@@ -79,14 +79,6 @@
   --vsl-glow: rgba(131, 133, 239, 0.45);
 }
 
-/* X: black with white logo, at rest */
-.x {
-  --vsl-bg: #000000;
-  --vsl-border: rgb(255, 255, 255);
-  --vsl-fg: #ffffff;
-  --vsl-glow: rgb(255, 255, 255);
-}
-
 /* Google Maps: peach theme, applied at rest */
 .maps {
   --vsl-bg: #ffb877;
