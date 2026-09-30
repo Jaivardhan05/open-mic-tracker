@@ -71,6 +71,11 @@ comedian cancels an accepted request
 → spots.available_spots += 1
 → spot becomes eligible for promotion (see below)
 
+comedian cancels a pending or waitlisted request
+→ request → cancelled_by_comedian
+→ spots.available_spots unchanged (this request never held a slot)
+→ request simply drops off the venue dashboard's pending/waitlisted lists
+
 venue owner promotes a waitlisted request (only enabled if available_spots > 0)
 → request → accepted
 → spots.available_spots -= 1
@@ -542,15 +547,20 @@ from touching on narrow widths, per the same measurement approach as
 The comedian's reminders window (`SpotRequestCard` inside `RemindersSection`, part
 of the Reminders & Confirmations section on `/home`) shows one ticket-stub style
 card per applied spot request, redesigned to a two-part layout: a main stub
-(venue name as the primary focal point, date/time/type, actions) and a
-perforated status stub showing the current state. No glow/text-shadow on any
-card text — the outer glass panel is the only glassmorphism layer.
+(venue name as the primary focal point, date/time/type, actions) stacked above
+a bottom status stub showing the current state, separated by a horizontal
+dashed perforation line. No glow/text-shadow on any card text — the outer
+glass panel is the only glassmorphism layer.
 
 - `pending` → shows a "Waiting for Confirmation" state. Comedian can trigger
   `cancel` on this request from this same view.
 - `accepted` → shows accepted state, plus venue owner's optional message if
   present. Comedian can trigger `cancel` here too.
-- `waitlisted` → shows waitlisted state. No cancel action.
+- `waitlisted` → shows waitlisted state. Comedian can trigger `cancel` here
+  too, to withdraw from the waitlist. This does not free a slot
+  (`spots.available_spots` is untouched, see §3) and does not trigger the
+  venue's manual promotion flow — it just removes the request from the
+  venue dashboard's waitlisted list.
 - `cancelled_by_venue` → shows cancellation state + the cancellation message
   (custom or default `"Spot canceled by venue"`). No cancel action. **Drops
   out of `GET /api/spot-requests/mine` 24 hours after cancellation** — the

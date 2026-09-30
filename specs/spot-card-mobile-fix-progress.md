@@ -4,6 +4,14 @@ Status as of 2026-08-08. This file exists so a fresh session can pick up
 exactly where this one left off, without re-deriving the investigation.
 Delete this file once the mobile fix ships and is verified.
 
+**2026-10-01 update:** the status stub moved from a vertical side column to a
+horizontal bottom bar (see `specs/venue-dashboard.md` §6), and the
+punch-hole circles were dropped. The vertical-text-vs-column-height
+clearance bug this file tracks (the `py-4 md:py-0` fix below) no longer
+applies — there's no more rotated text competing for space in a narrow
+fixed-width column. The tap-target fix section below is still relevant and
+unaffected by this layout change.
+
 ## 2026-08-08 update — both known bugs now have code fixes, unverified
 
 Two fixes were made this session, code-level only — **not yet visually

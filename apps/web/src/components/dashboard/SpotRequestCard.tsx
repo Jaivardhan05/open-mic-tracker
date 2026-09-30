@@ -70,7 +70,8 @@ export default function SpotRequestCard({
   isCancelling = false,
 }: SpotRequestCardProps) {
   const router = useRouter();
-  const canCancel = (status === "pending" || status === "accepted") && Boolean(onCancel);
+  const canCancel =
+    (status === "pending" || status === "accepted" || status === "waitlisted") && Boolean(onCancel);
 
   function handleViewVenue() {
     if (venueId) {
@@ -80,7 +81,7 @@ export default function SpotRequestCard({
 
   return (
     <div
-      className="content-glass relative flex overflow-hidden rounded-2xl"
+      className="content-glass relative flex flex-col overflow-hidden rounded-2xl"
       style={{ backdropFilter: "blur(40px) saturate(120%)", WebkitBackdropFilter: "blur(40px) saturate(120%)" }}
     >
       {/* Main stub: the "ticket" itself */}
@@ -123,31 +124,12 @@ export default function SpotRequestCard({
         </div>
       </div>
 
-      {/* Perforated tear-off: the status stub. `py-4 md:py-0` is a
-          measured minimum buffer for single-column widths ONLY (<768px,
-          matching RemindersSection's own `md:grid-cols-2` breakpoint):
-          this column's height is driven purely by the vertical status
-          text's own length, and at some single-column card widths the
-          main content column is shorter than that text needs, pushing
-          the text into the punch-hole circles. Measured with Playwright
-          (getBoundingClientRect) across 320–1280px: the real (negative)
-          overlap band is ~600–767px, not just narrow phones. The
-          `md:py-0` reset makes it structurally impossible for this to
-          add any height at 768px+ — verified byte-for-byte identical
-          card heights there before/after. Do not remove the `md:py-0`
-          half without re-measuring; a previous unscoped `py-4`/`py-5`
-          (no `md:` reset) leaked into the 2-/3-column desktop layout via
-          this column being the tallest item in its CSS Grid row. */}
-      <div className="relative flex w-12 flex-shrink-0 items-center justify-center border-l border-dashed border-white/20 py-4 sm:w-14 md:py-0">
-        <span className="absolute -top-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-black/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]" />
-        <span className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-black/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]" />
+      {/* Perforated tear-off: the status stub, now a horizontal bottom
+          bar instead of a side column. */}
+      <div className="flex w-full flex-shrink-0 items-center justify-center border-t border-dashed border-white/20 px-5 py-5">
         <span
           className="font-[family-name:var(--font-bebas)] text-xs uppercase tracking-[0.25em]"
-          style={{
-            writingMode: "vertical-rl",
-            transform: "rotate(180deg)",
-            color: STATUS_COLOR[status] ?? "#e4e4e7",
-          }}
+          style={{ color: STATUS_COLOR[status] ?? "#e4e4e7" }}
         >
           {STATUS_LABEL[status] ?? status}
         </span>
