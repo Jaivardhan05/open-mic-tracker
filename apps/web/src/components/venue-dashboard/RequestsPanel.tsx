@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useSpotRequests, type SpotRequestRow } from "@/hooks/useSpotRequests";
 import { IconClose } from "@/components/icons/NavIcons";
 import CtaButton from "@/components/CtaButton";
+import SwapConfirmDialog from "./SwapConfirmDialog";
 import { formatDateTimeOrdinal, formatSpotDate, formatTime12h } from "@/lib/formatDate";
 import {
   GmailIcon,
@@ -20,6 +21,8 @@ interface RequestsPanelProps {
   spotStartTime: string;
   spotEndTime: string;
   onClose: () => void;
+  /** Called after any accept/cancel attempt so the parent can refresh spot counts. */
+  onChanged?: () => void;
 }
 
 type SectionStatus = "pending" | "accepted" | "waitlisted";
@@ -34,6 +37,12 @@ const STATUS_SPINE: Record<SectionStatus, string> = {
 // exact color so it reads as a hole through to the panel behind it.
 const PANEL_BG = "rgba(6,12,32,0.97)";
 const CARD_BG = "rgba(19,30,58,0.92)";
+// Same amber as the pending spine; marks a request whose accept is a swap.
+const SWAP_ACCENT = "#facc15";
+
+function spotTypeLabel(spotType: string): string {
+  return spotType.replace("_", "-");
+}
 
 function RequestCard({
   request,
@@ -43,6 +52,7 @@ function RequestCard({
   disabled,
   showMessageInput,
   variant = "primary",
+  blockedBy,
 }: {
   request: SpotRequestRow;
   status: SectionStatus;
@@ -51,6 +61,7 @@ function RequestCard({
   disabled?: boolean;
   showMessageInput?: boolean;
   variant?: "primary" | "danger";
+  blockedBy?: SpotRequestRow["blocked_by"];
 }) {
   const [message, setMessage] = useState("");
 
@@ -74,6 +85,7 @@ function RequestCard({
         {
           backgroundColor: CARD_BG,
           "--notch-bg": PANEL_BG,
+          ...(blockedBy ? { boxShadow: `inset 0 0 0 1px ${SWAP_ACCENT}59` } : {}),
         } as React.CSSProperties
       }
     >
@@ -111,6 +123,11 @@ function RequestCard({
       </p>
       {request.venue_message ? (
         <p className="mt-1 text-xs text-zinc-400">Note: {request.venue_message}</p>
+      ) : null}
+      {blockedBy ? (
+        <p className="mt-2 text-xs font-semibold" style={{ color: SWAP_ACCENT }}>
+          Already accepted for {spotTypeLabel(blockedBy.spot_type)}. Accepting this will cancel that spot.
+        </p>
       ) : null}
       {onAction ? (
         <div
@@ -168,19 +185,40 @@ export default function RequestsPanel({
   spotStartTime,
   spotEndTime,
   onClose,
+  onChanged,
 }: RequestsPanelProps) {
   const { requests, isLoading, acceptRequest, cancelRequest } = useSpotRequests(spotId);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [swapTarget, setSwapTarget] = useState<{ request: SpotRequestRow; message: string } | null>(null);
 
-  async function handleAccept(requestId: string, message: string) {
+  async function handleAccept(requestId: string, message: string, swapFromRequestId?: string) {
     setPendingActionId(requestId);
     setError("");
-    const result = await acceptRequest(requestId, message || undefined);
+    const result = await acceptRequest(requestId, message || undefined, swapFromRequestId);
     if (!result.success) {
       setError(result.error ?? "Failed to accept request");
     }
     setPendingActionId(null);
+    onChanged?.();
+  }
+
+  // A blocked request goes through the confirmation dialog; a normal one is accepted directly.
+  function handleAcceptClick(request: SpotRequestRow, message: string) {
+    if (request.blocked_by) {
+      setSwapTarget({ request, message });
+      return;
+    }
+    handleAccept(request.id, message);
+  }
+
+  async function handleSwapConfirm() {
+    if (!swapTarget?.request.blocked_by) return;
+    const { request, message } = swapTarget;
+    // The server result (or a stale-state message) is shown in the panel's
+    // error line, and the list has been refetched either way; then close.
+    await handleAccept(request.id, message, request.blocked_by?.request_id);
+    setSwapTarget(null);
   }
 
   async function handleCancel(requestId: string, message: string) {
@@ -191,6 +229,7 @@ export default function RequestsPanel({
       setError(result.error ?? "Failed to cancel request");
     }
     setPendingActionId(null);
+    onChanged?.();
   }
 
   return (
@@ -247,7 +286,8 @@ export default function RequestsPanel({
                       actionLabel={pendingActionId === r.id ? "Accepting…" : "Accept"}
                       disabled={pendingActionId === r.id || spotAvailableSpots <= 0}
                       showMessageInput
-                      onAction={(message) => handleAccept(r.id, message)}
+                      blockedBy={r.blocked_by}
+                      onAction={(message) => handleAcceptClick(r, message)}
                     />
                   ))}
                 </div>
@@ -288,7 +328,8 @@ export default function RequestsPanel({
                       actionLabel={pendingActionId === r.id ? "Promoting…" : "Promote"}
                       disabled={pendingActionId === r.id || spotAvailableSpots <= 0}
                       showMessageInput={false}
-                      onAction={(message) => handleAccept(r.id, message)}
+                      blockedBy={r.blocked_by}
+                      onAction={(message) => handleAcceptClick(r, message)}
                     />
                   ))}
                 </div>
@@ -302,6 +343,15 @@ export default function RequestsPanel({
           </div>
         )}
       </div>
+
+      {swapTarget?.request.blocked_by ? (
+        <SwapConfirmDialog
+          comedianName={swapTarget.request.comedian_name ?? "This comedian"}
+          acceptedSpotLabel={spotTypeLabel(swapTarget.request.blocked_by.spot_type)}
+          onConfirm={handleSwapConfirm}
+          onClose={() => setSwapTarget(null)}
+        />
+      ) : null}
     </div>
   );
 }

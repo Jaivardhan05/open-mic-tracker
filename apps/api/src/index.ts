@@ -1125,9 +1125,11 @@ app.get('/api/spots/:id/requests', requireUser, requireRole('venue_producer'), a
 
   const { data: requests, error: requestsError } = await supabaseAdmin
     .from('spot_requests')
-    .select('id, spot_id, comedian_id, status, venue_message, requested_at, decided_at')
+    .select('id, spot_id, comedian_id, status, venue_message, requested_at, decided_at, show_id')
     .eq('spot_id', id)
-    .order('requested_at', { ascending: true });
+    // id is a deterministic tiebreaker for identical requested_at values.
+    .order('requested_at', { ascending: true })
+    .order('id', { ascending: true });
 
   if (requestsError) {
     res.status(500).json({ error: requestsError.message });
@@ -1161,8 +1163,37 @@ app.get('/api/spots/:id/requests', requireUser, requireRole('venue_producer'), a
     );
   }
 
-  const enriched = (requests ?? []).map((r) => ({
+  // A pending/waitlisted request is "blocked" when the same comedian is already
+  // accepted for another spot in the same show. It stays acceptable: accepting
+  // it is a swap (see accept_spot_request, migration 017a).
+  const blockedBy: Record<string, { request_id: string; spot_type: string }> = {};
+  const waitingRows = (requests ?? []).filter((r) => r.status === 'pending' || r.status === 'waitlisted');
+  if (waitingRows.length > 0) {
+    const { data: acceptedSiblings, error: siblingsError } = await supabaseAdmin
+      .from('spot_requests')
+      .select('id, comedian_id, spots:spot_id(spot_type)')
+      .eq('show_id', waitingRows[0].show_id)
+      .eq('status', 'accepted')
+      .in('comedian_id', waitingRows.map((r) => r.comedian_id));
+
+    if (siblingsError) {
+      res.status(500).json({ error: siblingsError.message });
+      return;
+    }
+
+    (acceptedSiblings as unknown as Array<{ id: string; comedian_id: string; spots: { spot_type: string } | null }> ?? []).forEach(
+      (s) => {
+        if (s.spots) {
+          blockedBy[s.comedian_id] = { request_id: s.id, spot_type: s.spots.spot_type };
+        }
+      }
+    );
+  }
+
+  const enriched = (requests ?? []).map(({ show_id: _showId, ...r }) => ({
     ...r,
+    blocked_by:
+      r.status === 'pending' || r.status === 'waitlisted' ? (blockedBy[r.comedian_id] ?? null) : null,
     comedian_name: comedianInfo[r.comedian_id]?.name,
     comedian_instagram_url: comedianInfo[r.comedian_id]?.instagram_url ?? null,
     comedian_x_url: comedianInfo[r.comedian_id]?.x_url ?? null,
@@ -1207,11 +1238,14 @@ app.post('/api/spot-requests/:id/accept', requireUser, requireRole('venue_produc
   const userId = req.userId as string;
   const { id } = req.params;
   const message = typeof req.body?.message === 'string' ? req.body.message : undefined;
+  const swapFromRequestId =
+    typeof req.body?.swap_from_request_id === 'string' ? req.body.swap_from_request_id : undefined;
 
   const { data, error } = await supabaseAdmin.rpc('accept_spot_request', {
     p_request_id: id,
     p_venue_producer_id: userId,
     p_message: message,
+    p_swap_from_request_id: swapFromRequestId,
   });
 
   if (error) {
@@ -1269,7 +1303,7 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
 
   const { data: requests, error } = await supabaseAdmin
     .from('spot_requests')
-    .select(`id, spot_id, comedian_id, status, venue_message, edit_notice, edit_notice_at, requested_at, decided_at, spots:spot_id(${SPOT_SELECT})`)
+    .select(`id, spot_id, show_id, comedian_id, status, venue_message, edit_notice, edit_notice_at, requested_at, decided_at, spots:spot_id(${SPOT_SELECT})`)
     .eq('comedian_id', userId)
     .or(`status.neq.cancelled_by_venue,decided_at.gt.${cancelledVisibilityCutoff}`)
     .order('requested_at', { ascending: false });
@@ -1282,6 +1316,7 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
   type RequestRow = {
     id: string;
     spot_id: string;
+    show_id: string;
     comedian_id: string;
     status: string;
     venue_message: string | null;
@@ -1296,11 +1331,23 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
   const producerIds = rows.map((r) => r.spots?.venue_producer_id).filter(Boolean);
   const venues = await venuesByProducerIds(producerIds);
 
+  // The comedian's own accepted request per show, so their other (pending or
+  // waitlisted) requests in that show can be flagged as blocked. All of the
+  // comedian's non-expired requests are already in `rows`.
+  const acceptedSpotTypeByShow: Record<string, string> = {};
+  rows.forEach((r) => {
+    if (r.status === 'accepted' && typeof r.spots?.spot_type === 'string') {
+      acceptedSpotTypeByShow[r.show_id] = r.spots.spot_type;
+    }
+  });
+
   const result = rows.map((r) => ({
     id: r.id,
     spot_id: r.spot_id,
     comedian_id: r.comedian_id,
     status: r.status,
+    blocked_by_spot_type:
+      r.status === 'pending' || r.status === 'waitlisted' ? (acceptedSpotTypeByShow[r.show_id] ?? null) : null,
     venue_message: r.venue_message,
     edit_notice: r.edit_notice,
     edit_notice_at: r.edit_notice_at,

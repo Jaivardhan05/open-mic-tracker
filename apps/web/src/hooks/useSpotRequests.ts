@@ -17,6 +17,14 @@ export interface SpotRequestRow {
   venue_message: string | null;
   requested_at: string;
   decided_at: string | null;
+  /** Comedian is already accepted for this spot elsewhere in the same show; accepting is a swap. */
+  blocked_by?: { request_id: string; spot_type: string } | null;
+}
+
+export interface AcceptResult {
+  success: boolean;
+  error?: string;
+  code?: string;
 }
 
 export interface GroupedSpotRequests {
@@ -80,16 +88,17 @@ export function useSpotRequests(spotId: string | null) {
   }, [spotId]);
 
   const acceptRequest = useCallback(
-    async (requestId: string, message?: string) => {
+    async (requestId: string, message?: string, swapFromRequestId?: string): Promise<AcceptResult> => {
       const res = await authorizedFetch(`/api/spot-requests/${requestId}/accept`, {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, swap_from_request_id: swapFromRequestId }),
       });
       const result = await res.json().catch(() => ({}));
-      if (!res.ok || !result.success) {
-        return { success: false, error: result.error ?? "Failed to accept request" };
-      }
+      // Refetch on failure too: a rejected accept usually means the view was stale.
       await refetch();
+      if (!res.ok || !result.success) {
+        return { success: false, error: result.error ?? "Failed to accept request", code: result.code };
+      }
       return { success: true };
     },
     [refetch]

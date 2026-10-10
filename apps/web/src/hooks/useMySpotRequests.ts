@@ -6,7 +6,18 @@ import type { SpotRequest } from "@repo/types";
 
 import { authorizedFetch } from "@/lib/apiClient";
 
-export function useMySpotRequests() {
+interface UseMySpotRequestsOptions {
+  /**
+   * Refetch when the tab becomes visible or the window regains focus, so changes
+   * the venue owner makes (accept, swap, cancel) show up without a reload.
+   */
+  refreshOnFocus?: boolean;
+}
+
+// Visibility and focus usually fire together on a tab switch.
+const FOCUS_REFETCH_MIN_INTERVAL_MS = 2000;
+
+export function useMySpotRequests({ refreshOnFocus = false }: UseMySpotRequestsOptions = {}) {
   const [spotRequests, setSpotRequests] = useState<SpotRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -17,6 +28,28 @@ export function useMySpotRequests() {
       setSpotRequests(Array.isArray(data) ? data : []);
     }
   }, []);
+
+  useEffect(() => {
+    if (!refreshOnFocus) return;
+
+    let lastRefetchAt = 0;
+    function handleReturn() {
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - lastRefetchAt < FOCUS_REFETCH_MIN_INTERVAL_MS) return;
+      lastRefetchAt = now;
+      refetch().catch(() => {
+        // Keep showing the last known state if the refresh fails.
+      });
+    }
+
+    document.addEventListener("visibilitychange", handleReturn);
+    window.addEventListener("focus", handleReturn);
+    return () => {
+      document.removeEventListener("visibilitychange", handleReturn);
+      window.removeEventListener("focus", handleReturn);
+    };
+  }, [refreshOnFocus, refetch]);
 
   useEffect(() => {
     let cancelled = false;

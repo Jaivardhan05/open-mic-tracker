@@ -87,7 +87,11 @@ export default function RemindersSection({
                 date={request.spot.date}
                 startTime={request.spot.start_time}
                 spotType={request.spot.spot_type}
-                status={request.status}
+                status={
+                  // Already accepted elsewhere in this show: show the same
+                  // "Waiting for Confirmation" label as the other blocked requests.
+                  request.status === "waitlisted" && request.blocked_by_spot_type ? "pending" : request.status
+                }
                 venueMessage={request.venue_message}
                 editNotice={request.edit_notice}
                 onCancel={onCancelSpotRequest ? () => handleCancelSpotRequest(request.id) : undefined}

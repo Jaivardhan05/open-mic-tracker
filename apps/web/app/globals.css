@@ -88,12 +88,19 @@ body {
    self-contained, reusable class so it doesn't depend on any page-local
    override or hand-copied values. Use this — not a fresh
    backdrop-filter/background/border trio — for any glass panel anywhere
-   in the app going forward. */
+   in the app going forward.
+
+   Declare ONLY the unprefixed backdrop-filter here. The build's CSS step
+   (Lightning CSS) adds -webkit-backdrop-filter itself, but if the source lists
+   backdrop-filter *before* an explicit -webkit-backdrop-filter it keeps only
+   the prefixed one, which Chrome/Firefox ignore — the blur silently vanishes.
+   Don't re-add a manual -webkit- line below. (.content-glass, .navbar-glass,
+   .sidebar-glass and .mobile-menu-glass still have that bug — see
+   specs/auth-glass-panel.md.) */
 .glass-panel {
 	background: rgba(0, 0, 0, 0.52);
 	border: 1px solid rgba(255, 255, 255, 0.18);
 	backdrop-filter: blur(40px) saturate(120%);
-	-webkit-backdrop-filter: blur(40px) saturate(120%);
 }
 
 /* Button ── diagonal light sweep on hover */

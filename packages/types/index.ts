@@ -117,6 +117,8 @@ export interface SpotRequest {
   venue_message: string | null;
   edit_notice?: string | null;
   edit_notice_at?: string | null;
+  /** Set when the comedian is already accepted for another spot in the same show. */
+  blocked_by_spot_type?: PoolType | null;
   requested_at: string;
   decided_at: string | null;
   spot?: Spot;

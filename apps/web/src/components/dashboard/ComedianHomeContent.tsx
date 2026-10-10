@@ -20,7 +20,7 @@ export default function ComedianHomeContent() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { bookings, isLoading: isBookingsLoading, bookSpot, cancelBooking, declineBooking } =
     useComedianBookings();
-  const { spotRequests, isLoading: isSpotRequestsLoading, cancelSpotRequest } = useMySpotRequests();
+  const { spotRequests, isLoading: isSpotRequestsLoading, cancelSpotRequest } = useMySpotRequests({ refreshOnFocus: true });
 
   async function loadVenueShows(venueId: string) {
     try {

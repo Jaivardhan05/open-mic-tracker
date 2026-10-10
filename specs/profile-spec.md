@@ -178,3 +178,50 @@ read as a light gray-and-white double frame clashing with the dark theme.
   are unchanged.
 - No gradients or glow/neon effects introduced — all flat colors, per the
   site's existing design-system constraint (Section 5).
+## 12. Mobile Drawer Profile Group + Edit Profile Button (2026-10-10)
+
+- **Drawer (`Navbar.tsx`, mobile only):** the single "My Profile" row is now
+  a disclosure `<button>` labelled "Profile" (same row classes and
+  `IconUser` as the other rows; no chevron). It only expands/collapses —
+  never navigates. `aria-expanded` + `aria-controls="mobile-profile-group"`,
+  visible cyan `focus-visible` ring.
+- Expanded region holds "My Profile" (`/profile`) and "Edit Profile"
+  (`/profile/edit`): indented under the parent label, `text-sm`
+  `font-normal` `text-zinc-400`, with a left connector line; the active
+  child gets a cyan line + text. 44px min tap height.
+- Group is expanded by default on `/profile` and `/profile/edit`; the parent
+  shows the cyan active colour on either route.
+- Motion: `grid-template-rows` 0fr→1fr, 150ms, `motion-safe:` only. Collapsed
+  region is `inert` + `aria-hidden`.
+- Logo block: inline `paddingTop: max(1.25rem, env(safe-area-inset-top))`.
+  `.pt-safe`, `.mobile-menu-glass`, drawer padding and close button untouched.
+- **`/profile` page:** an "Edit Profile" `CtaButton` (reference: the bottom
+  "Back to Home" button on `/support`, same `text-center` wrapper) sits in
+  normal flow after the role component, so it moves with expanding/collapsing
+  content. Shown at all breakpoints for all roles; desktop sidebar link
+  unchanged. Links to `/profile/edit`.
+
+## 13. Flashcard Stack: Edit Profile Button Hidden When Fan Open (2026-10-10)
+
+**Root cause:** on touch devices the open fan moves the cards with `transform`
+(up to `translateY(432%)`), which doesn't change layout height. The Edit
+Profile button, in normal flow right after the stack, rendered underneath the
+open cards (z-index 10–50), and ~60rem of cards hung below it.
+
+**Fix (`FlashCardStack.tsx` / `.module.css`, touch only — `not all and (hover: hover)`):**
+- `.wrapper` gets `.wrapperOpen` while the fan is open: `padding-bottom` grows
+  to `6rem + 4.32 × var(--stack-h)`, animated 300ms ease-out (instant under
+  `prefers-reduced-motion`). `--stack-h` is 16.5rem (18rem at ≥768px).
+  Content after the stack is pushed below the fanned cards.
+- Only the top (centre) card toggles the fan: native `click` (never fired for
+  a scroll/drag), or Enter/Space. It is `role="button"`, `tabIndex=0`,
+  `aria-expanded`, `aria-controls`, with a cyan `:focus-visible` ring.
+- Removed the stack-wide `onClick` and the tap-outside-to-close listener.
+  Touching empty space or the other cards never toggles the stack.
+- Escape closes an open fan (never opens), returns focus to the top card, and
+  is handled on the stack only (no global listener, no stopPropagation).
+- While closed, the peeking cards are `pointer-events: none` (touch only);
+  once open they behave as links as before.
+- Toggle semantics/handlers are attached only when the touch media query
+  matches; desktop DOM, hover fan and layout are unchanged.
+- Users: `ComedianFlashCards`, `VenueFlashCards` (both on `/profile`).

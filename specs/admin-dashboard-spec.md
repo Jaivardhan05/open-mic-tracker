@@ -263,6 +263,20 @@ section) rather than a new hand-written `backdrop-filter`/`background`/
 `border` combination. `/support` itself was not modified — it remains the
 reference, not a target.
 
+**Build-step fix (blur was silently missing in Chrome/Firefox).** As first
+written, `.glass-panel` declared `backdrop-filter` and then an explicit
+`-webkit-backdrop-filter`. The CSS build (Lightning CSS) then emitted *only*
+the `-webkit-` line, which Chrome/Firefox ignore — so the class computed to
+`backdrop-filter: none` there, and the five panels in §6.8's "Applied to" had
+no blur outside Safari. `.glass-panel` now declares **only** the unprefixed
+`backdrop-filter`; the build adds the `-webkit-` form itself (compiled output
+verified to contain both). Net effect: those five admin panels now really blur
+(`blur(40px) saturate(1.2)`) in Chrome — no other computed property changed.
+Do not re-add a manual `-webkit-` line after `backdrop-filter` in this class.
+`.content-glass`, `.navbar-glass`, `.sidebar-glass` and `.mobile-menu-glass`
+still carry the old pattern and the same bug — known issue, deliberately not
+fixed in this pass (see `specs/auth-glass-panel.md`).
+
 ### 6.9 "All Venues" row styling (2026-09-07)
 Each venue in `AdminProfile.tsx`'s All Venues list was its own separate
 rounded, bordered, background-tinted pill (`rounded-xl border border-white/10

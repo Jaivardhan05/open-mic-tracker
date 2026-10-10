@@ -44,16 +44,33 @@
 }
 
 .cardShell {
+  position: relative;
   width: 100%;
   max-width: 440px;
   padding: 40px;
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 20px;
-  background: rgba(0, 0, 0, 0.52);
-  backdrop-filter: blur(40px) saturate(120%);
-  -webkit-backdrop-filter: blur(40px) saturate(120%);
   overscroll-behavior: contain;
+  /* Background, border and backdrop blur come from the shared .glass-panel
+     class (globals.css) applied in page.tsx — don't redeclare them here. */
+}
+
+/* Static grain, same SVG fractal-noise tile and settings as /support's
+   SpotlightCard (src/components/venues/SpotlightCard.tsx NOISE_URI: 5.5%
+   soft-light). Sits behind the content (z-index -1 inside the card's own
+   stacking context, created by the glass backdrop-filter) so it can't
+   affect form readability. No cursor spotlight or tilt. */
+.cardShell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 19px;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  opacity: 0.055;
+  mix-blend-mode: soft-light;
 }
 
 .cardShell::-webkit-scrollbar {
@@ -157,6 +174,7 @@
 }
 
 .roleCard {
+  position: relative;
   min-height: 122px;
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -164,17 +182,170 @@
   background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
   text-align: left;
-  transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
-}
-
-.roleCard:hover {
-  transform: translateY(-1px);
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    border-color 300ms ease-out,
+    background-color 300ms ease-out,
+    box-shadow 300ms ease-out;
 }
 
 .roleCardActive {
   border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
-  box-shadow: 0 10px 24px rgba(8, 12, 28, 0.2);
+  background: rgba(56, 189, 248, 0.14);
+  box-shadow:
+    0 10px 24px rgba(8, 12, 28, 0.2),
+    0 0 18px rgba(56, 189, 248, 0.18),
+    inset 0 0 20px rgba(56, 189, 248, 0.1);
+}
+
+/* Marquee rim: a ring of round "bulbs" just inside the border. Decorative only. */
+.roleMarquee {
+  position: absolute;
+  inset: 5px;
+  pointer-events: none;
+  filter: drop-shadow(0 0 0 rgba(56, 189, 248, 0));
+  transition: filter 300ms ease-out;
+}
+
+.roleCardActive .roleMarquee {
+  filter: drop-shadow(0 0 2.5px rgba(56, 189, 248, 0.85));
+}
+
+.roleMarquee svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.roleBulbsOff,
+.roleBulbsOn {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.roleBulbsOff {
+  stroke: rgba(255, 255, 255, 0.22);
+  transition: stroke 300ms ease-out;
+}
+
+.roleBulbsOn {
+  stroke: #38bdf8;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.roleCardActive .roleBulbsOn {
+  opacity: 1;
+}
+
+/* Radio-style badge: empty ring when unselected, filled check when selected,
+   so selection never depends on colour alone. */
+.roleCheck {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  color: #000f5c;
+  pointer-events: none;
+  transition: background-color 300ms ease-out, border-color 300ms ease-out;
+}
+
+.roleCheck svg {
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.roleCardActive .roleCheck {
+  border-color: #38bdf8;
+  background: #38bdf8;
+}
+
+.roleCardActive .roleCheck svg {
+  opacity: 1;
+  transform: none;
+}
+
+/* Hover is a desktop-only nicety; touch devices get the same selected state without it. */
+@media (hover: hover) {
+  .roleCard:hover {
+    transform: translateY(-1px);
+  }
+
+  .roleCard:not(.roleCardActive):hover {
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+
+  .roleCard:not(.roleCardActive):hover .roleBulbsOff {
+    stroke: rgba(255, 255, 255, 0.4);
+  }
+}
+
+.roleCard:active {
+  transform: scale(0.985);
+  transition-duration: 100ms, 300ms, 300ms, 300ms;
+}
+
+.roleCard:focus {
+  outline: none;
+}
+
+.roleCard:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roleCard,
+  .roleMarquee,
+  .roleBulbsOff,
+  .roleBulbsOn,
+  .roleCheck,
+  .roleCheck svg {
+    transition: none;
+  }
+
+  .roleCard:hover,
+  .roleCard:active {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .roleCardActive {
+    border-color: Highlight;
+  }
+
+  .roleBulbsOff {
+    stroke: GrayText;
+  }
+
+  .roleBulbsOn {
+    stroke: Highlight;
+  }
+
+  .roleCheck {
+    border-color: ButtonText;
+  }
+
+  .roleCardActive .roleCheck {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 
 .roleIcon {
@@ -505,6 +676,21 @@
 
   .brandSubtitle {
     font-size: 0.98rem;
+  }
+}
+
+/* Log In / Sign Up toggle: below desktop, split the row into two equal halves
+   instead of the fixed 140px gap, which overflows the card and wraps labels. */
+@media (max-width: 767px) {
+  .modeTabs {
+    gap: 0;
+  }
+
+  .modeTabs > button {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    white-space: nowrap;
   }
 }
 

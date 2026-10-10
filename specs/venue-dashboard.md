@@ -114,7 +114,7 @@ All routes authenticated; role-guarded to `venue_producer` unless noted. Follow 
 | POST | `/api/spots/:id/cancel` | Cancel a spot; body: `{ message?: string }` |
 | GET | `/api/spots/:id/requests` | List all requests for a spot, grouped by status |
 | POST | `/api/spot-requests` | Comedian applies to a spot; body: `{ spot_id }`. Role-guarded to `comedian`. |
-| POST | `/api/spot-requests/:id/accept` | Venue owner accepts a pending or promotes a waitlisted request; body: `{ message?: string }` |
+| POST | `/api/spot-requests/:id/accept` | Venue owner accepts a pending or promotes a waitlisted request; body: `{ message?: string, swap_from_request_id?: string }`. If the comedian is already accepted for another spot in the same show, `swap_from_request_id` must name that accepted request (see §10) |
 | POST | `/api/spot-requests/:id/cancel` | Comedian cancels their own accepted request. Role-guarded to `comedian`; ownership check required (comedian can only cancel their own request). |
 | GET | `/api/spot-requests/mine` | Comedian's own requests across all spots (for reminders window) |
 
@@ -771,3 +771,102 @@ for Hosting since its pool row is always created with `total_spots = 1`.
 3. Venue producer dashboard: calendar (read from `/spots/mine`), Add Spot form, requests panel.
 4. Comedian reminders-window update to surface status + message.
 5. Manual end-to-end test: create spot → 2 comedians apply → accept 1 (fills spot) → confirm 2nd auto-waitlists → cancel accepted comedian → confirm promote becomes available → cancel whole spot → confirm both comedians show cancellation state.
+
+---
+
+## 10. 2026-10-10 — One accepted spot per comedian per show (with swap)
+
+**Rule.** A comedian may be `accepted` for at most **one spot per show**
+(`spots.show_id`). Applying to busking / non-busking / hosting of the same show
+is unchanged; being accepted for more than one at a time is not allowed.
+
+### 10.1 Behaviour
+
+- A comedian's other `pending`/`waitlisted` requests in the show are **not dead**
+  and no new stored status exists. They are "blocked" only as a read-time
+  fact: `GET /api/spots/:id/requests` adds `blocked_by: { request_id, spot_type } | null`
+  to each pending/waitlisted request.
+- Accepting a blocked request is a **swap**, done atomically in
+  `accept_spot_request()`:
+  1. the old accepted request goes back to **`pending`** (`venue_message` and
+     `decided_at` cleared; `requested_at` untouched, so it keeps its original
+     queue position — lists sort by `requested_at, id`);
+  2. the old pool's `available_spots` + 1 (capped at `total_spots`);
+  3. the new request becomes `accepted` and the new pool's `available_spots` - 1.
+  The old request is released **before** the new one is accepted, so the unique
+  index below is never violated mid-transaction.
+- **No auto-promotion**, same as every existing cancel: the freed slot is simply
+  open and the owner promotes manually. Waitlisted comedians stay waitlisted.
+- Cancelling the accepted spot (comedian cancel, venue cancel, show cancel) is
+  unchanged. The comedian's other requests are acceptable with a plain accept
+  again because the accepted row has left the `accepted` status.
+
+### 10.2 Server enforcement and concurrency
+
+- `spot_requests.show_id` (denormalised from `spots.show_id`, filled by a
+  `BEFORE INSERT` trigger, so it also holds for direct inserts under RLS).
+- `accept_spot_request(p_request_id, p_venue_producer_id, p_message, p_swap_from_request_id)`
+  takes `pg_advisory_xact_lock` on (show, comedian), then row locks in the order
+  target request → sibling accepted request → spots by id, then re-validates.
+- Rejections are `{ success: false, code, error }` (HTTP 200, like the rest of the API):
+  `swap_required` (plain accept while accepted elsewhere), `stale_swap`
+  (`swap_from_request_id` is not the comedian's current accepted request),
+  `swap_not_needed` (a swap was confirmed but the old spot was already cancelled;
+  nothing is written), `not_pending`, `no_spots`, `spot_cancelled`, `forbidden`,
+  `duplicate_accepted` (legacy data, see below), `conflict` (unique violation).
+- DB-level guarantee (migration `017b`): partial unique index
+  `idx_spot_requests_one_accepted_per_show ON spot_requests (show_id, comedian_id) WHERE status = 'accepted'`.
+  `017b` refuses to run while any (show, comedian) pair already has more than
+  one accepted row; it never modifies data.
+
+### 10.3 Existing data
+
+Run the report query at the top of `017b_one_accepted_per_show_index.sql` before
+applying it. Duplicates must be resolved by an explicitly approved cleanup first.
+Until `017b` is applied, `accept_spot_request()` still prevents new duplicates
+(advisory lock + checks) but the index is not yet the safety net.
+
+### 10.4 Owner UI (`RequestsPanel`)
+
+- A blocked card gets an amber inset outline and the line
+  "Already accepted for <type>. Accepting this will cancel that spot." Accept
+  stays enabled.
+- Accepting a blocked card opens `SwapConfirmDialog` (same glass shell as
+  `CancelShowDialog`; `role="dialog"`, `aria-modal`, focus trap, Escape,
+  focus restore, double-click guard). Normal accepts never show it.
+- The panel refetches its list after every accept attempt (success or failure)
+  and calls `onChanged` so `VenueProducerDashboard` refetches the shows (pool counts).
+- **Layering (2026-10-10 fix).** `SwapConfirmDialog` is portalled to `document.body`
+  (`fixed inset-0 z-[80]`, above the navbar `z-60` and mobile menu `z-70`). Rendered
+  inside `RequestsPanel` it was broken: the panel root has `backdrop-filter`, which
+  makes it the containing block for `fixed` descendants, so the overlay's own
+  `top-14` / `lg:left-[var(--sidebar-w)]` offsets were applied a second time (a sharp
+  strip of the panel stayed uncovered between ~1024-1340px wide), and `<main>`'s
+  `z-index: 5` stacking context kept the navbar and sidebar above it. The overlay's
+  padding (`pt-[4.5rem]`, `lg:pl-[calc(var(--sidebar-w)+1rem)]`) re-centres the box
+  over the panel's content area. Lesson: don't nest a `fixed` overlay inside an
+  element that has `backdrop-filter`, `filter` or `transform`.
+- Cancel uses `CtaButton variant="danger"` (`#f87171`, same as Sidebar "Log Out";
+  about 7:1 on the dialog background). `.cta` has `outline: none` and no
+  `:focus-visible` style, so both buttons get a keyboard focus ring on their wrapper
+  span (`has-[:focus-visible]:ring-2`) instead of touching the shared class.
+
+### 10.5 Comedian side
+
+- No status labels or styles change, except: a `waitlisted` request that is
+  blocked (`blocked_by_spot_type` on `GET /api/spot-requests/mine`) is shown as
+  "Waiting for Confirmation", like the comedian's other blocked requests.
+- `/home` now refetches `/api/spot-requests/mine` when the tab becomes visible or
+  the window regains focus (`useMySpotRequests({ refreshOnFocus: true })`,
+  throttled to once per 2 s). No polling or realtime was added; other pages that
+  use the hook are unchanged.
+
+### 10.6 Known issue (not fixed here)
+
+RLS policy `spot_requests_insert_own` (006) only checks `auth.uid() = comedian_id`,
+so a signed-in comedian may be able to insert a `spot_requests` row directly via
+PostgREST with an arbitrary `status` (e.g. `accepted`), bypassing `apply_to_spot()`.
+`017b` stops a *second* accepted row per show but not a first self-acceptance.
+Left unchanged on purpose; write-up and proposed fixes in
+`specs/spot-requests-rls-insert-followup.md`. Decide before deploy.
+

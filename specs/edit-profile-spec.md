@@ -206,3 +206,10 @@ auto-dismiss.
 - Tightening `users` RLS/column grants (see §5's residual gap).
 - The pre-existing `user_role` enum mismatch (`venue_owner` in the DB vs
   `venue_producer` in app code) — unrelated to comedian scope.
+
+## 12. Entry points (2026-10-10)
+
+`/profile/edit` is now reachable from the mobile drawer (Profile group →
+"Edit Profile") and from an "Edit Profile" `CtaButton` at the end of
+`/profile`, in addition to the existing desktop sidebar link. Route
+protection is unchanged. See `specs/profile-spec.md` §12.

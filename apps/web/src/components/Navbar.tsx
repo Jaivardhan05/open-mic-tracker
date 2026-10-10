@@ -14,11 +14,18 @@ const links = [
   { label: 'Contact', href: '/support#contact', icon: IconMail },
 ];
 
+const profileSubLinks = [
+  { label: 'My Profile', href: '/profile' },
+  { label: 'Edit Profile', href: '/profile/edit' },
+];
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const onProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/');
+  const [profileOpen, setProfileOpen] = useState(onProfileRoute);
 
   function handleContactClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (pathname === '/support') {
@@ -110,7 +117,9 @@ export default function Navbar() {
             <IconClose className="h-[18px] w-[18px]" />
           </button>
 
-          <BrandMark variant="nav" className="mb-8" />
+          <div style={{ paddingTop: 'max(1.25rem, env(safe-area-inset-top))' }}>
+            <BrandMark variant="nav" className="mb-8" />
+          </div>
 
           <div className="w-full h-px bg-zinc-700/40 mb-6" />
 
@@ -140,20 +149,57 @@ export default function Navbar() {
           })}
 
           {user && (
-            <a
-              href="/profile"
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 py-4 px-2 text-base font-medium border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group ${
-                pathname === '/profile' ? 'text-[#38bdf8]' : 'text-zinc-300 hover:text-white active:text-[#38bdf8]'
-              }`}
-            >
-              <IconUser
-                className={`h-4 w-4 shrink-0 ${
-                  pathname === '/profile' ? 'text-[#38bdf8]' : 'text-zinc-500 group-hover:text-zinc-300'
+            <>
+              <button
+                type="button"
+                onClick={() => setProfileOpen((v) => !v)}
+                aria-expanded={profileOpen}
+                aria-controls="mobile-profile-group"
+                className={`flex w-full items-center gap-3 py-4 px-2 text-left text-base font-medium border-b border-zinc-700/20 motion-safe:transition-all motion-safe:duration-75 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]/70 focus-visible:ring-inset ${
+                  onProfileRoute ? 'text-[#38bdf8]' : 'text-zinc-300 hover:text-white active:text-[#38bdf8]'
                 }`}
-              />
-              <span className="flex-1">My Profile</span>
-            </a>
+              >
+                <IconUser
+                  className={`h-4 w-4 shrink-0 ${
+                    onProfileRoute ? 'text-[#38bdf8]' : 'text-zinc-500 group-hover:text-zinc-300'
+                  }`}
+                />
+                <span className="flex-1">Profile</span>
+              </button>
+
+              <div
+                id="mobile-profile-group"
+                className={`grid motion-safe:transition-[grid-template-rows] motion-safe:duration-150 motion-safe:ease-out ${
+                  profileOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                }`}
+                aria-hidden={!profileOpen}
+                inert={!profileOpen}
+              >
+                <div className="overflow-hidden min-h-0">
+                  <div className="ml-4 border-l border-zinc-700/40">
+                    {profileSubLinks.map((sub) => {
+                      const subActive = pathname === sub.href;
+                      return (
+                        <a
+                          key={sub.href}
+                          href={sub.href}
+                          onClick={() => setIsOpen(false)}
+                          aria-current={subActive ? 'page' : undefined}
+                          className={`flex items-center min-h-11 pl-5 pr-2 -ml-px border-l text-sm font-normal border-b-0 motion-safe:transition-all motion-safe:duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]/70 focus-visible:ring-inset ${
+                            subActive
+                              ? 'text-[#38bdf8] border-[#38bdf8]'
+                              : 'text-zinc-400 border-transparent hover:text-white active:text-[#38bdf8]'
+                          }`}
+                        >
+                          {sub.label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                  <div className="border-b border-zinc-700/20" />
+                </div>
+              </div>
+            </>
           )}
 
           <button

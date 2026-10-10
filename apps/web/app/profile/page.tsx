@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+import CtaButton from '@/components/CtaButton';
 import Navbar from '@/components/Navbar';
 import { AdminProfile } from '@/components/profile/AdminProfile';
 import { ComedianProfile } from '@/components/profile/ComedianProfile';
@@ -169,6 +170,12 @@ export default function ProfilePage() {
           {user.role === 'comedian' && <ComedianProfile />}
           {user.role === 'venue_producer' && <VenueOwnerProfile />}
           {user.role === 'admin' && <AdminProfile />}
+
+          <div className="text-center pt-10 pb-8">
+            <CtaButton type="button" onClick={() => router.push('/profile/edit')}>
+              Edit Profile
+            </CtaButton>
+          </div>
         </main>
       </div>
     </div>

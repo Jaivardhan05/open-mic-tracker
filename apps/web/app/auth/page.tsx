@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../../src/context/AuthContext";
@@ -15,6 +15,12 @@ import styles from "./auth.module.css";
 
 type Mode = "login" | "signup";
 type SignupRole = "comedian" | "venue_producer";
+
+const ROLE_ORDER: SignupRole[] = ["comedian", "venue_producer"];
+
+// Marquee rim: 56 evenly spaced round "bulbs" (pathLength 100 / 56) so the dotted
+// outline closes with no uneven seam at any card size.
+const BULB_DASH = "0 1.7857";
 
 function getRedirectPath(role: AuthUser["role"]): string {
   switch (role) {
@@ -190,12 +196,45 @@ export default function AuthPage() {
 
   const roleCardClassName = (active: boolean) => `${styles.roleCard} ${active ? styles.roleCardActive : ""}`;
 
+  // Standard radio-group keyboard pattern: arrows move + select (wrapping), via setRole only.
+  function handleRoleKeyDown(e: KeyboardEvent<HTMLButtonElement>, current: SignupRole) {
+    let step = 0;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") step = 1;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") step = -1;
+    if (step === 0) return;
+
+    e.preventDefault();
+    const nextIndex = (ROLE_ORDER.indexOf(current) + step + ROLE_ORDER.length) % ROLE_ORDER.length;
+    const nextRole = ROLE_ORDER[nextIndex];
+    if (!nextRole) return;
+    setRole(nextRole);
+    // Roving tabindex: move focus with the selection so the keyboard user isn't left on a -1 panel.
+    (e.currentTarget.parentElement?.children[nextIndex] as HTMLElement | undefined)?.focus();
+  }
+
+  const marquee = (
+    <span className={styles.roleMarquee} aria-hidden="true">
+      <svg>
+        <rect className={styles.roleBulbsOff} rx="13" pathLength="100" strokeDasharray={BULB_DASH} />
+        <rect className={styles.roleBulbsOn} rx="13" pathLength="100" strokeDasharray={BULB_DASH} />
+      </svg>
+    </span>
+  );
+
+  const check = (
+    <span className={styles.roleCheck} aria-hidden="true">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="2 5.2 4.2 7.4 8 2.8" />
+      </svg>
+    </span>
+  );
+
   return (
     <div className={styles.authShell}>
       <div className={styles.authBackground} />
       <div className={styles.authLayer}>
       <main className={styles.authPage}>
-      <section className={styles.cardShell}>
+      <section className={`glass-panel ${styles.cardShell}`}>
         <div className={styles.brandBlock}>
           <h1 className={styles.brandTitle}>
             <span className={styles.brandOpenMic}>GetYour</span>
@@ -232,8 +271,18 @@ export default function AuthPage() {
         </div>
 
         {mode === "signup" ? (
-          <div className={styles.roleGrid}>
-            <button type="button" onClick={() => setRole("comedian")} className={roleCardClassName(role === "comedian")}>
+          <div className={styles.roleGrid} role="radiogroup" aria-label="Account type">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={role === "comedian"}
+              tabIndex={role === "comedian" ? 0 : -1}
+              onClick={() => setRole("comedian")}
+              onKeyDown={(e) => handleRoleKeyDown(e, "comedian")}
+              className={roleCardClassName(role === "comedian")}
+            >
+              {marquee}
+              {check}
               <span className={`${styles.roleIcon} ${role === "comedian" ? styles.roleIconActive : ""}`}>
                 <svg
                   width="24"
@@ -254,7 +303,17 @@ export default function AuthPage() {
               <p className={styles.roleTitle}>Comedian</p>
               <p className={styles.roleText}>Find and book open mic spots</p>
             </button>
-            <button type="button" onClick={() => setRole("venue_producer")} className={roleCardClassName(role === "venue_producer")}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={role === "venue_producer"}
+              tabIndex={role === "venue_producer" ? 0 : -1}
+              onClick={() => setRole("venue_producer")}
+              onKeyDown={(e) => handleRoleKeyDown(e, "venue_producer")}
+              className={roleCardClassName(role === "venue_producer")}
+            >
+              {marquee}
+              {check}
               <span className={`${styles.roleIcon} ${role === "venue_producer" ? styles.roleIconActive : ""}`}>
                 <svg
                   width="24"

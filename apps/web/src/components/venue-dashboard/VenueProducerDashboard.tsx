@@ -21,7 +21,7 @@ interface VenueProducerDashboardProps {
 }
 
 export default function VenueProducerDashboard({ user }: VenueProducerDashboardProps) {
-  const { shows, isLoading, createShow, editShow, cancelShow } = useVenueShows();
+  const { shows, isLoading, refetch: refetchShows, createShow, editShow, cancelShow } = useVenueShows();
   const [showAddForm, setShowAddForm] = useState(false);
   const [requestsSpotId, setRequestsSpotId] = useState<string | null>(null);
   const [editShowId, setEditShowId] = useState<string | null>(null);
@@ -79,6 +79,7 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
           spotStartTime={requestsSpot.start_time}
           spotEndTime={requestsSpot.end_time}
           onClose={() => setRequestsSpotId(null)}
+          onChanged={refetchShows}
         />
       ) : null}
 
