@@ -7,6 +7,7 @@ import Navbar from '../../../src/components/Navbar';
 import CtaButton from '../../../src/components/CtaButton';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useToast } from '../../../src/context/ToastContext';
+import { authorizedFetch } from '../../../src/lib/apiClient';
 import { supabase } from '../../../src/lib/supabaseClient';
 import { BrutalistField } from './BrutalistField';
 import fieldStyles from './BrutalistField.module.css';
@@ -35,6 +36,10 @@ export default function EditProfilePage() {
   const [xUrlValue, setXUrlValue] = useState('');
   const [instagramUrlValue, setInstagramUrlValue] = useState('');
   const [mapsUrlValue, setMapsUrlValue] = useState('');
+
+  // The venue's name is editable only while it is pending or has changes
+  // requested (the server enforces this). Read-only until the status loads.
+  const [venueNameEditable, setVenueNameEditable] = useState(false);
 
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -70,6 +75,29 @@ export default function EditProfilePage() {
     setInstagramUrlValue(user.instagramUrl ?? '');
     setMapsUrlValue(user.mapsUrl ?? '');
   }, [user]);
+
+  const isVenueProducerUser = user?.role === 'venue_producer';
+  useEffect(() => {
+    if (!isVenueProducerUser) {
+      return;
+    }
+
+    let cancelled = false;
+    authorizedFetch('/api/venues/mine/status')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setVenueNameEditable(Boolean(data.can_edit_details));
+        }
+      })
+      .catch(() => {
+        // Stay read-only if the status can't be loaded.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isVenueProducerUser]);
 
   if (isLoading) {
     return (
@@ -316,10 +344,13 @@ export default function EditProfilePage() {
       // above only ever wrote to this venue producer's own user row, so
       // instagram_url/maps_url/contact_email never reached /venues. Mirror
       // them onto the venue via /api/venues/mine so both stay in sync.
+      const venueNameChanged =
+        venueNameEditable && venueNameValue.trim() !== '' && venueNameValue.trim() !== (currentUser.venueName ?? '');
       const venuePayload = {
         contact_email: contactEmailValue.trim(),
         instagram_url: instagramUrlValue.trim(),
         maps_url: mapsUrlValue.trim(),
+        ...(venueNameChanged ? { name: venueNameValue.trim() } : {}),
       };
 
       const venueResponse = await fetch(`${API_URL}/api/venues/mine`, {
@@ -346,6 +377,7 @@ export default function EditProfilePage() {
         youtubeUrl: payload.youtube_url || undefined,
         instagramUrl: payload.instagram_url || undefined,
         mapsUrl: payload.maps_url || undefined,
+        ...(venueNameChanged ? { venueName: venueNameValue.trim() } : {}),
       });
       showToast('Changes saved successfully!');
     } catch {
@@ -589,8 +621,15 @@ export default function EditProfilePage() {
                         type="text"
                         value={venueNameValue}
                         onChange={(e) => setVenueNameValue(e.target.value)}
-                        className={fieldStyles.field}
+                        readOnly={!venueNameEditable}
+                        aria-readonly={!venueNameEditable}
+                        className={`${fieldStyles.field} ${venueNameEditable ? '' : 'cursor-not-allowed opacity-60'}`}
                       />
+                      {venueNameEditable ? null : (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          The venue name is locked once your venue is approved. Contact support to change it.
+                        </p>
+                      )}
                     </BrutalistField>
                   )}
 

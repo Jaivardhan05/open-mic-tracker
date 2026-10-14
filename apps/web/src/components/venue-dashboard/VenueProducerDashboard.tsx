@@ -6,6 +6,9 @@ import type { Spot } from "@repo/types";
 
 import BrandMark from "@/components/BrandMark";
 import CtaButton from "@/components/CtaButton";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
+import { useOwnerVenueStatus } from "@/hooks/useOwnerVenueStatus";
 import { useVenueShows } from "@/hooks/useVenueShows";
 import type { AuthUser } from "@/lib/auth";
 
@@ -13,8 +16,10 @@ import AddShowForm from "./AddShowForm";
 import CancelShowDialog from "./CancelShowDialog";
 import EditShowForm from "./EditShowForm";
 import RequestsPanel from "./RequestsPanel";
+import VenueDetailsModal, { type VenueDetailsMode } from "./VenueDetailsModal";
 import VenueShowsListSection from "./VenueShowsListSection";
 import VenueNoticesSection from "./VenueNoticesSection";
+import VenueStatusSection from "./VenueStatusSection";
 
 interface VenueProducerDashboardProps {
   user: AuthUser;
@@ -26,6 +31,14 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
   const [requestsSpotId, setRequestsSpotId] = useState<string | null>(null);
   const [editShowId, setEditShowId] = useState<string | null>(null);
   const [cancelShowId, setCancelShowId] = useState<string | null>(null);
+  const { status, refetch: refetchStatus, saveDetails, resubmit } = useOwnerVenueStatus();
+  const { updateUser } = useAuth();
+  const { showToast } = useToast();
+  const [detailsMode, setDetailsMode] = useState<VenueDetailsMode | null>(null);
+
+  // Cosmetic only: the server rejects show creation for a venue that cannot
+  // operate regardless. Stays enabled until the status has loaded.
+  const addDisabled = status !== null && !status.can_operate;
 
   // "View Requests" is per pool (a spots.id), while Edit/Cancel act on the
   // whole show — so the requests panel is looked up across every show's
@@ -47,10 +60,17 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
         </p>
       </section>
 
+      <VenueStatusSection status={status} onEditDetails={setDetailsMode} />
+
       <section className="mt-6 px-4 md:px-6 text-center md:text-left">
-        <CtaButton type="button" onClick={() => setShowAddForm(true)}>
+        <CtaButton type="button" disabled={addDisabled} onClick={() => setShowAddForm(true)}>
           + Add new shows
         </CtaButton>
+        {addDisabled ? (
+          <p className="mt-2 font-[family-name:var(--font-cormorant)] text-base italic text-zinc-400">
+            Adding shows unlocks once your venue is approved.
+          </p>
+        ) : null}
       </section>
 
       <VenueNoticesSection />
@@ -80,6 +100,25 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
           spotEndTime={requestsSpot.end_time}
           onClose={() => setRequestsSpotId(null)}
           onChanged={refetchShows}
+        />
+      ) : null}
+
+      {detailsMode && status ? (
+        <VenueDetailsModal
+          status={status}
+          mode={detailsMode}
+          onSave={saveDetails}
+          onResubmit={resubmit}
+          onDone={({ mode, saved }) => {
+            setDetailsMode(null);
+            // The welcome line and profile read the name from the stored user.
+            if (saved.name !== user.venueName) {
+              updateUser({ venueName: saved.name });
+            }
+            void refetchStatus();
+            showToast(mode === "resubmit" ? "Sent back for review." : "Details saved.");
+          }}
+          onClose={() => setDetailsMode(null)}
         />
       ) : null}
 

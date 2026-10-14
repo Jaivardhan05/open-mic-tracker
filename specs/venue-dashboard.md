@@ -495,6 +495,27 @@ out to be the opposite — always-on display, no trigger. Implemented as:
 - Accept/Cancel styling, the message input, section structure, and modal
   centering/backdrop-blur are all untouched by this change.
 
+**2026-10-13 revision — row always shown, linked icons white, links
+sanitized.** Supersedes the "no row when nothing is linked" and `zinc-400`
+details above.
+
+- **Always rendered** on every card (Pending, Accepted, Waitlisted), in the
+  fixed order Instagram, X, YouTube, Gmail. A comedian with nothing linked
+  shows four faded icons.
+- **Linked:** `text-white`, `hover:text-[#38bdf8]`, a real `<a>`
+  (`target="_blank"`, `rel="noopener noreferrer"`). Gmail opens `mailto:`
+  with whatever contact email is saved.
+- **Not linked:** non-interactive `<span role="img">` in `zinc-700` with
+  `aria-label="<Platform> not linked"`; not focusable, no hover/pointer.
+- **Sanitization** (`src/lib/safeLinks.ts`, saved values are untrusted):
+  `safeHttpUrl` trims, parses with `new URL`, and allows only `http:`/`https:`
+  (`javascript:` etc. -> null). `safeMailto` accepts a single plain address
+  and rejects whitespace, `?`, `&`, `,`, `;`, `<`, `>` so a saved value cannot
+  inject `cc`/`body` params. Empty or whitespace-only values are "not linked".
+- No API, hook, DB or RLS change: the endpoint already returns the four
+  fields and is limited to the owning producer's spots. The "Note:" line
+  (`venue_message`, only set when a message is typed on Accept) is unchanged.
+
 ### 5.4 "Edit Spot" modal
 
 **2026-09-07.** Adds the edit capability explicitly deferred by the

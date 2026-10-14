@@ -6,6 +6,7 @@ import BrandMark from "@/components/BrandMark";
 import CtaButton from "@/components/CtaButton";
 import ManageVenuesSection from "@/components/admin/ManageVenuesSection";
 import { useAuth } from "@/context/AuthContext";
+import { authorizedFetch } from "@/lib/apiClient";
 
 // Matches RequestsPanel's solid dark-navy panel fill (specs/venue-dashboard.md §5.3) —
 // the locked treatment this panel replicates.
@@ -41,8 +42,8 @@ export default function AdminHomeContent() {
       setIsLoading(true);
       try {
         const [statsRes, pendingRes] = await Promise.all([
-          fetch(`/api/admin/stats`),
-          fetch(`/api/admin/pending-venues`),
+          authorizedFetch(`/api/admin/stats`),
+          authorizedFetch(`/api/admin/pending-venues`),
         ]);
 
         if (statsRes.ok) {
@@ -67,7 +68,7 @@ export default function AdminHomeContent() {
   async function handleApprove(venueId: string) {
     setApprovingId(venueId);
     try {
-      const res = await fetch(`/api/venues/${venueId}/approve`, { method: "POST" });
+      const res = await authorizedFetch(`/api/venues/${venueId}/approve`, { method: "POST" });
       if (res.ok) {
         setPendingVenues((prev) => prev.filter((v) => v.id !== venueId));
         setStats((prev) => ({
@@ -86,7 +87,7 @@ export default function AdminHomeContent() {
   async function handleReject(venueId: string) {
     setRejectingId(venueId);
     try {
-      const res = await fetch(`/api/venues/${venueId}/reject`, { method: "POST" });
+      const res = await authorizedFetch(`/api/venues/${venueId}/reject`, { method: "POST" });
       if (res.ok) {
         setPendingVenues((prev) => prev.filter((v) => v.id !== venueId));
         setStats((prev) => ({

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../context/AuthContext';
+import { authorizedFetch } from '../../lib/apiClient';
 import { supabase } from '../../lib/supabaseClient';
 
 
@@ -37,7 +38,7 @@ export function AdminProfile() {
     async function fetchAdminData() {
       setIsLoading(true);
       try {
-        const statsRes = await fetch(`/api/admin/stats`);
+        const statsRes = await authorizedFetch(`/api/admin/stats`);
         if (statsRes.ok) {
           const statsData = (await statsRes.json()) as AdminStats;
           setStats(statsData);

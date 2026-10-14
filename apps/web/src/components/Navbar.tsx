@@ -19,13 +19,20 @@ const profileSubLinks = [
   { label: 'Edit Profile', href: '/profile/edit' },
 ];
 
+// Admin-only entry point. Display only: /admin is independently guarded
+// server-side (see app/admin/layout.tsx and the /api/admin prefix guard).
+const adminSubLink = { label: 'Venue Management', href: '/admin/venues' };
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const onProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/');
+  const isAdmin = user?.role === 'admin';
+  const onAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
+  const onProfileRoute = pathname === '/profile' || pathname.startsWith('/profile/') || (isAdmin && onAdminRoute);
   const [profileOpen, setProfileOpen] = useState(onProfileRoute);
+  const visibleProfileSubLinks = isAdmin ? [...profileSubLinks, adminSubLink] : profileSubLinks;
 
   function handleContactClick(e: React.MouseEvent<HTMLAnchorElement>) {
     if (pathname === '/support') {
@@ -62,6 +69,16 @@ export default function Navbar() {
               </a>
             );
           })}
+          {isAdmin && (
+            <a
+              href={adminSubLink.href}
+              className={`text-sm motion-safe:transition-all motion-safe:duration-100 relative after:absolute after:bottom-[-2px] after:left-0 after:h-px after:bg-[#38bdf8] motion-safe:after:transition-all motion-safe:after:duration-150 hover:after:w-full ${
+                onAdminRoute ? 'text-white after:w-full' : 'text-zinc-400 hover:text-white after:w-0'
+              }`}
+            >
+              Admin
+            </a>
+          )}
           {user && (
             <div
               onClick={() => router.push('/profile')}
@@ -177,7 +194,7 @@ export default function Navbar() {
               >
                 <div className="overflow-hidden min-h-0">
                   <div className="ml-4 border-l border-zinc-700/40">
-                    {profileSubLinks.map((sub) => {
+                    {visibleProfileSubLinks.map((sub) => {
                       const subActive = pathname === sub.href;
                       return (
                         <a

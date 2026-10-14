@@ -59,6 +59,66 @@ export interface AdminVenue {
   hidden_reason: string | null;
 }
 
+/** Stored on venues.review_status (migration 018). */
+export type VenueReviewStatus = 'pending' | 'approved' | 'changes_requested' | 'rejected';
+
+/**
+ * The six statuses an admin sees at a glance: the review status plus the two
+ * overlay flags. Each venue has exactly one: suspended wins; hidden is the
+ * primary status only for an approved venue (a hidden venue that is still
+ * pending/changes-requested/rejected keeps its review status so it never
+ * drops out of the review queue); otherwise the review status.
+ * See specs/admin-venue-management.md.
+ */
+export type VenueDisplayStatus =
+  | 'pending'
+  | 'approved'
+  | 'changes_requested'
+  | 'rejected'
+  | 'hidden'
+  | 'suspended';
+
+/** Row of GET /api/admin/manage/venues. No address by design. */
+export interface AdminManagedVenue {
+  id: string;
+  name: string;
+  city: string;
+  owner_id: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  review_status: VenueReviewStatus;
+  review_reason: string | null;
+  reviewed_at: string | null;
+  submitted_at: string;
+  is_hidden: boolean;
+  hidden_reason: string | null;
+  is_suspended: boolean;
+  suspension_reason: string | null;
+  suspended_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Response of GET /api/venues/mine/status: the owner's own venue state. */
+export interface OwnerVenueStatus {
+  id: string;
+  name: string;
+  city: string;
+  description: string | null;
+  review_status: VenueReviewStatus;
+  review_reason: string | null;
+  reviewed_at: string | null;
+  submitted_at: string;
+  is_suspended: boolean;
+  suspension_reason: string | null;
+  suspended_at: string | null;
+  /** Approved, active and not suspended: may add shows and take requests. */
+  can_operate: boolean;
+  /** Pending or changes requested: name, city and description are editable. */
+  can_edit_details: boolean;
+  allowed_cities: string[];
+}
+
 export interface VenueNotice {
   id: string;
   venue_id: string | null;

@@ -70,6 +70,20 @@ const VENUE_EDITABLE_FIELDS = [
 
 type VenueEditableField = (typeof VENUE_EDITABLE_FIELDS)[number];
 
+// Name, city and description are the venue's identity. The owner can change
+// them only while the venue is waiting on, or being asked for changes by, the
+// admin ("fix and resubmit"); once approved (or rejected/suspended) they are
+// admin-only. Address is deliberately not editable anywhere yet.
+const VENUE_DETAIL_FIELDS = ['name', 'city', 'description'] as const;
+const OWNER_DETAIL_EDITABLE_STATUSES = ['pending', 'changes_requested'];
+const VENUE_NAME_MIN = 2;
+const VENUE_NAME_MAX = 100;
+const VENUE_DESCRIPTION_MAX = 1000;
+// The cities the owner and admin forms offer (the API is the single source;
+// clients read it from GET /api/venues/mine/status). A venue's existing city
+// is always accepted unchanged so venues outside this list are not locked out.
+const VENUE_CITIES = ['Delhi', 'Mumbai', 'Bangalore', 'Pune'];
+
 const FORBIDDEN_PROFILE_FIELDS = [
   'name',
   'full_name',
@@ -285,7 +299,7 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
 // contact_email to the `users` table instead of `venues`, which is what
 // /venues' Connect component actually reads).
 async function applyVenueEditableUpdates(res: Response, venueId: string, body: Record<string, unknown>) {
-  const updates: Partial<Record<VenueEditableField, string | null>> = {};
+  const updates: Partial<Record<VenueEditableField | (typeof VENUE_DETAIL_FIELDS)[number], string | null>> = {};
 
   for (const field of VENUE_EDITABLE_FIELDS) {
     if (!(field in body)) {
@@ -298,6 +312,38 @@ async function applyVenueEditableUpdates(res: Response, venueId: string, body: R
     }
     const trimmed: string | null = typeof raw === 'string' ? raw.trim() : null;
     updates[field] = trimmed === '' ? null : trimmed;
+  }
+
+  let hasDetailFields = false;
+  for (const field of VENUE_DETAIL_FIELDS) {
+    if (!(field in body)) {
+      continue;
+    }
+    hasDetailFields = true;
+    const raw = body[field];
+    if (typeof raw !== 'string') {
+      res.status(400).json({ error: `${field} must be a string` });
+      return;
+    }
+    const trimmed = raw.trim();
+
+    if (field === 'name' && (trimmed.length < VENUE_NAME_MIN || trimmed.length > VENUE_NAME_MAX)) {
+      res.status(400).json({ error: `Venue name must be ${VENUE_NAME_MIN}-${VENUE_NAME_MAX} characters` });
+      return;
+    }
+    if (field === 'description' && trimmed.length > VENUE_DESCRIPTION_MAX) {
+      res.status(400).json({ error: `Description must be ${VENUE_DESCRIPTION_MAX} characters or fewer` });
+      return;
+    }
+    if (field === 'city' && !VENUE_CITIES.includes(trimmed)) {
+      const { data: current } = await supabaseAdmin.from('venues').select('city').eq('id', venueId).maybeSingle();
+      if (current?.city !== trimmed) {
+        res.status(400).json({ error: `City must be one of: ${VENUE_CITIES.join(', ')}` });
+        return;
+      }
+    }
+
+    updates[field] = trimmed;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -318,20 +364,86 @@ async function applyVenueEditableUpdates(res: Response, venueId: string, body: R
     }
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('venues')
-    .update(updates)
-    .eq('id', venueId)
+  let query = supabaseAdmin.from('venues').update(updates).eq('id', venueId);
+  if (hasDetailFields) {
+    // The status check rides on the UPDATE itself, so an admin approving the
+    // venue at the same moment cannot be raced past.
+    query = query.in('review_status', OWNER_DETAIL_EDITABLE_STATUSES);
+  }
+
+  const { data, error } = await query
     .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone')
-    .single();
+    .maybeSingle();
 
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
 
+  if (!data) {
+    if (hasDetailFields) {
+      res.status(409).json({
+        error: 'Name, city and description can only be changed while the venue is pending or has changes requested',
+      });
+    } else {
+      res.status(404).json({ error: 'Venue not found' });
+    }
+    return;
+  }
+
   res.status(200).json(data);
 }
+
+const OWNER_VENUE_STATUS_SELECT =
+  'id, name, city, description, review_status, review_reason, reviewed_at, submitted_at, admin_approved, is_active, is_suspended, suspension_reason, suspended_at';
+
+// The owner's own venue state for their dashboard: where it stands in review,
+// the admin's note, and what they may do next. Does not expose hide state.
+app.get('/api/venues/mine/status', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .select(OWNER_VENUE_STATUS_SELECT)
+    .eq('owner_id', req.userId as string)
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({ error: 'No venue found for this account' });
+    return;
+  }
+
+  const { admin_approved, is_active, ...venue } = data;
+  res.status(200).json({
+    ...venue,
+    can_operate: admin_approved && is_active && !venue.is_suspended,
+    can_edit_details: OWNER_DETAIL_EDITABLE_STATUSES.includes(venue.review_status),
+    allowed_cities: VENUE_CITIES,
+  });
+});
+
+// changes_requested -> pending (back into the admin's queue).
+app.post('/api/venues/mine/resubmit', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const { data, error } = await supabaseAdmin.rpc('owner_resubmit_venue', {
+    p_owner_id: req.userId,
+  });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!data?.success) {
+    const message = typeof data?.error === 'string' ? data.error : 'Could not resubmit';
+    res.status(/no venue found/i.test(message) ? 404 : 409).json({ error: message });
+    return;
+  }
+
+  res.status(200).json({ success: true });
+});
 
 // Lets a venue producer update their own venue's social/contact links
 // without already knowing their venue's id (the profile-edit form only
@@ -384,7 +496,7 @@ app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (
   await applyVenueEditableUpdates(res, id, body);
 });
 
-app.post('/api/venues/:id/approve', async (req: Request, res: Response) => {
+app.post('/api/venues/:id/approve', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
   const { id } = req.params;
   const { data, error } = await supabaseAdmin.rpc('admin_approve_venue', { p_venue_id: id });
 
@@ -397,7 +509,169 @@ app.post('/api/venues/:id/approve', async (req: Request, res: Response) => {
   return res.status(200).json(data);
 });
 
-app.get('/api/admin/stats', async (_req: Request, res: Response) => {
+// Default-deny: every route registered under /api/admin after this line needs
+// a valid session AND the admin role, even if its own definition forgets the
+// per-route middleware. Keep new admin routes below this line.
+app.use('/api/admin', requireUser, requireRole('admin'));
+
+// Lets the /admin pages ask the server (not localStorage) whether the current
+// session is an admin. Non-admins get 403 from the prefix guard above.
+app.get('/api/admin/me', async (req: AuthedRequest, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('id, name')
+    .eq('id', req.userId as string)
+    .single();
+
+  if (error || !data) {
+    res.status(500).json({ error: 'Failed to load admin profile' });
+    return;
+  }
+
+  res.status(200).json({ id: data.id, name: data.name, role: 'admin' });
+});
+
+// Every venue in every state, for /admin/venues. Deliberately omits address
+// (out of scope, see specs/admin-venue-management.md). Oldest submission
+// first so the review queue reads in order.
+app.get('/api/admin/manage/venues', async (_req: AuthedRequest, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .select(
+      'id, name, city, owner_id, review_status, review_reason, reviewed_at, submitted_at, is_hidden, hidden_reason, is_suspended, suspension_reason, suspended_at, created_at, updated_at'
+    )
+    .order('submitted_at', { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const rows = data ?? [];
+  const ownerIds = Array.from(new Set(rows.map((v) => v.owner_id).filter(Boolean)));
+
+  const owners: Record<string, { name: string; email: string }> = {};
+  if (ownerIds.length > 0) {
+    const { data: ownerRows, error: ownersError } = await supabaseAdmin
+      .from('users')
+      .select('id, name, email')
+      .in('id', ownerIds);
+
+    if (ownersError) {
+      res.status(500).json({ error: ownersError.message });
+      return;
+    }
+
+    (ownerRows ?? []).forEach((o: { id: string; name: string; email: string }) => {
+      owners[o.id] = { name: o.name, email: o.email };
+    });
+  }
+
+  res.status(200).json(
+    rows.map((v) => ({
+      ...v,
+      owner_name: owners[v.owner_id]?.name ?? null,
+      owner_email: owners[v.owner_id]?.email ?? null,
+    }))
+  );
+});
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const REVIEW_REASON_MAX = 500;
+
+// Runs one venue review RPC (migration 018) and maps its { success, error }
+// result to HTTP: not found -> 404, wrong starting state -> 409. The RPC does
+// the state check and the update in one statement, so two admins acting on
+// the same venue cannot both win.
+async function runVenueReviewAction(
+  res: Response,
+  rpcName: 'admin_approve_venue' | 'admin_reject_venue' | 'admin_request_changes',
+  args: Record<string, unknown>
+) {
+  const { data, error } = await supabaseAdmin.rpc(rpcName, args);
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!data?.success) {
+    const message = typeof data?.error === 'string' ? data.error : 'Action failed';
+    res.status(/not found/i.test(message) ? 404 : 409).json({ error: message });
+    return;
+  }
+
+  res.status(200).json(data);
+}
+
+// Required, non-blank, bounded reason (reject / request changes). The owner
+// reads it verbatim on their dashboard.
+function parseReviewReason(body: unknown): { reason: string } | { error: string } {
+  const raw = (body as { reason?: unknown } | null)?.reason;
+  if (typeof raw !== 'string' || raw.trim() === '') {
+    return { error: 'A reason is required' };
+  }
+  const reason = raw.trim();
+  if (reason.length > REVIEW_REASON_MAX) {
+    return { error: `Reason must be ${REVIEW_REASON_MAX} characters or fewer` };
+  }
+  return { reason };
+}
+
+app.post('/api/admin/manage/venues/:id/approve', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_approve_venue', {
+    p_venue_id: id,
+    p_admin_id: req.userId,
+  });
+});
+
+app.post('/api/admin/manage/venues/:id/reject', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const parsed = parseReviewReason(req.body);
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_reject_venue', {
+    p_venue_id: id,
+    p_reason: parsed.reason,
+    p_admin_id: req.userId,
+  });
+});
+
+app.post('/api/admin/manage/venues/:id/request-changes', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const parsed = parseReviewReason(req.body);
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_request_changes', {
+    p_venue_id: id,
+    p_reason: parsed.reason,
+    p_admin_id: req.userId,
+  });
+});
+
+app.get('/api/admin/stats', requireUser, requireRole('admin'), async (_req: AuthedRequest, res: Response) => {
   const { data, error } = await supabaseAdmin.rpc('get_platform_stats');
 
   if (error) {
@@ -409,11 +683,11 @@ app.get('/api/admin/stats', async (_req: Request, res: Response) => {
   return res.status(200).json(data);
 });
 
-app.get('/api/admin/pending-venues', async (_req: Request, res: Response) => {
+app.get('/api/admin/pending-venues', requireUser, requireRole('admin'), async (_req: AuthedRequest, res: Response) => {
   const { data, error } = await supabaseAdmin
     .from('venues')
     .select('id, name, address, city, owner_id, created_at, admin_approved')
-    .eq('admin_approved', false)
+    .eq('review_status', 'pending')
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
@@ -456,7 +730,7 @@ app.get('/api/admin/pending-venues', async (_req: Request, res: Response) => {
   return res.status(200).json(result);
 });
 
-app.post('/api/venues/:id/reject', async (req: Request, res: Response) => {
+app.post('/api/venues/:id/reject', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
   const { id } = req.params;
   const { data, error } = await supabaseAdmin.rpc('admin_reject_venue', { p_venue_id: id });
 
