@@ -45,10 +45,6 @@ export interface Booking {
   venue: Venue;
 }
 
-export interface FavoriteVenue extends Venue {
-  booking_count: number;
-}
-
 export interface AdminVenue {
   id: string;
   name: string;

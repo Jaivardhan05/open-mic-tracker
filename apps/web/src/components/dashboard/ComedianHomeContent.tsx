@@ -9,7 +9,6 @@ import BrandMark from "@/components/BrandMark";
 import VenueCard from "@/components/VenueCard";
 import VenueDetailSheet from "@/components/VenueDetailSheet";
 import RemindersSection from "@/components/dashboard/RemindersSection";
-import FavoriteVenuesSection from "@/components/dashboard/FavoriteVenuesSection";
 import { useComedianBookings } from "@/hooks/useComedianBookings";
 import { useMySpotRequests } from "@/hooks/useMySpotRequests";
 
@@ -79,7 +78,6 @@ export default function ComedianHomeContent() {
         isSpotRequestsLoading={isSpotRequestsLoading}
         onCancelSpotRequest={cancelSpotRequest}
       />
-      <FavoriteVenuesSection />
 
       {venues.length > 0 ? (
         <section className="mt-6 px-4 md:px-6">

@@ -3,8 +3,9 @@
 Scope: comedian role only. venue_producer and admin home views are explicitly
 out of scope and must not be touched.
 
-Three fixed-order sections: **Reminders/Confirmations → 7-Day Calendar →
-Favorite Venues**. This pass wires real backend data for all three sections;
+Two fixed-order sections: **Reminders/Confirmations → 7-Day Calendar**. (A
+third section, Favorite Venues, was removed; see §4.) This pass wires real
+backend data for both sections;
 the only stubbed piece is payment (Stripe integration is a later project,
 tracked separately).
 
@@ -105,15 +106,8 @@ client-supplied IDs.
    `cancelled_by_comedian`, joined with show + venue info. `days` defaults to
    7; not exposed in the UI yet but kept as a query param for future reuse.
 
-4. **`GET /api/me/favorite-venues`** — Favorites section data.
-   Groups the comedian's bookings (excluding `declined_by_comedian` and
-   `cancelled_by_comedian`) by `venue_id`, counts them, returns the
-   **top 3 venues by booking count**, ties broken by most recent booking. No
-   minimum-count threshold — a venue booked even once qualifies as long as
-   it's within the top 3. Returns `[]` if the comedian has zero bookings.
-   Aggregation happens in application code (Node), not SQL, since PostgREST
-   doesn't support `GROUP BY` aggregates through the JS client — consistent
-   with the existing owner-lookup pattern in `GET /api/admin/pending-venues`.
+4. ~~`GET /api/me/favorite-venues`~~ — **removed** along with the Favorite
+   Venues section (see §4). The numbering is kept so other references hold.
 
 5. **`POST /api/bookings/:id/confirm`** — test/seed helper only.
    Calls `venue_confirm_booking(p_booking_id)`. No auth gate, mirroring the
@@ -135,18 +129,14 @@ client-supplied IDs.
    returns the RPC's success/error JSON. Distinct endpoint from
    `/decline` because the two RPCs guard different source statuses (§2).
 
-## 4. Favorite-venue rule (confirmed)
+## 4. Favorite venues (removed)
 
-- Rank distinct venues the comedian has booked (any booking not
-  `declined_by_comedian` or `cancelled_by_comedian`) by booking count,
-  descending.
-- Take the top 3.
-- If the comedian has booked 1 or 2 distinct venues, show just those.
-- If 0 bookings exist, the section still renders, with the empty-state copy
-  "Book more shows to see your favorite venues here." (see §5 — sections must
-  never be hidden).
-- No minimum "routine" threshold — one booking is enough to appear, subject
-  to the top-3 cap.
+The Favorite Venues section, its endpoint (`GET /api/me/favorite-venues`) and
+the shared `FavoriteVenue` type were removed from the comedian home page. The
+feature never stored anything of its own: it ranked the comedian's existing
+bookings per venue in application code, so there was no table, column,
+function, policy or index to remove and no data was lost. The `bookings` data
+and the other `/api/me/*` routes are unchanged.
 
 ## 5. Frontend (`apps/web/app/home/page.tsx`)
 
@@ -154,8 +144,8 @@ Minimal/placeholder visual treatment only — reuses existing `content-glass`
 card styling and the `#38bdf8` cyan accent already used elsewhere
 (`venue-dashboard`, `profile`). No new design system, no polish pass.
 
-**All three sections always render**, in fixed order
-Reminders → Calendar → Favorite Venues, even with zero data. Each has a
+**Both sections always render**, in fixed order
+Reminders → Calendar, even with zero data. Each has a
 `content-glass` empty-state line instead of being omitted, so the page never
 looks broken/unimplemented when a comedian has no bookings yet.
 
@@ -182,8 +172,6 @@ looks broken/unimplemented when a comedian has no bookings yet.
   outline). Today's column gets a subtle cyan-tinted border to distinguish
   it from the rest. Not the final calendar UI — will be replaced in a future
   design pass.
-- **Favorite Venues** (bottom): up to 3 venue cards. Empty state: "Book more
-  shows to see your favorite venues here."
 
 Scoped to the comedian home page only. `venue_producer`/`admin` routes are
 untouched.

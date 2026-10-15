@@ -224,7 +224,7 @@ Verified at build time: `npm run check-types`, ESLint on the two changed web fil
 
 ## Step 4b, part 1: protect `users.role` (migration 022)
 
-Found while checking whether an admin-read RLS policy (4b, later) could trust `users.role`. **Not applied yet** (SQL cannot run locally; apply in the Supabase SQL editor).
+Found while checking whether an admin-read RLS policy (4b, later) could trust `users.role`. **Applied** (user confirmed).
 
 ### Finding
 
@@ -238,7 +238,7 @@ A signed-in user can very likely make themselves an admin. Evidence from the use
 
 ### Still open
 
-- `handle_new_user` (the `auth.users` signup trigger) is not in the repo and its body was truncated in the user's screenshot. If it copies the client-supplied signup metadata `role` into `users.role` without a whitelist, a crafted signup could still create an admin, and 022 will not catch it (signup runs without JWT claims). It needs a whitelist (`comedian` / `venue_producer` only), written from the real source.
+- ~~`handle_new_user` copies the signup metadata role~~ **Confirmed real and fixed by 022b** (see "Step 4b, part 3").
 - Other columns on `users` that a user can update on their own row have not been reviewed.
 
 022 was applied by the user (they reported it ran successfully; the self-test result was not reported separately). The single admin account is the user's own.
@@ -253,7 +253,7 @@ One helper, `publicVenueFilters(query, prefix?)`, defines "a venue the public ma
 - `GET /api/shows`: legacy `shows` joined to venues (`venues.` prefix); the embed now also selects `is_suspended`.
 - `GET /api/venues/:id`: now excludes hidden **and** suspended, so both return 404. This is a visible change: it used to ignore `is_hidden`, so a hidden venue's detail and spots were reachable by id. Currently 9 of the 11 venues are approved+hidden, so their detail pages now 404.
 - `GET /api/spots`: venue filter via the helper.
-- `GET /api/me/favorite-venues`: filtered to public venues so a card never links to a 404. `GET /api/me/bookings/pending` and a comedian's cancelled-request cards are deliberately NOT filtered (their own history; the suspended venue's name stays visible).
+- `GET /api/me/favorite-venues` was filtered to public venues here; the endpoint and the Favorite Venues section were removed afterwards (see `specs/dashboard-spec.md`). `GET /api/me/bookings/pending` and a comedian's cancelled-request cards are deliberately NOT filtered (their own history; the suspended venue's name stays visible).
 
 No web changes: `venues/[id]` already shows "Venue not found." and `ComedianHomeContent` already falls back to an empty shows list on a non-OK response.
 
@@ -263,21 +263,33 @@ No web changes: `venues/[id]` already shows "Venue not found." and `ComedianHome
 
 ### Verified
 
-API typecheck (only the 13 old errors remain), and against the running API with the real database: `/api/venues` returns exactly the 1 public venue (no hidden, no pending), `/api/venues/:id` returns 200 for the public venue and 404 for hidden and pending venues, `/api/shows` and `/api/spots` include no hidden or pending venue. **Not verified:** anything involving a suspended venue (none exists yet), `favorite-venues` (needs a comedian token), and `favorite-venues` (needs a comedian with a favourite).
+API typecheck (only the 13 old errors remain), and against the running API with the real database: `/api/venues` returns exactly the 1 public venue (no hidden, no pending), `/api/venues/:id` returns 200 for the public venue and 404 for hidden and pending venues, `/api/shows` and `/api/spots` include no hidden or pending venue. **Not verified at that point:** anything involving a suspended venue (covered by the later live test below) and `favorite-venues` (never tested; the endpoint was removed afterwards).
 
 **023, verified live (2026-10-15):** with the venue hidden, a comedian's `POST /api/shows/:id/book` is refused ("This venue is not taking bookings right now", returned by `book_show_spot` as `success:false` with HTTP 200, as the older routes do); with the venue public the booking succeeds; with the venue suspended a second booking is refused; the earlier booking stays untouched.
 
-### Remaining 4b migrations (renumbered; each independent, each waits for the user's go)
+### Step 4b, part 3: handle_new_user, function lockdown, RLS (022b, 024, 025). Applied and verified live
 
-| # | Purpose |
-|---|---|
-| 023 | Applied and verified (see above). |
-| 024 | Function lockdown: revoke `EXECUTE` from `PUBLIC, anon, authenticated` on all `SECURITY DEFINER` non-trigger functions in `public`, grant to `service_role` (dynamic `DO` block). Written from the user's catalog output. The anon key can currently call e.g. `admin_hide_venue` (confirmed with a nonexistent id). |
-| 025 | RLS tightening: `venues_public_read` (+ `is_hidden = false AND is_suspended = false`) with a new admin-read policy checking `users.role` inline (only after 022 is applied), and the public-read policies on `spots`, `venue_shows` and `shows` (inline `EXISTS` on `venues`; the revoked helpers cannot be called from a policy). |
+Written from the user's real catalog output (2026-10-16), not from the repo's SQL. Applied by the user in this order: **022b, 024, 025** (025 depends on 022 and 022b because it trusts `users.role`). All three ran without error.
+
+**Finding (the most serious one): anyone can sign up as admin.** The live `handle_new_user()` ran `COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'comedian')`. The metadata is whatever the client passes to `supabase.auth.signUp({ options: { data } })`, using the anon key that ships in the web bundle, so `data.role = 'admin'` created an admin row. 022 does not stop it (the auth service's transaction carries no client JWT claims, so 022 treats it as trusted). Checked on 2026-10-16: the only admins are the owner's account and the test admin, so it has not been used; not exploited by us either (the hole was read from the source, not demonstrated). The owner's own admin account was created through this same metadata route, so an admin is now made by promoting an existing account (service role or SQL editor).
+
+| # | File | What it changes |
+|---|---|---|
+| 022b | `022b_handle_new_user_role_whitelist.sql` | Re-creates `handle_new_user` identical to the live version except the role: `venue_producer` is honoured (the web signup sends it), everything else including `admin`, missing or garbage becomes `comedian` (no cast error). |
+| 024 | `024_lock_down_functions.sql` | Revokes `EXECUTE` from `PUBLIC, anon, authenticated` and grants to `service_role` on 14 functions: `book_show_spot, get_platform_stats, venue_confirm_booking, comedian_decline_booking, comedian_cancel_booking, apply_to_spot, comedian_cancel_spot_request, admin_hide_venue, admin_unhide_venue, venue_cancel_spot_request, create_show, update_show, cancel_show, accept_spot_request`. Explicit list (not a dynamic sweep) so nothing unreviewed is touched; `rls_auto_enable()` is a Supabase helper and is left alone. Aborts if any signature is wrong or the end state differs. |
+| 025 | `025_tighten_public_rls.sql` | `venues_public_read` also requires `is_hidden = false AND is_suspended = false`; new `venues_admin_read_all` (inline `EXISTS` on `users.role` for `auth.uid()`); `shows_public_read` also requires the venue not hidden/suspended; `spots_public_read` and `venue_shows_public_read` now require an approved, active, not hidden, not suspended venue owned by the producer (inline, because the helper functions are not executable by anon). Includes an atomic self-test run as anon and as the admin. |
+
+Evidence for 024 being safe (checked in the code): all 17 API `.rpc(` calls use `supabaseAdmin`; `apps/web` and `packages` have no `.rpc(`; no SQL function, trigger or policy in the repo calls any of the 14.
+Evidence for 025 being safe: the API reads these tables with the anon client only on `/api/venues`, `/api/shows`, `/api/venues/:id` (venue + legacy shows) and `/api/spots` (venue ids), all of which already filter to public venues; spots/venue_shows are read with the service role. The web reads `venues` directly in signup (insert), login (owner's own venue, `venues_owner_read_own` is untouched) and `AdminProfile` (covered by the admin policy). The two duplicate insert policies on `venues` are left alone.
+**Verified live after applying (2026-10-16, test accounts, real DB):**
+- 022b: a signup with metadata role `admin` stored `comedian`; `venue_producer` stored `venue_producer`; a garbage role and no role stored `comedian`. The throwaway users were deleted. Admins are still only the owner's account and the test admin.
+- 024: all 14 functions return `42501 permission denied` for the anon key and for logged-in comedian, owner and admin keys (called with their real argument names). The API flows that use them still work through the service role: create show, request a spot, accept, comedian cancel, legacy book, hide/unhide, `/api/admin/stats`.
+- 025: with the anon key and with a plain comedian login, 2 of 12 venues are readable (exactly the public ones) and no hidden/suspended row or `suspension_reason` leaks. With the test venue flagged suspended and holding live spots, anon and comedian read 0 venues, 0 spots, 0 venue_shows and 0 legacy shows for it; its owner still reads their own; the test admin reads all 12 venues over a browser-style direct read (what `AdminProfile` does). Flag cleared afterwards and anon sees the venue and its shows again.
+- Still **not** exercised in a browser: `AdminProfile` itself, owner banner, signup UI. Not touched: `POST /api/bookings/:id/confirm` (unauthenticated test helper, flagged below).
 
 ## Handoff: state and remaining work (steps 4-8)
 
-Written at the end of the first session so work can resume cold. The sections above are the record of what was built; this section is what to do next.
+Written at the end of the first session and refreshed at the end of the second so work can resume cold. The sections above are the record of what was built; this section is what to do next.
 
 ### Where things stand
 
@@ -289,16 +301,29 @@ Written at the end of the first session so work can resume cold. The sections ab
 | 2 admin guard, `/api/admin` prefix, Page A shell | Built. Server checks done; user reviewing visually. |
 | 3a admin review actions (approve / reject / request changes) | Built; user confirmed Request changes works. |
 | 3b owner status panel, Fix and resubmit, `PATCH /api/venues/mine`, spot gate | Built and committed. Migration 020 **applied** (user confirmed). Nothing in 3b has been exercised with real tokens or in a browser. |
-| 4a suspend: migration 021, API, owner banner | **Built, uncommitted. Migration 021 applied; API verified live with test accounts** (see "Step 4a"). Owner banner not yet checked in a browser. No admin UI (that is step 6). |
+| 4a suspend: migration 021, API, owner banner | **Built; 021 applied; API verified live with test accounts** (see "Step 4a"). Committed in `897c041`. Owner banner not yet checked in a browser. No admin UI (that is step 6). |
 | 4b part 1: protect `users.role` (migration 022) | **Applied** (user confirmed). See "Step 4b, part 1". |
 | 4b part 2: API public-path filters + migration 023 (legacy booking gate) | API built and verified against the real DB. **Migration 023 applied and verified live.** |
-| 4b rest: migration 024 (function lockdown), 025 (RLS), `handle_new_user` whitelist | Not started. Waiting on the user's function-list output, `handle_new_user` source, and live `pg_policies` for venues/shows/spots/venue_shows. |
+| 4b part 3: 022b (`handle_new_user` whitelist), 024 (function lockdown), 025 (RLS) | **Applied by the user and verified live.** Files 022b/024/025 and this spec are not yet committed. See "Step 4b, part 3". **Step 4 is complete; resume at step 5.** |
 | 5 search and filters | Not started. |
 | 6 Page B (dossier + edit) | Not started. |
 | 7 stats | Not started. |
 | 8 `/home` cleanup | Not started; must be LAST. |
 
-Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `RequestsPanel.tsx`, `safeLinks.ts` and `specs/venue-dashboard.md`). Step 4a is uncommitted. Never stash, reset or check out uncommitted files (use `git diff` / `git show`, not stash).
+Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `RequestsPanel.tsx`, `safeLinks.ts` and `specs/venue-dashboard.md`). Step 4a and 4b parts 1-2 are committed (`897c041`); 022b, 024, 025 and the spec updates after it are uncommitted (the user commits). Never stash, reset or check out uncommitted files (use `git diff` / `git show`, not stash).
+
+### Session log
+
+**Session 1:** steps 0 to 3b (migrations 018 to 020), committed in `ac8a809`.
+
+**Session 2 (2026-10-14 to 2026-10-16):**
+- Step 4a: suspend / unsuspend backend (migration 021, three admin routes) and the owner's suspended banner. Tested live with real tokens.
+- Step 4b: closed three security holes, all applied and tested live. (1) A client could change its own `users.role` (022). (2) A signup could choose the `admin` role (022b, found by reading the live `handle_new_user`). (3) The anon key could run 14 older SECURITY DEFINER functions (024). Public API reads and direct database reads now hide hidden and suspended venues (API filters, 025). A `bookings` trigger blocks legacy bookings at non-public venues (023).
+- Test accounts and a test venue were created in the real database (see Open items).
+- Separate request, not part of the admin project: the Favorite Venues section on the comedian `/home` page was removed (component, `GET /api/me/favorite-venues`, the shared type; no database change). Recorded in `specs/dashboard-spec.md`; two stale sentences in this spec were updated.
+- Commits: `897c041` holds 4a and 4b through 023. **Uncommitted at the end of session 2** (the user commits): migrations `022b`, `024`, `025`; the favourites removal (`index.ts`, `ComedianHomeContent.tsx`, the deleted `FavoriteVenuesSection.tsx`, `packages/types/index.ts`, `specs/dashboard-spec.md`); and this spec.
+
+**Next session starts at step 5.** Nothing blocks it: no pending migration, no unanswered question. Propose a plan first and wait for "go" (working rule 3). Things the step 5 plan should decide and state: where the city list comes from (`VENUE_CITIES` vs the cities present in the data); whether the status counts come from a separate counts payload or from the unfiltered set; the empty and loading states. Because of the uncommitted files above, `git diff --stat` mixes work; list the files touched for step 5 explicitly.
 
 ### Working rules (the user's, from this session)
 
@@ -306,7 +331,7 @@ Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `Requests
 2. Before every Bash command give a one-line explanation of what it does and why (CLAUDE.md convention).
 3. **Plan first, wait for approval** before any non-trivial new step; call out anything that deviates from the agreed plan (e.g. 019 as a trigger instead of rewriting four functions; the spot gate as triggers).
 4. DB changes are **additive and backward compatible**; keep localStorage keys, existing DB values and identifiers. Migrations are applied manually by the user in the Supabase SQL editor (nothing can run Postgres locally, so SQL is unrun until the user applies it; say so every time).
-5. Tests: `npm run check-types`, ESLint on changed files, plus a curl role matrix (no token, comedian, venue owner, admin) against every admin endpoint. The user promised test accounts (one comedian, one venue owner, one admin, venues in several states); until they are supplied only the no-token/bogus-token (401) half can be run. Report honestly what was and was not verified.
+5. Tests: `npm run check-types`, ESLint on changed files, plus a curl role matrix (no token, comedian, venue owner, admin) against every admin endpoint. **Test accounts now exist** (a test admin, venue owner and comedian plus an approved test venue, created in session 2; see the Open items below). Use the test admin for the admin half of the matrix and the others for the 403 half. Their credentials live outside the repo (never put them in a file that git can see). Report honestly what was and was not verified.
 6. Design: dark glassmorphism using the global `.glass-panel` (the `/support` page is the blur/opacity reference); cyan `#38BDF8`; Bebas Neue headings and Cormorant Garamond italic voice (`font-[family-name:var(--font-cormorant)] italic`); **flat solid colors only: no gradients, no glow**; SVG icons only, no emojis; mobile-first; modals built on `ModalShell` (the Requests-modal chrome); buttons are `CtaButton`, inputs are `float-field`/`float-input` (no new button or input styles); no new dependencies or animation libraries. Status is always icon + label + color.
 7. **No "verified" feature** anywhere (no flag, column or badge beyond the existing `verified` column that approve already set).
 8. **Address is out of scope**: no editing, display, search or new logic anywhere, including admin edit and every new endpoint (do not `select` it in new code).
@@ -335,7 +360,7 @@ Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `Requests
 - The existing `AdminProfile` venue list stays untouched (known limitation, documented below); only its `/api/admin/stats` call was changed (step 0).
 - Migration 019's stats rules are in the Step 1b section (acceptance rate over "knowable" requests; n/a otherwise).
 
-### Step 4: suspend (4a built, see "Step 4a"; 4b next, wait for the user's "go")
+### Step 4: suspend (COMPLETE: 4a and 4b built, applied and verified; kept as the record of decisions)
 
 **Decisions made when 4a was planned (do not re-ask):** suspend UI is NOT added to Page A (no row action menu); it ships with Page B in step 6 and 4a is tested by curl. Comedian-facing texts are the fixed neutral ones in Step 4a. Legacy System-1 is **gate only**: block `bookings` INSERT for a venue that is not public with a trigger (not an API check, because `book_show_spot` takes `p_comedian_id` and may be callable with the anon key); do not cancel existing legacy bookings. Hidden venues' `GET /api/venues/:id` returns 404 (9 of the 11 current venues are hidden and ownerless). The older `SECURITY DEFINER` functions get revoked from `PUBLIC, anon, authenticated` and granted to `service_role` in 4b; verified so far: nothing in `apps/web` or `packages` calls `.rpc()` and all 18 API `.rpc(` calls use `supabaseAdmin`. Before writing the revoke, get exact signatures from the user (`pg_proc` query in the SQL editor); apply nothing without their go. The "keep owner-only access to own venue" clause for `GET /api/venues/:id` has nothing to preserve: the route is unauthenticated and the owner dashboard uses `/api/venues/mine/status`.
 
@@ -380,10 +405,11 @@ Replace the pending-approvals list and `ManageVenuesSection` in `AdminHomeConten
 
 ### Open items and flags for the user
 
-- **Older `SECURITY DEFINER` functions are not restricted.** `admin_hide_venue`, `admin_unhide_venue`, `create_show`, `update_show`, `cancel_show`, `apply_to_spot`, `accept_spot_request`, `book_show_spot` etc. likely have `EXECUTE` for PUBLIC and are callable with the anon key over `/rest/v1/rpc`. The web app makes no direct `.rpc()` calls, so revoking from `PUBLIC, anon, authenticated` and granting to `service_role` looks safe; the user has not decided. Ask.
+- ~~Older `SECURITY DEFINER` functions are not restricted~~ **Fixed by 024** (14 functions). Future functions get `EXECUTE` for PUBLIC by default, so each new migration must revoke explicitly (018, 021 do).
 - `POST /api/bookings/:id/confirm` (a test helper) is unauthenticated. Out of scope; flagged.
-- The signup trigger that creates `public.users` is not in the repo. Ask the user to confirm a user cannot sign up with `role: 'admin'` in auth metadata.
-- Pre-seeded states the user may still need to create for testing: pending, changes-requested (via the UI now), rejected with and without reason, hidden (10 already), suspended (after step 4), a venue with upcoming shows and requests in pending/accepted/waitlisted (including the same comedian on two pools of one show) for the suspend test, a second city, and a venue with null owner.
+- The signup trigger `handle_new_user` is still not in the repo as a base file; its current definition lives in `022b_handle_new_user_role_whitelist.sql`. The whitelist is verified live.
+- **Test accounts exist in the real DB** (test admin, owner, comedian, and the approved, public venue "ZZ Claude Test Venue" with leftover shows/spots/a booking). Use the test admin for all admin testing (see memory `test-accounts`). They must be deleted when the project's testing is finished; until then the test venue appears in the real public venue list.
+- Test states still not covered: rejected with and without reason, changes-requested, a second city, a venue with accepted/waitlisted requests (including the same comedian on two pools of one show) for the suspend test. Create them with the service role when step 5/6 needs them.
 - Pending shows already created by pending venues: the count was never queried (it needs DB access). The query is in the conversation notes: join `venues` (unapproved) to `venue_shows`/`spots` on `owner_id = venue_producer_id`. Report the number if the user supplies it.
 - Whether the owner-side "Fix and resubmit" and the admin flows behave end to end is **unverified** until the user tests with real accounts.
 
