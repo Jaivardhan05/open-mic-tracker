@@ -169,6 +169,112 @@ Triggers rather than edits to `create_show` / `update_show` / `apply_to_spot` / 
 
 Not covered yet (step 4): the legacy `shows`/`bookings` path (`POST /api/shows/:id/book`) and the public read paths for suspended venues.
 
+## Step 4a: suspend (SQL, API, owner banner)
+
+Step 4 is delivered in two parts. 4a (this section) is the suspend/unsuspend backend and the owner-side banner; 4b is public-path enforcement, the legacy gate and RLS. **There is no admin UI for suspend in 4a**: the suspend modal ships with Page B in step 6 (see that step), so until then suspend is reachable only through the API.
+
+### Migration 021 (`021_venue_suspension.sql`)
+
+**Written but NOT yet applied: apply it in the Supabase SQL editor before the API routes below are used.** SQL cannot run locally, so it is unrun until then.
+
+| Function | Behavior |
+|---|---|
+| `venue_show_is_upcoming(date, end_time)` | The one shared predicate: `(date + end_time) > now() AT TIME ZONE 'Asia/Kolkata'`. Used by both the preview and the suspend. Shows never run past midnight (`end_time > start_time` is a CHECK). A show in progress counts as upcoming. |
+| `venue_suspension_preview(p_venue_id)` | `{ success, shows, spots, requests: { pending, accepted, waitlisted, total }, comedians }`; "Venue not found" for an unknown id. |
+| `admin_suspend_venue(p_venue_id, p_reason, p_admin_id)` | Row-locks the venue; only from `approved` and not already suspended; reason required. Sets the four suspension columns, then cancels in the same transaction: the owner's upcoming `venue_shows`, their not-yet-cancelled `spots`, and every pending/accepted/waitlisted request on them (`cancelled_by_venue`, `decided_at = now()`). Returns `{ success, shows, spots, requests, comedians }`. |
+| `admin_unsuspend_venue(p_venue_id, p_admin_id)` | Only when suspended. Clears `is_suspended`, `suspension_reason`, `suspended_at`, `suspended_by`. Restores nothing. The reason is not kept (no audit log yet). |
+
+- **No `EXCEPTION` block** in the suspend: any error rolls the flag and every cancellation back together. It does not call `cancel_show` (which swallows errors).
+- **Fixed neutral texts**, never the admin's reason: shows and pools get "This show was cancelled because the venue is temporarily unavailable."; requests get `venue_message` "This request was cancelled because the venue is temporarily unavailable." The owner sees the full reason on their dashboard.
+- Pools already cancelled on their own keep their original message. `available_spots` is untouched (as in `cancel_show`).
+- The 019 trigger records `cancelled_from_status`. The 020 gate does not block these writes (traced from the SQL: it ignores an unchanged show date, an unchanged pool date/size/price without re-activation, and any status change that is not "-> accepted"). Only the real API path (service role with JWT claims) exercises the gate; the SQL editor has no claims and is exempt.
+- Hidden does not matter: a hidden approved venue can be suspended. A venue with no owner can be suspended and cancels nothing.
+- All four functions: `SECURITY DEFINER`, `SET search_path = public`, `EXECUTE` revoked from `PUBLIC, anon, authenticated`, granted to `service_role`.
+- **Known narrow race:** an owner request that passed the 020 gate just before the suspend commits could create a show after the cancellations ran. It needs two requests in the same instant; not guarded.
+- **Assumption:** one venue per owner (shows and spots are keyed by `venue_producer_id`; `venues.owner_id` is not unique). True in the current data; if an owner ever had two venues, suspending one would cancel both venues' shows.
+
+### API (under the `/api/admin` default-deny guard)
+
+| Route | Body | RPC |
+|---|---|---|
+| `GET /api/admin/manage/venues/:id/suspension-preview` | none | `venue_suspension_preview` |
+| `POST /api/admin/manage/venues/:id/suspend` | `{ reason }` required (trimmed, non-blank, <= 500) | `admin_suspend_venue` |
+| `POST /api/admin/manage/venues/:id/unsuspend` | none | `admin_unsuspend_venue` |
+
+Same mapping as step 3a (`runVenueReviewAction`, whose RPC-name union was widened; nothing else in it changed): non-UUID or unknown venue 404, wrong state 409 with the RPC's message, missing reason 400. The preview counts and the suspend counts can differ if something changes in between; the suspend response carries the real numbers.
+
+### Web
+
+- `VenueStatusSection` (owner dashboard): a suspended branch, shown before the approved early-return because suspension is a flag on top of the review status. Suspended badge (outline), "Your venue is suspended", the admin's full reason in the italic note, and plain copy: off /venues, upcoming shows and their requests were cancelled, lifting the suspension will not bring them back, contact support.
+- `VenueProducerDashboard`: the line under the disabled "+ Add new shows" now reads "Adding shows is paused while your venue is suspended." for a suspended venue (it used to say "unlocks once your venue is approved", which was wrong for suspended). Other cases unchanged.
+
+### Verified / not verified
+
+Verified at build time: `npm run check-types`, ESLint on the two changed web files, API typecheck (only the old known errors), 401 on all three routes with no or a bogus token.
+
+**Verified live (2026-10-15, test accounts, real DB; migration 021 applied):**
+- Role matrix: no token 401, comedian 403, owner 403 on preview, suspend and unsuspend.
+- Preview returned the right counts (1 show, 1 spot, 1 pending request, 1 comedian). Suspend without a reason: 400.
+- Suspend: venue flagged with reason, time and admin id; the venue_show and spot cancelled with the neutral text; the pending request became `cancelled_by_venue` with the neutral request text, `decided_at` set and `cancelled_from_status = pending`. An existing legacy booking was untouched.
+- While suspended: `GET /api/venues/:id` is 404; the venue is absent from `/api/venues`, `/api/shows` and `/api/spots`.
+- Suspend again 409 "already suspended"; unsuspend OK and clears the four suspension fields; unsuspend again 409; the venue is public again and the cancelled show stays cancelled.
+- 020 gate with a live spot at a suspended venue (suspended flag set directly to simulate the race window): owner create-show via the API is refused, a direct PostgREST insert into `venue_shows` with the owner's JWT is refused, and a comedian request to the live spot is refused. After the flag was cleared, create-show works again.
+
+**Not verified:** the owner banner in a browser (needs a person to log in as the test owner), and the suspended text of `/api/venues/mine/status` as returned over the API (the database values were checked, the endpoint was read only while the venue was not suspended).
+
+## Step 4b, part 1: protect `users.role` (migration 022)
+
+Found while checking whether an admin-read RLS policy (4b, later) could trust `users.role`. **Not applied yet** (SQL cannot run locally; apply in the Supabase SQL editor).
+
+### Finding
+
+A signed-in user can very likely make themselves an admin. Evidence from the user's SQL editor: the only policy on `users` for updates is `users_update_own` (`USING` and `WITH CHECK` are both just `auth.uid() = id`); `has_column_privilege('authenticated', 'public.users', 'role', 'UPDATE')` is `true`; the only trigger on `users` is `update_users_updated_at`. So `UPDATE users SET role = 'admin'` on one's own row through PostgREST with the anon key is allowed. The API's `requireRole` reads `users.role` with the service role, so that account would pass every admin guard (approve, reject, suspend, hide, `/admin`). Not exercised against the live database (no test user was created); the policy, privilege and trigger list leave nothing that would stop it. At the time of checking there was exactly one admin account (the user was asked to confirm it is theirs).
+
+`users_service_role_read_all` (`TO service_role`) turned out to be harmless: the service role bypasses RLS and the policy is not granted to anon or authenticated, so it is not a leak.
+
+### Fix: `022_protect_user_role.sql`
+
+`users_protect_role()` and trigger `users_1_protect_role` (`BEFORE INSERT OR UPDATE ON users`), the same pattern as `venues_protect_moderation` (018): under an `anon` / `authenticated` JWT, a role change on UPDATE is rejected (`42501`), and an INSERT with `role = 'admin'` is rejected (compared as text, so independent of the enum labels). The service role, the SQL editor and the auth service's signup trigger (no request JWT claims) are unaffected. Nothing in the web app writes `role` (checked `profile/edit` and `lib/auth.ts`). The migration header contains an atomic self-test to run after applying.
+
+### Still open
+
+- `handle_new_user` (the `auth.users` signup trigger) is not in the repo and its body was truncated in the user's screenshot. If it copies the client-supplied signup metadata `role` into `users.role` without a whitelist, a crafted signup could still create an admin, and 022 will not catch it (signup runs without JWT claims). It needs a whitelist (`comedian` / `venue_producer` only), written from the real source.
+- Other columns on `users` that a user can update on their own row have not been reviewed.
+
+022 was applied by the user (they reported it ran successfully; the self-test result was not reported separately). The single admin account is the user's own.
+
+## Step 4b, part 2: public-path filters and the legacy booking gate
+
+### API (`apps/api/src/index.ts`)
+
+One helper, `publicVenueFilters(query, prefix?)`, defines "a venue the public may see": approved, active, not hidden, not suspended (mirrors `venue_is_public`). Applied to:
+
+- `GET /api/venues`: now also excludes suspended.
+- `GET /api/shows`: legacy `shows` joined to venues (`venues.` prefix); the embed now also selects `is_suspended`.
+- `GET /api/venues/:id`: now excludes hidden **and** suspended, so both return 404. This is a visible change: it used to ignore `is_hidden`, so a hidden venue's detail and spots were reachable by id. Currently 9 of the 11 venues are approved+hidden, so their detail pages now 404.
+- `GET /api/spots`: venue filter via the helper.
+- `GET /api/me/favorite-venues`: filtered to public venues so a card never links to a 404. `GET /api/me/bookings/pending` and a comedian's cancelled-request cards are deliberately NOT filtered (their own history; the suspended venue's name stays visible).
+
+No web changes: `venues/[id]` already shows "Venue not found." and `ComedianHomeContent` already falls back to an empty shows list on a non-OK response.
+
+### Migration 023 (`023_legacy_booking_gate.sql`), applied and verified
+
+`BEFORE INSERT` trigger `trg_bookings_venue_gate` on `bookings`: rejects (`42501`) unless `venue_is_public(shows.venue_id)`. A trigger, not an API check, because `book_show_spot` takes `p_comedian_id` and may be callable with the anon key; it also covers the direct-insert policy `bookings_insert_own`. Same no-JWT-claims exemption as 020 (SQL editor and seeding). Only INSERT is gated; existing legacy bookings are untouched (decided: gate only). Legacy bookings at the 9 hidden venues are now rejected too.
+
+### Verified
+
+API typecheck (only the 13 old errors remain), and against the running API with the real database: `/api/venues` returns exactly the 1 public venue (no hidden, no pending), `/api/venues/:id` returns 200 for the public venue and 404 for hidden and pending venues, `/api/shows` and `/api/spots` include no hidden or pending venue. **Not verified:** anything involving a suspended venue (none exists yet), `favorite-venues` (needs a comedian token), and `favorite-venues` (needs a comedian with a favourite).
+
+**023, verified live (2026-10-15):** with the venue hidden, a comedian's `POST /api/shows/:id/book` is refused ("This venue is not taking bookings right now", returned by `book_show_spot` as `success:false` with HTTP 200, as the older routes do); with the venue public the booking succeeds; with the venue suspended a second booking is refused; the earlier booking stays untouched.
+
+### Remaining 4b migrations (renumbered; each independent, each waits for the user's go)
+
+| # | Purpose |
+|---|---|
+| 023 | Applied and verified (see above). |
+| 024 | Function lockdown: revoke `EXECUTE` from `PUBLIC, anon, authenticated` on all `SECURITY DEFINER` non-trigger functions in `public`, grant to `service_role` (dynamic `DO` block). Written from the user's catalog output. The anon key can currently call e.g. `admin_hide_venue` (confirmed with a nonexistent id). |
+| 025 | RLS tightening: `venues_public_read` (+ `is_hidden = false AND is_suspended = false`) with a new admin-read policy checking `users.role` inline (only after 022 is applied), and the public-read policies on `spots`, `venue_shows` and `shows` (inline `EXISTS` on `venues`; the revoked helpers cannot be called from a policy). |
+
 ## Handoff: state and remaining work (steps 4-8)
 
 Written at the end of the first session so work can resume cold. The sections above are the record of what was built; this section is what to do next.
@@ -182,14 +288,17 @@ Written at the end of the first session so work can resume cold. The sections ab
 | 1b migration 019 (`accepted_at`, `cancelled_from_status` trigger) | **Applied** (user confirmed). |
 | 2 admin guard, `/api/admin` prefix, Page A shell | Built. Server checks done; user reviewing visually. |
 | 3a admin review actions (approve / reject / request changes) | Built; user confirmed Request changes works. |
-| 3b owner status panel, Fix and resubmit, `PATCH /api/venues/mine`, spot gate | Built. **Migration 020 written but NOT confirmed applied. Ask the user to apply it before testing 3b.** Nothing in 3b has been exercised with real tokens or in a browser. |
-| 4 suspend | **Not started. Resume here.** |
+| 3b owner status panel, Fix and resubmit, `PATCH /api/venues/mine`, spot gate | Built and committed. Migration 020 **applied** (user confirmed). Nothing in 3b has been exercised with real tokens or in a browser. |
+| 4a suspend: migration 021, API, owner banner | **Built, uncommitted. Migration 021 applied; API verified live with test accounts** (see "Step 4a"). Owner banner not yet checked in a browser. No admin UI (that is step 6). |
+| 4b part 1: protect `users.role` (migration 022) | **Applied** (user confirmed). See "Step 4b, part 1". |
+| 4b part 2: API public-path filters + migration 023 (legacy booking gate) | API built and verified against the real DB. **Migration 023 applied and verified live.** |
+| 4b rest: migration 024 (function lockdown), 025 (RLS), `handle_new_user` whitelist | Not started. Waiting on the user's function-list output, `handle_new_user` source, and live `pg_policies` for venues/shows/spots/venue_shows. |
 | 5 search and filters | Not started. |
 | 6 Page B (dossier + edit) | Not started. |
 | 7 stats | Not started. |
 | 8 `/home` cleanup | Not started; must be LAST. |
 
-Nothing is committed. The working tree also holds the user's own uncommitted work (`RequestsPanel.tsx`, `safeLinks.ts`, `specs/venue-dashboard.md`): never touch, stash, reset or check out those or any uncommitted file (use `git diff` / `git show`, not stash).
+Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `RequestsPanel.tsx`, `safeLinks.ts` and `specs/venue-dashboard.md`). Step 4a is uncommitted. Never stash, reset or check out uncommitted files (use `git diff` / `git show`, not stash).
 
 ### Working rules (the user's, from this session)
 
@@ -226,7 +335,11 @@ Nothing is committed. The working tree also holds the user's own uncommitted wor
 - The existing `AdminProfile` venue list stays untouched (known limitation, documented below); only its `/api/admin/stats` call was changed (step 0).
 - Migration 019's stats rules are in the Step 1b section (acceptance rate over "knowable" requests; n/a otherwise).
 
-### Step 4: suspend (next; propose then wait for "go", suggested split below)
+### Step 4: suspend (4a built, see "Step 4a"; 4b next, wait for the user's "go")
+
+**Decisions made when 4a was planned (do not re-ask):** suspend UI is NOT added to Page A (no row action menu); it ships with Page B in step 6 and 4a is tested by curl. Comedian-facing texts are the fixed neutral ones in Step 4a. Legacy System-1 is **gate only**: block `bookings` INSERT for a venue that is not public with a trigger (not an API check, because `book_show_spot` takes `p_comedian_id` and may be callable with the anon key); do not cancel existing legacy bookings. Hidden venues' `GET /api/venues/:id` returns 404 (9 of the 11 current venues are hidden and ownerless). The older `SECURITY DEFINER` functions get revoked from `PUBLIC, anon, authenticated` and granted to `service_role` in 4b; verified so far: nothing in `apps/web` or `packages` calls `.rpc()` and all 18 API `.rpc(` calls use `supabaseAdmin`. Before writing the revoke, get exact signatures from the user (`pg_proc` query in the SQL editor); apply nothing without their go. The "keep owner-only access to own venue" clause for `GET /api/venues/:id` has nothing to preserve: the route is unauthenticated and the owner dashboard uses `/api/venues/mine/status`.
+
+Defaults approved: a show in progress counts as upcoming; one venue per owner assumed; a hidden venue can be suspended; unsuspend clears the suspension fields; a comedian's cancelled-request card still shows the suspended venue's name.
 
 **Migration 021** (`021_venue_suspension.sql`, additive, `BEGIN/COMMIT`, `SECURITY DEFINER`, `SET search_path = public`, `REVOKE ... FROM PUBLIC, anon, authenticated` + `GRANT ... TO service_role`):
 - `admin_suspend_venue(p_venue_id, p_reason, p_admin_id)`: one plpgsql function, **no `EXCEPTION WHEN OTHERS` block** (an error must roll the whole thing back) and **do not loop over `cancel_show`** (it swallows errors and returns JSON). Only from `review_status = 'approved'` and not already suspended; reason required. Sets `is_suspended`, `suspension_reason`, `suspended_at`, `suspended_by`; then in the same transaction does the set-based equivalent of `cancel_show` for every *upcoming* show of the owner (`venue_shows` and `spots` `is_cancelled = true` with a neutral `cancellation_message`; `spot_requests` in pending/accepted/waitlisted -> `cancelled_by_venue`, `decided_at = now()`, `venue_message` = the neutral text). The 019 trigger records `cancelled_from_status`. Returns counts (shows, spots, requests, comedians) for the success toast.
@@ -254,6 +367,7 @@ Server-side query params on `GET /api/admin/manage/venues`: `q` (venue **name on
 
 - **API:** `GET /api/admin/manage/venues/:id` (all venue fields **except address**, owner info, the three reasons with who/when via `reviewed_by`/`suspended_by` names); `PATCH /api/admin/manage/venues/:id` with the whitelist above, same validation as the owner path plus photos (https only, max 8, <= 2048 chars each; reuse one shared validator for owner and admin), city must be in `VENUE_CITIES` or unchanged; atomic and field-whitelisted, never touching `owner_id`, ids or moderation columns; `POST .../reopen` (rejected -> pending via `admin_reopen_venue`); approve/reject for a changes-requested venue via the existing endpoints; hide/unhide: reuse `POST /api/venues/:id/hide|unhide` (admin-guarded) or add manage-prefixed wrappers, keeping their behavior unchanged. Every action takes `p_admin_id` (audit log later plugs in with one INSERT per function; do not build the audit log now).
 - **Web:** `app/admin/venues/[id]/page.tsx` under the existing guard layout. Dossier feel, not a form: (1) header (name in Bebas, city, owner, status badge); (2) a **Situation** panel (current status + its reason in the italic note + since when/by whom, plus hidden/suspended flags and counts); (3) a state-aware **Next actions** panel: pending -> Approve / Request changes / Reject; changes_requested -> Approve / Reject (waiting on owner); rejected -> Move back to pending; approved -> Hide or Unhide / Suspend; suspended -> Unsuspend; (4) **Profile** panel read view with an Edit toggle switching fields in place (name, city, description, photo URL list via a new `PhotoUrlListEditor`, Instagram, X, Maps, contact email, phone), Save/Cancel and an unsaved-changes warning; (5) the stats panel (step 7). Mobile: single column in that order. Link Page A rows and review cards to Page B (they are not linked yet). No address anywhere. Reasons history is only the current reasons until the audit-log task exists; say so in the UI copy/spec rather than inventing a timeline.
+- **Suspend UI (moved here from step 4):** step 6 builds it, since 4a ships only the API. A `SuspendVenueModal` on `ModalShell` and a `ConfirmByTyping` component (a `float-input` that must equal the venue name before the danger `CtaButton` enables). The modal shows a "what will happen" block with live counts from `GET .../suspension-preview`, the plain statement that unsuspending will not restore anything, and a required reason (<= 500). Unsuspend is a plain confirm. The hook gains `getSuspensionPreview`, `suspendVenue` and `unsuspendVenue` against the three 4a routes. The Next actions panel launches them (approved -> Suspend; suspended -> Unsuspend).
 - Reuse `StatusBadge`, `ReasonNote`, `ModalShell`, `ReviewActionModal`, `CtaButton`, `float-field`.
 
 ### Step 7: venue stats on Page B

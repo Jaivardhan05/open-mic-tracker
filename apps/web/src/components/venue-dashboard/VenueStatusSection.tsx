@@ -1,6 +1,6 @@
 "use client";
 
-import type { OwnerVenueStatus } from "@repo/types";
+import type { OwnerVenueStatus, VenueDisplayStatus } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
 import ReasonNote from "@/components/admin/ReasonNote";
@@ -15,15 +15,16 @@ interface VenueStatusSectionProps {
 }
 
 // Where the owner's venue stands in the admin's review, and what to do next.
-// Renders nothing for an approved venue (nothing to say) and until loaded.
+// Renders nothing for an approved, non-suspended venue (nothing to say) and
+// until loaded. Suspension is a flag on top of the review status, so it wins.
 // Reads the venue row directly (single source of truth), not the one-off
 // "Notices from Admin" messages.
 export default function VenueStatusSection({ status, onEditDetails }: VenueStatusSectionProps) {
-  if (!status || status.review_status === "approved") {
+  if (!status || (status.review_status === "approved" && !status.is_suspended)) {
     return null;
   }
 
-  const kind = status.review_status;
+  const kind: VenueDisplayStatus = status.is_suspended ? "suspended" : status.review_status;
   const { color } = STATUS_META[kind];
 
   return (
@@ -67,6 +68,24 @@ export default function VenueStatusSection({ status, onEditDetails }: VenueStatu
                 Fix and resubmit
               </CtaButton>
             </div>
+          </>
+        ) : null}
+
+        {kind === "suspended" ? (
+          <>
+            <h2 className="mt-3 font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white">
+              Your venue is suspended
+            </h2>
+            <ReasonNote reason={status.suspension_reason} color={color} caption="From the team" className="mt-3" />
+            <p className="mt-3 text-sm text-zinc-400">
+              Your venue is off /venues, your upcoming shows and their requests were cancelled, and you
+              can&apos;t add shows. If the suspension is lifted, those shows won&apos;t come back: you&apos;ll
+              add new ones. Questions?{" "}
+              <a href="/support#contact" className="text-[#38bdf8] underline underline-offset-2 hover:text-[#7dd3fc]">
+                Contact support
+              </a>
+              .
+            </p>
           </>
         ) : null}
 

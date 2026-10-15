@@ -128,15 +128,32 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
+// The one place that defines "a venue the public may see": approved, active,
+// not hidden and not suspended (mirrors venue_is_public in migration 018).
+// Pass a column prefix for an embedded relation, e.g. 'venues.'. Every public
+// read path uses this rather than its own list of conditions.
+const PUBLIC_VENUE_CONDITIONS: ReadonlyArray<readonly [string, boolean]> = [
+  ['admin_approved', true],
+  ['is_active', true],
+  ['is_hidden', false],
+  ['is_suspended', false],
+];
+
+function publicVenueFilters<Q>(query: Q, prefix = ''): Q {
+  // The Supabase builder's own generics are too deep to constrain here; the
+  // type is passed through unchanged so callers keep chaining normally.
+  return PUBLIC_VENUE_CONDITIONS.reduce(
+    (q, [column, value]) => (q as unknown as { eq: (c: string, v: boolean) => Q }).eq(`${prefix}${column}`, value),
+    query
+  );
+}
+
 app.get('/api/venues', async (req: Request, res: Response) => {
   const city = typeof req.query.city === 'string' ? req.query.city : undefined;
 
-  let query = supabase
-    .from('venues')
-    .select('id, name, address, city, photos, description')
-    .eq('admin_approved', true)
-    .eq('is_active', true)
-    .eq('is_hidden', false);
+  let query = publicVenueFilters(
+    supabase.from('venues').select('id, name, address, city, photos, description')
+  );
 
   if (city) {
     query = query.ilike('city', city);
@@ -170,15 +187,15 @@ app.get('/api/shows', async (req: Request, res: Response) => {
     return;
   }
 
-  let query = supabase
-    .from('shows')
-    .select(
-      'id, venue_id, date, start_time, end_time, spot_type, total_spots, available_spots, charge, venues!inner(id, name, city, admin_approved, is_active, is_hidden)'
-    )
-    .eq('is_cancelled', false)
-    .eq('venues.admin_approved', true)
-    .eq('venues.is_active', true)
-    .eq('venues.is_hidden', false)
+  let query = publicVenueFilters(
+    supabase
+      .from('shows')
+      .select(
+        'id, venue_id, date, start_time, end_time, spot_type, total_spots, available_spots, charge, venues!inner(id, name, city, admin_approved, is_active, is_hidden, is_suspended)'
+      )
+      .eq('is_cancelled', false),
+    'venues.'
+  )
     .order('date', { ascending: true })
     .order('start_time', { ascending: true });
 
@@ -237,13 +254,14 @@ app.get('/api/shows', async (req: Request, res: Response) => {
 app.get('/api/venues/:id', async (req: Request, res: Response) => {
   const id = req.params.id;
 
-  const { data: venueRow, error: venueError } = await supabase
-    .from('venues')
-    .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id')
-    .eq('id', id)
-    .eq('admin_approved', true)
-    .eq('is_active', true)
-    .maybeSingle();
+  // Hidden and suspended venues 404 here too: this route used to ignore both,
+  // so a hidden venue's detail and spots were reachable by id.
+  const { data: venueRow, error: venueError } = await publicVenueFilters(
+    supabase
+      .from('venues')
+      .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id')
+      .eq('id', id)
+  ).maybeSingle();
 
   if (venueError) {
     res.status(500).json({ error: venueError.message });
@@ -585,7 +603,13 @@ const REVIEW_REASON_MAX = 500;
 // the same venue cannot both win.
 async function runVenueReviewAction(
   res: Response,
-  rpcName: 'admin_approve_venue' | 'admin_reject_venue' | 'admin_request_changes',
+  rpcName:
+    | 'admin_approve_venue'
+    | 'admin_reject_venue'
+    | 'admin_request_changes'
+    | 'admin_suspend_venue'
+    | 'admin_unsuspend_venue'
+    | 'venue_suspension_preview',
   args: Record<string, unknown>
 ) {
   const { data, error } = await supabaseAdmin.rpc(rpcName, args);
@@ -667,6 +691,55 @@ app.post('/api/admin/manage/venues/:id/request-changes', async (req: AuthedReque
   await runVenueReviewAction(res, 'admin_request_changes', {
     p_venue_id: id,
     p_reason: parsed.reason,
+    p_admin_id: req.userId,
+  });
+});
+
+// Suspension (migration 021). Suspending cancels every upcoming show and its
+// pending / accepted / waitlisted requests in the same transaction; unsuspending
+// restores nothing. The preview uses the same "upcoming" predicate as the
+// suspend, so the counts an admin confirms are the counts acted on (give or
+// take anything that changes between the two calls; the suspend response
+// carries the real numbers).
+app.get('/api/admin/manage/venues/:id/suspension-preview', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'venue_suspension_preview', { p_venue_id: id });
+});
+
+app.post('/api/admin/manage/venues/:id/suspend', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const parsed = parseReviewReason(req.body);
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_suspend_venue', {
+    p_venue_id: id,
+    p_reason: parsed.reason,
+    p_admin_id: req.userId,
+  });
+});
+
+app.post('/api/admin/manage/venues/:id/unsuspend', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_unsuspend_venue', {
+    p_venue_id: id,
     p_admin_id: req.userId,
   });
 });
@@ -933,7 +1006,25 @@ app.get('/api/me/favorite-venues', requireUser, async (req: AuthedRequest, res: 
     return;
   }
 
-  const rows = ((data ?? []) as unknown as BookingRow[]).filter((row) => row.shows?.venues);
+  const bookingRows = ((data ?? []) as unknown as BookingRow[]).filter((row) => row.shows?.venues);
+
+  // Only venues the public can still open: a favorite card links to the venue
+  // page, which now 404s for hidden and suspended venues. The comedian's own
+  // booking history (/api/me/bookings/pending) is deliberately not filtered.
+  const venueIds = Array.from(new Set(bookingRows.map((row) => row.shows!.venues!.id)));
+  const publicVenueIds = new Set<string>();
+  if (venueIds.length > 0) {
+    const { data: publicVenues, error: publicVenuesError } = await publicVenueFilters(
+      supabaseAdmin.from('venues').select('id').in('id', venueIds)
+    );
+
+    if (publicVenuesError) {
+      res.status(500).json({ error: publicVenuesError.message });
+      return;
+    }
+    (publicVenues ?? []).forEach((v: { id: string }) => publicVenueIds.add(v.id));
+  }
+  const rows = bookingRows.filter((row) => publicVenueIds.has(row.shows!.venues!.id));
 
   const venueStats = new Map<
     string,
@@ -1057,13 +1148,9 @@ async function venuesByProducerIds(
 }
 
 app.get('/api/spots', async (_req: Request, res: Response) => {
-  const { data: venues, error: venuesError } = await supabase
-    .from('venues')
-    .select('id, owner_id')
-    .eq('admin_approved', true)
-    .eq('is_active', true)
-    .eq('is_hidden', false)
-    .not('owner_id', 'is', null);
+  const { data: venues, error: venuesError } = await publicVenueFilters(
+    supabase.from('venues').select('id, owner_id')
+  ).not('owner_id', 'is', null);
 
   if (venuesError) {
     res.status(500).json({ error: venuesError.message });

@@ -891,3 +891,11 @@ PostgREST with an arbitrary `status` (e.g. `accepted`), bypassing `apply_to_spot
 Left unchanged on purpose; write-up and proposed fixes in
 `specs/spot-requests-rls-insert-followup.md`. Decide before deploy.
 
+
+### 10.7 Suspended banner
+
+`VenueStatusSection` also renders for a suspended venue (a flag on top of the
+review status, so it wins): suspended badge, the admin's reason, and a note that
+upcoming shows and their requests were cancelled and will not come back. The
+disabled "+ Add new shows" hint reads "Adding shows is paused while your venue is
+suspended." in that case. See `specs/admin-venue-management.md` (step 4a).

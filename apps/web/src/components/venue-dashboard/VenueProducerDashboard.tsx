@@ -68,7 +68,9 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
         </CtaButton>
         {addDisabled ? (
           <p className="mt-2 font-[family-name:var(--font-cormorant)] text-base italic text-zinc-400">
-            Adding shows unlocks once your venue is approved.
+            {status?.is_suspended
+              ? "Adding shows is paused while your venue is suspended."
+              : "Adding shows unlocks once your venue is approved."}
           </p>
         ) : null}
       </section>
