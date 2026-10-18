@@ -1,4 +1,5 @@
 import { networkInterfaces } from 'node:os';
+import { photoRemotePatterns } from '@repo/types/photoHosts.js';
 
 function getLocalNetworkIps() {
   const ips = [];
@@ -20,12 +21,8 @@ const nextConfig = {
   // a value that goes stale and silently breaks hydration for LAN clients.
   allowedDevOrigins: getLocalNetworkIps(),
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'picsum.photos',
-      },
-    ],
+    // Same list the API validates venue photos against (packages/types/photoHosts.js).
+    remotePatterns: photoRemotePatterns(),
   },
   async rewrites() {
     return [

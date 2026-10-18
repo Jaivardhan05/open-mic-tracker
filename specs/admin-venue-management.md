@@ -383,6 +383,53 @@ A test-fixture trap worth remembering: a venue inserted as `pending` with `is_ac
 
 **Not verified: the page in a browser** (layout, the modals, the Page A links, mobile), and the Situation panel's wording for venues hidden before 026 ("time not recorded").
 
+## Step 6b: suspend / unsuspend UI (on Page B)
+
+### Migration 027 (`027_suspend_owner_notice.sql`)
+
+**Applied by the user (2026-10-18) and verified live in the 6c test run.** Replaces only `admin_suspend_venue`: the 021 body plus one `INSERT INTO venue_notices` ("Your venue was suspended: <reason>") in the same transaction, skipped when the venue has no owner. Still no `EXCEPTION` block, so a failed notice rolls back the flag and every cancellation. `REVOKE`/`GRANT` re-asserted (service role only). Unsuspend is unchanged and sends no notice. 
+
+### Web
+
+- `SuspendVenueModal` (`ModalShell`): venue name, a warning, live counts from `suspension-preview` (shows, spot pools, requests split pending/accepted/waitlisted, comedians; loading and retry states), a note that the counts are a snapshot and that old-system bookings are not cancelled, plain statements that unsuspend restores nothing, that the owner sees the reason, that a hidden venue stays hidden and that nothing records the suspension once lifted, a required reason (<= 500, with the "owner will read" note) and `ConfirmByTyping`. The danger button enables when the reason is filled and the typed text equals "Suspend" (trimmed, ignoring case). Double-submit locked; not dismissible while running; errors inline. The toast uses the real counts from the suspend response.
+- `ConfirmByTyping` (new, `float-input`) and `matchesTypedWord`.
+- `ReviewActionModal` gained `unsuspend` (plain confirm, "Lift suspension", copy says nothing is restored and the owner is not notified); `adminVenueActions.ts` gained the `unsuspend` path.
+- `VenueNextActions`: approved shows a danger **Suspend**; suspended shows **Lift suspension**. Hide/Unhide unchanged.
+- `useAdminVenue` gained `getSuspensionPreview` and `suspendVenue`. No API route changed.
+
+### Decisions
+Typing "Suspend" instead of the venue name (the user's change of flow); the notice (user: yes); legacy bookings not cancelled and not worth special handling; one venue per owner; the reason is erased on unsuspend (accepted until an audit log exists). Details in `specs/decisions.md`.
+
+### Verified / not verified
+Built and checked: `npm run check-types`, ESLint on the changed web files, `next build`. The user checked the modal and the flow in a browser ("everything works perfectly"). The live API checks for 027 are listed under Step 6c.
+
+## Step 6c: edit mode on Page B
+
+No migration. API, shared validator, and the Profile editor.
+
+### Shared pieces
+- `packages/types/photoHosts.js` (+ `.d.ts`, plain ESM): `PHOTO_HOSTS` (`picsum.photos`, `images.unsplash.com`, and `wfyqomxasthwdlpqttno.supabase.co` restricted to `/storage/v1/object/public/`), `validatePhotoUrls`, `photoUrlError`, `photoRemotePatterns`. https only, at most 8, each at most 2048 characters, no credentials or port. `next.config.js` builds `images.remotePatterns` from it, so the two cannot drift. Verified: it imports under plain Node (web and API) and the API starts with it. (`@repo/types` has no `exports` map, so the deep path `@repo/types/photoHosts.js` works.)
+- `validateVenueFields` in `apps/api/src/index.ts`: the owner PATCH's checks, extracted and shared by the owner and admin routes. Same order and messages as before, plus **new caps: links 2048, email 254, phone 32**. Existing data was checked first: 12 venues, longest link 66 characters, no value over any cap. **Visible change for owners:** values over those caps are now refused. `photos` is accepted only on the admin path; for owners it is still ignored.
+
+### API (under the `/api/admin` guard)
+`PATCH /api/admin/manage/venues/:id`. Allowed keys: name, city, description, photos, instagram_url, x_url, maps_url, contact_email, contact_phone. Any other key (owner_id, address, review_status, verified, hide/suspend flags, id...) is a **400** naming it; an empty or array body is 400; non-UUID or unknown id 404. Only the keys sent are validated and written (so an untouched legacy photo is never re-checked). Allowed in every status, suspended included. Blank optional fields become null. Returns the fresh `AdminVenueDetail`, which now also carries `allowed_cities` (for the city select); `GET` and `PATCH` share `loadAdminVenueDetail`. The owner is not notified of admin edits (deferred). Address is never selected.
+
+### Web
+- `VenueProfilePanel`: Edit button swaps the read view for `VenueProfileEditor` in place.
+- `VenueProfileEditor`: name, city select (the venue's own city is always offered), description with counter, `PhotoUrlListEditor`, three links, email, phone. Form seeded once, so a refetch from another action does not wipe typing. Sends only changed fields; Save is disabled until something valid has changed; the server's message shows inline and keeps you in edit mode; toast "Venue details saved." on success. Photos are only required to be valid if they were changed (an untouched legacy `localhost` photo does not block saving other fields).
+- `PhotoUrlListEditor`: one URL input per photo with up / down / remove (44px buttons), "Add photo" up to 8, first labelled "Cover", per-row error from the same `photoUrlError` the API uses, hint listing the allowed hosts. No previews, no uploads.
+- Unsaved changes: `beforeunload` while dirty; Cancel and the page's "All venues" link ask to discard. Navbar and sidebar clicks are not intercepted (known limitation).
+
+### Verified / not verified
+Built and checked: `npm run check-types`, ESLint on the changed files, `next build`, API typecheck (still only the 13 old errors).
+
+**Verified live (2026-10-18, test accounts, real DB, migration 027 applied): 94 checks passed, 0 failed** (script in the session scratchpad, not in the repo). Fixtures were five "TEST – 6c" venues plus two owner accounts, all deleted (venues back to 12, no leftover notices).
+- **027 / step 6b:** preview counts (1 show, 1 pool, 1 request, 1 comedian) equal the suspend response; refused calls (no token, comedian, owner, blank reason) add no notice; suspend writes **exactly one** notice with the text "Your venue was suspended: <reason>" for the right owner and venue; a repeat suspend is 409 and adds none; unsuspend adds none, clears the flag and leaves the hidden flag; an ownerless approved venue suspends with no notice; a pending venue is 409. The show was cancelled and the request became `cancelled_by_venue`. **Not tested:** the rollback of a failed notice insert (could not be forced safely).
+- **PATCH:** role matrix (401/403/403), non-UUID and unknown id 404; eight forbidden keys each 400, a forbidden key mixed with a valid one 400, empty and array bodies 400; a partial update leaves other fields (including a legacy `http://localhost` photo) untouched; name, description and city rules (a city outside the list is accepted only while it is the stored one); nine photo rejections (http, foreign host, 9 photos, 2049 characters, wrong Supabase path, not a list, empty entry, non-string, credentials) and valid / reorder / trim / 8 / clear; caps at the boundary (link 2048 ok / over refused, email over 254, phone 32 ok / 33 refused); blank and null clear fields; review, hide, suspend, owner, verified, active and address columns unchanged; edits work on a suspended venue; the response has no `address`.
+- **Owner PATCH regression:** link edit works; the three new caps apply; bad email, ftp link, name on an approved venue (409), photos-only body (400), empty body (400); a pending owner can edit name and description, and city rules behave as before.
+
+**Not verified:** the editor in a browser (layout, mobile, reorder feel, the discard prompts) and the owner screens after the stricter caps.
+
 ## Handoff: state and remaining work (steps 4-8)
 
 Written at the end of the first session and refreshed at the end of the second so work can resume cold. The sections above are the record of what was built; this section is what to do next.
@@ -402,7 +449,7 @@ Written at the end of the first session and refreshed at the end of the second s
 | 4b part 2: API public-path filters + migration 023 (legacy booking gate) | API built and verified against the real DB. **Migration 023 applied and verified live.** |
 | 4b part 3: 022b (`handle_new_user` whitelist), 024 (function lockdown), 025 (RLS) | **Applied by the user and verified live; committed in `98e3537`.** See "Step 4b, part 3". **Step 4 is complete.** |
 | 5 search and filters | **Built; API verified live (62 checks); UI not yet exercised in a browser.** See "Step 5". Uncommitted. |
-| 6 Page B (dossier + edit) | **6a built** (read-only dossier, actions, migration 026 **applied**); API verified live (67 checks), UI not yet seen in a browser; 6b suspend UI and 6c edit not started. See "Step 6a". Uncommitted. |
+| 6 Page B (dossier + edit) | **6a, 6b and 6c built.** 6b: 027 applied, UI checked by the user, live API checks passed. 6c: live API checks passed, editor UI not yet seen in a browser. **6a built** (read-only dossier, actions, migration 026 **applied**); API verified live (67 checks), UI not yet seen in a browser; 6b suspend UI and 6c edit not started. See "Step 6a". Uncommitted. |
 | 7 stats | Not started. |
 | 8 `/home` cleanup | Not started; must be LAST. |
 

@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import CtaButton from "@/components/CtaButton";
 import ReviewActionModal from "@/components/admin/ReviewActionModal";
 import StatusBadge from "@/components/admin/StatusBadge";
+import SuspendVenueModal from "@/components/admin/SuspendVenueModal";
 import VenueNextActions from "@/components/admin/VenueNextActions";
 import VenueProfilePanel from "@/components/admin/VenueProfilePanel";
 import VenueSituationPanel from "@/components/admin/VenueSituationPanel";
 import { IconChevronLeft } from "@/components/icons/NavIcons";
 import { useToast } from "@/context/ToastContext";
 import { useAdminVenue } from "@/hooks/useAdminVenue";
+import type { AdminVenueChanges } from "@/hooks/useAdminVenue";
 import { runVenueAction, type VenueActionKind } from "@/lib/adminVenueActions";
 import { deriveDisplayStatus } from "@/lib/venueStatus";
 
@@ -23,12 +25,16 @@ const TOAST: Record<VenueActionKind, (name: string) => string> = {
   hide: (n) => `${n} is hidden.`,
   unhide: (n) => `${n} is no longer hidden.`,
   reopen: (n) => `${n} is back in the review queue.`,
+  unsuspend: (n) => `${n} is no longer suspended.`,
 };
 
-function BackLink() {
+function BackLink({ unsaved }: { unsaved: boolean }) {
   return (
     <Link
       href="/admin/venues"
+      onClick={(e) => {
+        if (unsaved && !window.confirm("Discard your unsaved changes?")) e.preventDefault();
+      }}
       className="inline-flex min-h-[44px] items-center gap-1 text-sm text-zinc-400 hover:text-[#38bdf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]"
     >
       <IconChevronLeft className="h-4 w-4" />
@@ -53,12 +59,42 @@ function PageSkeleton() {
 export default function AdminVenuePage() {
   const params = useParams<{ id: string }>();
   const venueId = String(params.id);
-  const { venue, isLoading, notFound, error, refetch } = useAdminVenue(venueId);
+  const { venue, isLoading, notFound, error, refetch, getSuspensionPreview, suspendVenue, updateVenue } =
+    useAdminVenue(venueId);
   const { showToast } = useToast();
-  const [action, setAction] = useState<VenueActionKind | null>(null);
+  const [action, setAction] = useState<VenueActionKind | "suspend" | null>(null);
+  // True while the Profile editor holds unsaved edits.
+  const [editsUnsaved, setEditsUnsaved] = useState(false);
+  const handleDirtyChange = useCallback((dirty: boolean) => setEditsUnsaved(dirty), []);
+
+  async function handleSaveProfile(changes: AdminVenueChanges) {
+    const result = await updateVenue(changes);
+    if (result.success) showToast("Venue details saved.");
+    return result;
+  }
+
+  async function handleSuspend(reason: string) {
+    if (!venue) return { success: false as const, error: "Nothing to confirm." };
+
+    const result = await suspendVenue(reason);
+    if (!result.success) {
+      void refetch();
+      return result;
+    }
+
+    setAction(null);
+    const { shows, requests } = result.counts;
+    showToast(
+      `${venue.name} is suspended. ${shows} ${shows === 1 ? "show" : "shows"} and ${requests} ${
+        requests === 1 ? "request" : "requests"
+      } cancelled.`
+    );
+    void refetch();
+    return result;
+  }
 
   async function handleConfirm(reason?: string): Promise<{ success: boolean; error?: string }> {
-    if (!action || !venue) return { success: false, error: "Nothing to confirm." };
+    if (!action || action === "suspend" || !venue) return { success: false, error: "Nothing to confirm." };
 
     const result = await runVenueAction(venue.id, action, reason);
     if (!result.success) {
@@ -77,7 +113,7 @@ export default function AdminVenuePage() {
   return (
     <>
       <section className="px-4 pt-6 md:px-6">
-        <BackLink />
+        <BackLink unsaved={editsUnsaved} />
 
         {isLoading ? (
           <PageSkeleton />
@@ -132,13 +168,22 @@ export default function AdminVenuePage() {
             </div>
 
             <div className="mt-4">
-              <VenueProfilePanel venue={venue} />
+              <VenueProfilePanel venue={venue} onSave={handleSaveProfile} onDirtyChange={handleDirtyChange} />
             </div>
           </>
         ) : null}
       </section>
 
-      {action && venue ? (
+      {action === "suspend" && venue ? (
+        <SuspendVenueModal
+          venueName={venue.name}
+          getPreview={getSuspensionPreview}
+          onConfirm={handleSuspend}
+          onClose={() => setAction(null)}
+        />
+      ) : null}
+
+      {action && action !== "suspend" && venue ? (
         <ReviewActionModal
           kind={action}
           venueName={venue.name}

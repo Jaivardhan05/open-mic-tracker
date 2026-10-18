@@ -4,6 +4,7 @@ import express from 'express';
 
 import type { NextFunction, Request, Response } from 'express';
 import { deriveDisplayStatus } from '@repo/types';
+import { validatePhotoUrls } from '@repo/types/photoHosts.js';
 import type { AdminVenueDetail, AdminVenueListResponse, VenueDisplayStatus } from '@repo/types';
 import { supabase, supabaseAdmin } from './lib/supabase.js';
 
@@ -318,8 +319,26 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
 // (bug: venue-producer profile edits were writing instagram_url/maps_url/
 // contact_email to the `users` table instead of `venues`, which is what
 // /venues' Connect component actually reads).
-async function applyVenueEditableUpdates(res: Response, venueId: string, body: Record<string, unknown>) {
-  const updates: Partial<Record<VenueEditableField | (typeof VENUE_DETAIL_FIELDS)[number], string | null>> = {};
+type VenueFieldUpdates = Partial<
+  Record<VenueEditableField | (typeof VENUE_DETAIL_FIELDS)[number], string | null>
+> & { photos?: string[] };
+
+// Length caps shared by the owner and admin paths.
+const VENUE_LINK_MAX = 2048;
+const VENUE_EMAIL_MAX = 254;
+const VENUE_PHONE_MAX = 32;
+
+// The one validator for venue fields, used by the owner PATCH and the admin
+// PATCH so both follow the same rules. Only keys present in `body` are checked
+// and returned. `photos` is honoured only when allowPhotos is set (admin); for
+// the owner it is ignored, as before. `currentCity` is the venue's stored city
+// (needed only when `city` is in the body), so an out-of-list city is accepted
+// unchanged.
+function validateVenueFields(
+  body: Record<string, unknown>,
+  opts: { currentCity?: string | null; allowPhotos?: boolean }
+): { updates: VenueFieldUpdates; hasDetailFields: boolean } | { error: string } {
+  const updates: VenueFieldUpdates = {};
 
   for (const field of VENUE_EDITABLE_FIELDS) {
     if (!(field in body)) {
@@ -327,8 +346,7 @@ async function applyVenueEditableUpdates(res: Response, venueId: string, body: R
     }
     const raw = body[field];
     if (raw !== null && typeof raw !== 'string') {
-      res.status(400).json({ error: `${field} must be a string` });
-      return;
+      return { error: `${field} must be a string` };
     }
     const trimmed: string | null = typeof raw === 'string' ? raw.trim() : null;
     updates[field] = trimmed === '' ? null : trimmed;
@@ -342,47 +360,74 @@ async function applyVenueEditableUpdates(res: Response, venueId: string, body: R
     hasDetailFields = true;
     const raw = body[field];
     if (typeof raw !== 'string') {
-      res.status(400).json({ error: `${field} must be a string` });
-      return;
+      return { error: `${field} must be a string` };
     }
     const trimmed = raw.trim();
 
     if (field === 'name' && (trimmed.length < VENUE_NAME_MIN || trimmed.length > VENUE_NAME_MAX)) {
-      res.status(400).json({ error: `Venue name must be ${VENUE_NAME_MIN}-${VENUE_NAME_MAX} characters` });
-      return;
+      return { error: `Venue name must be ${VENUE_NAME_MIN}-${VENUE_NAME_MAX} characters` };
     }
     if (field === 'description' && trimmed.length > VENUE_DESCRIPTION_MAX) {
-      res.status(400).json({ error: `Description must be ${VENUE_DESCRIPTION_MAX} characters or fewer` });
-      return;
+      return { error: `Description must be ${VENUE_DESCRIPTION_MAX} characters or fewer` };
     }
-    if (field === 'city' && !VENUE_CITIES.includes(trimmed)) {
-      const { data: current } = await supabaseAdmin.from('venues').select('city').eq('id', venueId).maybeSingle();
-      if (current?.city !== trimmed) {
-        res.status(400).json({ error: `City must be one of: ${VENUE_CITIES.join(', ')}` });
-        return;
-      }
+    if (field === 'city' && !VENUE_CITIES.includes(trimmed) && opts.currentCity !== trimmed) {
+      return { error: `City must be one of: ${VENUE_CITIES.join(', ')}` };
     }
 
     updates[field] = trimmed;
   }
 
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: 'No editable fields provided' });
-    return;
+  if (opts.allowPhotos && 'photos' in body) {
+    const result = validatePhotoUrls(body.photos);
+    if (!result.ok) {
+      return { error: result.error };
+    }
+    updates.photos = result.photos;
   }
 
-  if (updates.contact_email && !/^[^@]+@[^@]+\.[^@]+$/.test(updates.contact_email)) {
-    res.status(400).json({ error: 'Invalid contact email format' });
-    return;
+  if (Object.keys(updates).length === 0) {
+    return { error: 'No editable fields provided' };
+  }
+
+  if (updates.contact_email) {
+    if (updates.contact_email.length > VENUE_EMAIL_MAX) {
+      return { error: `Contact email must be ${VENUE_EMAIL_MAX} characters or fewer` };
+    }
+    if (!/^[^@]+@[^@]+\.[^@]+$/.test(updates.contact_email)) {
+      return { error: 'Invalid contact email format' };
+    }
+  }
+
+  if (updates.contact_phone && updates.contact_phone.length > VENUE_PHONE_MAX) {
+    return { error: `Contact phone must be ${VENUE_PHONE_MAX} characters or fewer` };
   }
 
   for (const urlField of ['instagram_url', 'x_url', 'maps_url'] as const) {
     const value = updates[urlField];
     if (value && !/^https?:\/\//i.test(value)) {
-      res.status(400).json({ error: `${urlField} must start with http:// or https://` });
-      return;
+      return { error: `${urlField} must start with http:// or https://` };
+    }
+    if (value && value.length > VENUE_LINK_MAX) {
+      return { error: `${urlField} must be ${VENUE_LINK_MAX} characters or fewer` };
     }
   }
+
+  return { updates, hasDetailFields };
+}
+
+async function applyVenueEditableUpdates(res: Response, venueId: string, body: Record<string, unknown>) {
+  let currentCity: string | null = null;
+  if (typeof body.city === 'string' && !VENUE_CITIES.includes(body.city.trim())) {
+    const { data: current } = await supabaseAdmin.from('venues').select('city').eq('id', venueId).maybeSingle();
+    currentCity = current?.city ?? null;
+  }
+
+  const validated = validateVenueFields(body, { currentCity });
+  if ('error' in validated) {
+    res.status(400).json({ error: validated.error });
+    return;
+  }
+  const { updates, hasDetailFields } = validated;
 
   let query = supabaseAdmin.from('venues').update(updates).eq('id', venueId);
   if (hasDetailFields) {
@@ -816,13 +861,10 @@ app.post('/api/admin/manage/venues/:id/unsuspend', async (req: AuthedRequest, re
 const ADMIN_VENUE_DETAIL_SELECT =
   'id, name, city, description, photos, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id, review_status, review_reason, reviewed_at, reviewed_by, submitted_at, is_hidden, hidden_reason, hidden_at, hidden_by, is_suspended, suspension_reason, suspended_at, suspended_by, created_at, updated_at';
 
-app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response) => {
-  const id = String(req.params.id);
-  if (!UUID_RE.test(id)) {
-    res.status(404).json({ error: 'Venue not found' });
-    return;
-  }
+type AdminVenueDetailResult = { status: 200; body: AdminVenueDetail } | { status: 404 | 500; error: string };
 
+// Shared by GET and PATCH on /api/admin/manage/venues/:id.
+async function loadAdminVenueDetail(id: string): Promise<AdminVenueDetailResult> {
   const { data: venue, error } = await supabaseAdmin
     .from('venues')
     .select(ADMIN_VENUE_DETAIL_SELECT)
@@ -830,12 +872,10 @@ app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response
     .maybeSingle();
 
   if (error) {
-    res.status(500).json({ error: error.message });
-    return;
+    return { status: 500, error: error.message };
   }
   if (!venue) {
-    res.status(404).json({ error: 'Venue not found' });
-    return;
+    return { status: 404, error: 'Venue not found' };
   }
 
   // Owner plus the admins behind the review / hide / suspension stamps, in one lookup.
@@ -850,8 +890,7 @@ app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response
       .in('id', userIds);
 
     if (usersError) {
-      res.status(500).json({ error: usersError.message });
-      return;
+      return { status: 500, error: usersError.message };
     }
     (userRows ?? []).forEach((u: { id: string; name: string; email: string }) => {
       users[u.id] = { name: u.name, email: u.email };
@@ -859,16 +898,105 @@ app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response
   }
 
   const { reviewed_by, hidden_by, suspended_by, ...rest } = venue;
-  const body: AdminVenueDetail = {
-    ...rest,
-    photos: Array.isArray(venue.photos) ? venue.photos : [],
-    owner_name: users[venue.owner_id]?.name ?? null,
-    owner_email: users[venue.owner_id]?.email ?? null,
-    reviewed_by_name: users[reviewed_by]?.name ?? null,
-    hidden_by_name: users[hidden_by]?.name ?? null,
-    suspended_by_name: users[suspended_by]?.name ?? null,
+  return {
+    status: 200,
+    body: {
+      ...rest,
+      photos: Array.isArray(venue.photos) ? venue.photos : [],
+      owner_name: users[venue.owner_id]?.name ?? null,
+      owner_email: users[venue.owner_id]?.email ?? null,
+      reviewed_by_name: users[reviewed_by]?.name ?? null,
+      hidden_by_name: users[hidden_by]?.name ?? null,
+      suspended_by_name: users[suspended_by]?.name ?? null,
+      allowed_cities: VENUE_CITIES,
+    },
   };
-  res.status(200).json(body);
+}
+
+app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const result = await loadAdminVenueDetail(id);
+  if (result.status === 200) {
+    res.status(200).json(result.body);
+  } else {
+    res.status(result.status).json({ error: result.error });
+  }
+});
+
+// What an admin may edit (step 6c). Anything else in the body is a 400, so a
+// typo or an attempt at owner_id / moderation columns / address never silently
+// "succeeds". Works in every status, including suspended. Only the keys sent
+// are validated and written (an untouched legacy photo is never re-checked).
+// The owner is not notified of admin edits (decided: deferred).
+const ADMIN_EDITABLE_KEYS: readonly string[] = [...VENUE_DETAIL_FIELDS, ...VENUE_EDITABLE_FIELDS, 'photos'];
+
+app.patch('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    res.status(400).json({ error: 'Request body must be an object' });
+    return;
+  }
+  const unknownKeys = Object.keys(body).filter((key) => !ADMIN_EDITABLE_KEYS.includes(key));
+  if (unknownKeys.length > 0) {
+    res.status(400).json({ error: `Cannot edit: ${unknownKeys.join(', ')}` });
+    return;
+  }
+
+  const { data: current, error: currentError } = await supabaseAdmin
+    .from('venues')
+    .select('city')
+    .eq('id', id)
+    .maybeSingle();
+  if (currentError) {
+    res.status(500).json({ error: currentError.message });
+    return;
+  }
+  if (!current) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const validated = validateVenueFields(body as Record<string, unknown>, {
+    currentCity: current.city,
+    allowPhotos: true,
+  });
+  if ('error' in validated) {
+    res.status(400).json({ error: validated.error });
+    return;
+  }
+
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from('venues')
+    .update(validated.updates)
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+  if (updateError) {
+    res.status(500).json({ error: updateError.message });
+    return;
+  }
+  if (!updated) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const result = await loadAdminVenueDetail(id);
+  if (result.status === 200) {
+    res.status(200).json(result.body);
+  } else {
+    res.status(result.status).json({ error: result.error });
+  }
 });
 
 // rejected -> pending (migration 018). The venue re-enters the queue with a

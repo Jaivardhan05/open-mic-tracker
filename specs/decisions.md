@@ -202,3 +202,15 @@ Each entry has: **Date / feature / title**, **Context**, **Options considered** 
 
 ## 2026-10-18 · Admin venues, Step 6 · Admin edit rules and deferrals
 **Decision (user's).** Unknown keys on `PATCH` get 400; only changed fields are sent; edits allowed in every status; photos get up/down reorder with the first labelled "Cover" and no previews; unsaved-changes warning covers tab close and the page's own links only. **Deferred.** Notifying the owner when an admin edits a live venue.
+
+## 2026-10-18 · Admin venues, Step 6b · Suspend notifies the owner (migration 027)
+**Options.** (A) banner only; (B) also a `venue_notices` row. **Decision.** B (the user's call: "the notice is important"). `admin_suspend_venue` inserts "Your venue was suspended: <reason>" in the same transaction, so a failed notice rolls the suspend back. The text says what happened itself because Notices shows no type. Unsuspend sends none.
+
+## 2026-10-18 · Admin venues, Step 6b · Suspend confirmation is typing "Suspend"
+**Decision (user's).** One modal with the venue name, live counts and warnings, a required reason, and a typed "Suspend" (trimmed, case-ignored) that enables the final button. Not the venue name. Accepted: the reason is erased on unsuspend (no audit log yet); legacy bookings are not cancelled; one venue per owner.
+
+## 2026-10-18 · Admin venues, Step 6c · One validator and length caps for owners and admins
+**Decision (user's).** Owner and admin venue edits share `validateVenueFields`; caps added: links 2048, email 254, phone 32. Existing data was checked first (longest link 66, nothing near the others), so no one is locked out. **Trade-off.** The owner path is now slightly stricter than before. Photos are accepted only on the admin path.
+
+## 2026-10-18 · Admin venues, Step 6c · Photo rules in one plain-ESM file
+**Decision.** `packages/types/photoHosts.js` (+ `.d.ts`) holds the host list and `validatePhotoUrls`; the API, the editor and `next.config.js` (`remotePatterns`) all import it. Verified to import under plain Node, `next build` and the running API. A future owner flow can call the same validator.

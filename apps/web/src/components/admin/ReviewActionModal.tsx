@@ -97,6 +97,15 @@ const COPY: Record<
     busy: "Moving…",
     variant: "default",
   },
+  unsuspend: {
+    title: "Lift suspension",
+    status: "approved",
+    body: (name) =>
+      `${name} can add shows again and shows on /venues again (unless it is also hidden). Nothing is restored: the shows and requests cancelled by the suspension stay cancelled, and the owner has to recreate their shows. The owner is not notified.`,
+    cta: "Lift suspension",
+    busy: "Lifting…",
+    variant: "default",
+  },
 };
 
 const REASON_KINDS: VenueActionKind[] = ["request_changes", "reject", "hide"];

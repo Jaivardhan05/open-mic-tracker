@@ -1,6 +1,14 @@
+"use client";
+
+import { useState } from "react";
+
 import type { AdminVenueDetail } from "@repo/types";
 
+import CtaButton from "@/components/CtaButton";
+import type { AdminVenueChanges } from "@/hooks/useAdminVenue";
 import { safeHttpUrl, safeMailto } from "@/lib/safeLinks";
+
+import VenueProfileEditor from "./VenueProfileEditor";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -35,21 +43,49 @@ function LinkValue({ value }: { value: string | null }) {
   );
 }
 
-// Read view of what the venue shows the public. Address is not part of this
-// project. Photos are listed as URLs only (no previews); the first one is the
-// cover shown on /venues.
-export default function VenueProfilePanel({ venue }: { venue: AdminVenueDetail }) {
+interface VenueProfilePanelProps {
+  venue: AdminVenueDetail;
+  onSave: (changes: AdminVenueChanges) => Promise<{ success: boolean; error?: string }>;
+  onDirtyChange: (dirty: boolean) => void;
+}
+
+// What the venue shows the public, as a read view with an Edit toggle that
+// swaps the fields for a form in place. Address is not part of this project.
+// Photos are URLs only (no previews); the first one is the cover shown on /venues.
+export default function VenueProfilePanel({ venue, onSave, onDirtyChange }: VenueProfilePanelProps) {
   const email = safeMailto(venue.contact_email);
+  const [editing, setEditing] = useState(false);
+
+  async function handleSave(changes: AdminVenueChanges) {
+    const result = await onSave(changes);
+    if (result.success) setEditing(false);
+    return result;
+  }
 
   return (
     <section className="glass-panel rounded-2xl p-5" aria-labelledby="profile-heading">
-      <h2
-        id="profile-heading"
-        className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white"
-      >
-        Profile
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2
+          id="profile-heading"
+          className="font-[family-name:var(--font-bebas)] text-2xl uppercase tracking-[0.04em] text-white"
+        >
+          Profile
+        </h2>
+        {editing ? null : (
+          <CtaButton type="button" className="min-h-[44px]" onClick={() => setEditing(true)}>
+            Edit
+          </CtaButton>
+        )}
+      </div>
 
+      {editing ? (
+        <VenueProfileEditor
+          venue={venue}
+          onSave={handleSave}
+          onCancel={() => setEditing(false)}
+          onDirtyChange={onDirtyChange}
+        />
+      ) : (
       <dl className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Name">{venue.name}</Field>
         <Field label="City">{venue.city}</Field>
@@ -107,6 +143,7 @@ export default function VenueProfilePanel({ venue }: { venue: AdminVenueDetail }
         </Field>
         <Field label="Contact phone">{venue.contact_phone?.trim() ? venue.contact_phone : <NotSet />}</Field>
       </dl>
+      )}
     </section>
   );
 }

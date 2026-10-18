@@ -6,7 +6,8 @@ import { deriveDisplayStatus } from "@/lib/venueStatus";
 
 interface VenueNextActionsProps {
   venue: AdminVenueDetail;
-  onAction: (kind: VenueActionKind) => void;
+  // "suspend" has its own modal; the rest go through ReviewActionModal.
+  onAction: (kind: VenueActionKind | "suspend") => void;
 }
 
 const BUTTON = "min-h-[44px] justify-center sm:justify-start";
@@ -15,8 +16,8 @@ const BUTTON = "min-h-[44px] justify-center sm:justify-start";
 //   pending            Approve / Request changes / Reject
 //   changes requested  Approve / Reject (the owner is the one who has to act)
 //   rejected           Move back to pending
-//   approved           (Suspend arrives with step 6b)
-//   suspended          nothing yet (Unsuspend arrives with step 6b)
+//   approved           Suspend (not while suspended)
+//   suspended          Lift suspension
 // Hide / Unhide are offered in every state except suspended.
 export default function VenueNextActions({ venue, onAction }: VenueNextActionsProps) {
   const status = deriveDisplayStatus(venue);
@@ -24,7 +25,7 @@ export default function VenueNextActions({ venue, onAction }: VenueNextActionsPr
   const suspended = venue.is_suspended;
 
   const lead = suspended
-    ? "Suspended. Hide and unhide are paused until the suspension is lifted."
+    ? "Suspended. Hide and unhide are paused until you lift the suspension."
     : review === "pending"
       ? "Waiting on you."
       : review === "changes_requested"
@@ -87,6 +88,18 @@ export default function VenueNextActions({ venue, onAction }: VenueNextActionsPr
               Hide
             </CtaButton>
           )
+        ) : null}
+
+        {review === "approved" && !suspended ? (
+          <CtaButton type="button" variant="danger" className={BUTTON} onClick={() => onAction("suspend")}>
+            Suspend
+          </CtaButton>
+        ) : null}
+
+        {suspended ? (
+          <CtaButton type="button" className={BUTTON} onClick={() => onAction("unsuspend")}>
+            Lift suspension
+          </CtaButton>
         ) : null}
       </div>
     </section>

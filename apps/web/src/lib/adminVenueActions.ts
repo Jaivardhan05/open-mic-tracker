@@ -1,8 +1,9 @@
 import { authorizedFetch } from "@/lib/apiClient";
 
-export type VenueActionKind = "approve" | "request_changes" | "reject" | "hide" | "unhide" | "reopen";
+export type VenueActionKind = "approve" | "request_changes" | "reject" | "hide" | "unhide" | "reopen" | "unsuspend";
 
 const PATH: Record<VenueActionKind, string> = {
+  unsuspend: "unsuspend",
   approve: "approve",
   request_changes: "request-changes",
   reject: "reject",

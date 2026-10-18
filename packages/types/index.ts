@@ -128,6 +128,8 @@ export interface AdminVenueDetail {
   suspended_by_name: string | null;
   created_at: string;
   updated_at: string;
+  /** Cities the edit form offers (a venue's own city is always accepted unchanged). */
+  allowed_cities: string[];
 }
 
 /** Response of GET /api/admin/manage/venues. */
