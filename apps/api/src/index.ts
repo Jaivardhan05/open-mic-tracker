@@ -3,6 +3,8 @@ import cors from 'cors';
 import express from 'express';
 
 import type { NextFunction, Request, Response } from 'express';
+import { deriveDisplayStatus } from '@repo/types';
+import type { AdminVenueDetail, AdminVenueListResponse, VenueDisplayStatus } from '@repo/types';
 import { supabase, supabaseAdmin } from './lib/supabase.js';
 
 interface AuthedRequest extends Request {
@@ -552,7 +554,40 @@ app.get('/api/admin/me', async (req: AuthedRequest, res: Response) => {
 // Every venue in every state, for /admin/venues. Deliberately omits address
 // (out of scope, see specs/admin-venue-management.md). Oldest submission
 // first so the review queue reads in order.
-app.get('/api/admin/manage/venues', async (_req: AuthedRequest, res: Response) => {
+//
+// Optional filters: q (venue NAME only, case-insensitive substring, cut to
+// ADMIN_VENUE_SEARCH_MAX), city (case-insensitive exact), status (one display
+// status, see deriveDisplayStatus in @repo/types). Filtering happens here, in
+// memory, because the display status is derived, not stored; that also means
+// q is never a SQL pattern, so % and _ need no escaping. This loads every
+// venue per request: fine at hundreds of rows, move it into SQL if it grows
+// to many thousands. Response: { venues, counts, cities }. counts follow q and
+// city but ignore status (so the tiles stay a breakdown of the search);
+// cities is the full distinct list so the dropdown does not shift while typing.
+const ADMIN_VENUE_SEARCH_MAX = 100;
+const ADMIN_VENUE_STATUSES: VenueDisplayStatus[] = [
+  'pending',
+  'changes_requested',
+  'approved',
+  'hidden',
+  'suspended',
+  'rejected',
+];
+
+app.get('/api/admin/manage/venues', async (req: AuthedRequest, res: Response) => {
+  const rawQ = typeof req.query.q === 'string' ? req.query.q : '';
+  const rawCity = typeof req.query.city === 'string' ? req.query.city : '';
+  const rawStatus = typeof req.query.status === 'string' ? req.query.status : '';
+
+  const q = rawQ.trim().slice(0, ADMIN_VENUE_SEARCH_MAX).toLowerCase();
+  const city = rawCity.trim().toLowerCase();
+
+  if (rawStatus !== '' && !ADMIN_VENUE_STATUSES.includes(rawStatus as VenueDisplayStatus)) {
+    res.status(400).json({ error: `status must be one of: ${ADMIN_VENUE_STATUSES.join(', ')}` });
+    return;
+  }
+  const status = rawStatus as VenueDisplayStatus | '';
+
   const { data, error } = await supabaseAdmin
     .from('venues')
     .select(
@@ -565,7 +600,31 @@ app.get('/api/admin/manage/venues', async (_req: AuthedRequest, res: Response) =
     return;
   }
 
-  const rows = data ?? [];
+  const allRows = data ?? [];
+
+  const cities = Array.from(new Set(allRows.map((v) => v.city).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  const counts: AdminVenueListResponse['counts'] = {
+    all: 0,
+    pending: 0,
+    changes_requested: 0,
+    approved: 0,
+    hidden: 0,
+    suspended: 0,
+    rejected: 0,
+  };
+  const rows = [];
+  for (const v of allRows) {
+    if (q !== '' && !String(v.name ?? '').toLowerCase().includes(q)) continue;
+    if (city !== '' && String(v.city ?? '').trim().toLowerCase() !== city) continue;
+    const displayStatus = deriveDisplayStatus(v);
+    counts.all += 1;
+    counts[displayStatus] += 1;
+    if (status === '' || displayStatus === status) rows.push(v);
+  }
+
   const ownerIds = Array.from(new Set(rows.map((v) => v.owner_id).filter(Boolean)));
 
   const owners: Record<string, { name: string; email: string }> = {};
@@ -585,13 +644,16 @@ app.get('/api/admin/manage/venues', async (_req: AuthedRequest, res: Response) =
     });
   }
 
-  res.status(200).json(
-    rows.map((v) => ({
+  const body: AdminVenueListResponse = {
+    venues: rows.map((v) => ({
       ...v,
       owner_name: owners[v.owner_id]?.name ?? null,
       owner_email: owners[v.owner_id]?.email ?? null,
-    }))
-  );
+    })),
+    counts,
+    cities,
+  };
+  res.status(200).json(body);
 });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -607,6 +669,9 @@ async function runVenueReviewAction(
     | 'admin_approve_venue'
     | 'admin_reject_venue'
     | 'admin_request_changes'
+    | 'admin_reopen_venue'
+    | 'admin_hide_venue'
+    | 'admin_unhide_venue'
     | 'admin_suspend_venue'
     | 'admin_unsuspend_venue'
     | 'venue_suspension_preview',
@@ -739,6 +804,147 @@ app.post('/api/admin/manage/venues/:id/unsuspend', async (req: AuthedRequest, re
   }
 
   await runVenueReviewAction(res, 'admin_unsuspend_venue', {
+    p_venue_id: id,
+    p_admin_id: req.userId,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Page B: /admin/venues/[id] (step 6). Address is deliberately never selected.
+// ---------------------------------------------------------------------------
+
+const ADMIN_VENUE_DETAIL_SELECT =
+  'id, name, city, description, photos, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id, review_status, review_reason, reviewed_at, reviewed_by, submitted_at, is_hidden, hidden_reason, hidden_at, hidden_by, is_suspended, suspension_reason, suspended_at, suspended_by, created_at, updated_at';
+
+app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const { data: venue, error } = await supabaseAdmin
+    .from('venues')
+    .select(ADMIN_VENUE_DETAIL_SELECT)
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  if (!venue) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  // Owner plus the admins behind the review / hide / suspension stamps, in one lookup.
+  const userIds = Array.from(
+    new Set([venue.owner_id, venue.reviewed_by, venue.hidden_by, venue.suspended_by].filter(Boolean))
+  ) as string[];
+  const users: Record<string, { name: string; email: string }> = {};
+  if (userIds.length > 0) {
+    const { data: userRows, error: usersError } = await supabaseAdmin
+      .from('users')
+      .select('id, name, email')
+      .in('id', userIds);
+
+    if (usersError) {
+      res.status(500).json({ error: usersError.message });
+      return;
+    }
+    (userRows ?? []).forEach((u: { id: string; name: string; email: string }) => {
+      users[u.id] = { name: u.name, email: u.email };
+    });
+  }
+
+  const { reviewed_by, hidden_by, suspended_by, ...rest } = venue;
+  const body: AdminVenueDetail = {
+    ...rest,
+    photos: Array.isArray(venue.photos) ? venue.photos : [],
+    owner_name: users[venue.owner_id]?.name ?? null,
+    owner_email: users[venue.owner_id]?.email ?? null,
+    reviewed_by_name: users[reviewed_by]?.name ?? null,
+    hidden_by_name: users[hidden_by]?.name ?? null,
+    suspended_by_name: users[suspended_by]?.name ?? null,
+  };
+  res.status(200).json(body);
+});
+
+// rejected -> pending (migration 018). The venue re-enters the queue with a
+// fresh submitted_at; the earlier note is kept.
+app.post('/api/admin/manage/venues/:id/reopen', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_reopen_venue', {
+    p_venue_id: id,
+    p_admin_id: req.userId,
+  });
+});
+
+// Hide / unhide (migration 026). Allowed in any review state, but not while
+// suspended: the suspension has to be lifted first. The suspended check is a
+// read before the RPC (the RPC itself stays status-agnostic so the older
+// /home routes behave as before); the worst a race can do is hide a venue that
+// was suspended a moment earlier, which is harmless.
+async function refuseIfSuspended(res: Response, id: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .select('is_suspended')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return true;
+  }
+  if (!data) {
+    res.status(404).json({ error: 'Venue not found' });
+    return true;
+  }
+  if (data.is_suspended) {
+    res.status(409).json({ error: 'A suspended venue cannot be hidden or unhidden. Lift the suspension first.' });
+    return true;
+  }
+  return false;
+}
+
+app.post('/api/admin/manage/venues/:id/hide', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  const parsed = parseReviewReason(req.body);
+  if ('error' in parsed) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  if (await refuseIfSuspended(res, id)) return;
+
+  await runVenueReviewAction(res, 'admin_hide_venue', {
+    p_venue_id: id,
+    p_reason: parsed.reason,
+    p_admin_id: req.userId,
+  });
+});
+
+app.post('/api/admin/manage/venues/:id/unhide', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  if (await refuseIfSuspended(res, id)) return;
+
+  await runVenueReviewAction(res, 'admin_unhide_venue', {
     p_venue_id: id,
     p_admin_id: req.userId,
   });

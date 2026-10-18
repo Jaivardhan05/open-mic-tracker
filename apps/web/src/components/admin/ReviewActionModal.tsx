@@ -2,29 +2,34 @@
 
 import { useRef, useState } from "react";
 
+import type { VenueDisplayStatus } from "@repo/types";
+
 import CtaButton from "@/components/CtaButton";
 import ModalShell from "@/components/ModalShell";
+import type { VenueActionKind } from "@/lib/adminVenueActions";
 import { STATUS_META } from "@/lib/venueStatus";
 
 import ReasonNote from "./ReasonNote";
 import StatusIcon from "./StatusIcons";
 
 export type ReviewActionKind = "approve" | "request_changes" | "reject";
+// Page B adds three more outcomes that reuse the same modal.
+export type { VenueActionKind };
 
 export const REVIEW_REASON_MAX = 500;
 
 interface ReviewActionModalProps {
-  kind: ReviewActionKind;
+  kind: VenueActionKind;
   venueName: string;
   onConfirm: (reason?: string) => Promise<{ success: boolean; error?: string }>;
   onClose: () => void;
 }
 
 const COPY: Record<
-  ReviewActionKind,
+  VenueActionKind,
   {
     title: string;
-    status: "approved" | "changes_requested" | "rejected";
+    status: VenueDisplayStatus;
     body: (name: string) => string;
     fieldLabel?: string;
     notePrompt?: string;
@@ -63,11 +68,42 @@ const COPY: Record<
     busy: "Rejecting…",
     variant: "danger",
   },
+  hide: {
+    title: "Hide venue",
+    status: "hidden",
+    body: (name) =>
+      `${name} comes off /venues and its detail page until you unhide it. Its owner keeps their dashboard and is told why.`,
+    fieldLabel: "Why it's being hidden",
+    notePrompt: "The owner will read",
+    cta: "Hide venue",
+    busy: "Hiding…",
+    variant: "default",
+  },
+  unhide: {
+    title: "Unhide venue",
+    status: "hidden",
+    body: (name) =>
+      `Removes the hide on ${name}. It shows on /venues again once it is approved and not suspended. The owner is not notified.`,
+    cta: "Unhide venue",
+    busy: "Unhiding…",
+    variant: "default",
+  },
+  reopen: {
+    title: "Move back to pending",
+    status: "pending",
+    body: (name) =>
+      `${name} goes back into the review queue, at the end of the line. Its owner sees it as under review again. The earlier rejection note is kept.`,
+    cta: "Move to pending",
+    busy: "Moving…",
+    variant: "default",
+  },
 };
+
+const REASON_KINDS: VenueActionKind[] = ["request_changes", "reject", "hide"];
 
 export default function ReviewActionModal({ kind, venueName, onConfirm, onClose }: ReviewActionModalProps) {
   const copy = COPY[kind];
-  const needsReason = kind !== "approve";
+  const needsReason = REASON_KINDS.includes(kind);
   const { color } = STATUS_META[copy.status];
 
   const [reason, setReason] = useState("");

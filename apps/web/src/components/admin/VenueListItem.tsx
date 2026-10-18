@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { AdminManagedVenue } from "@repo/types";
 
 import { STATUS_META, deriveDisplayStatus, statusReason } from "@/lib/venueStatus";
@@ -25,7 +27,12 @@ export default function VenueListItem({ venue }: VenueListItemProps) {
       <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} aria-hidden="true" />
 
       <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-white">{venue.name}</p>
+        <Link
+          href={`/admin/venues/${venue.id}`}
+          className="block truncate py-1 text-sm font-bold text-white hover:text-[#38bdf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]"
+        >
+          {venue.name}
+        </Link>
         <p className="mt-0.5 text-xs text-zinc-500">{venue.city}</p>
       </div>
 

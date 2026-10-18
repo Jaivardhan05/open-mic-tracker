@@ -14,6 +14,7 @@ function getLocalNetworkIps() {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['@repo/types'],
   // Testing on a phone over the LAN hits the dev server via this machine's
   // current IP, which changes with DHCP — detect it instead of hardcoding
   // a value that goes stale and silently breaks hydration for LAN clients.

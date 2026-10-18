@@ -287,6 +287,102 @@ Evidence for 025 being safe: the API reads these tables with the anon client onl
 - 025: with the anon key and with a plain comedian login, 2 of 12 venues are readable (exactly the public ones) and no hidden/suspended row or `suspension_reason` leaks. With the test venue flagged suspended and holding live spots, anon and comedian read 0 venues, 0 spots, 0 venue_shows and 0 legacy shows for it; its owner still reads their own; the test admin reads all 12 venues over a browser-style direct read (what `AdminProfile` does). Flag cleared afterwards and anon sees the venue and its shows again.
 - Still **not** exercised in a browser: `AdminProfile` itself, owner banner, signup UI. Not touched: `POST /api/bookings/:id/confirm` (unauthenticated test helper, flagged below).
 
+## Step 5: search and filters (Page A)
+
+No migration. Backend plus UI, both on `/admin/venues`.
+
+### API
+
+`GET /api/admin/manage/venues` takes optional query params and now returns `{ venues, counts, cities }` (it used to return a bare array; the only consumer, `useAdminVenueList`, was updated):
+
+| Param | Behavior |
+|---|---|
+| `q` | Venue **name only**, case-insensitive substring. Trimmed and silently **truncated to 100 characters** (not a 400). Never a SQL pattern, so `%` and `_` are plain characters. Address is not searched. |
+| `status` | One of the six display statuses (`pending`, `changes_requested`, `approved`, `hidden`, `suspended`, `rejected`). Anything else is a 400. Empty means all. |
+| `city` | Trimmed, case-insensitive exact match. |
+
+- **Counts** (`all` plus the six statuses) follow `q` and `city` but **ignore `status`**, so the tiles stay a breakdown of the current search and the six always add up to `all`.
+- **Cities** is the distinct, sorted list across **every** venue (the cities present in the data), not narrowed by any filter, so the dropdown does not shift while typing.
+- Order is still `submitted_at` ascending. Still no address column.
+- Filtering and counting happen **in memory** after loading the venues, because the display status is derived, not stored. It loads every venue per request: fine at hundreds of rows; move it into SQL if it grows to many thousands.
+
+### One definition of "display status"
+
+`deriveDisplayStatus` now lives in `packages/types/index.ts` and is imported by both `apps/api` (to filter and count) and `apps/web` (to render). `apps/web/src/lib/venueStatus.ts` re-exports it, so no call site changed; colors, labels, `statusReason` and `formatWaiting` stay there. No stored status column.
+
+**This is `@repo/types`' first runtime export, which needed two config changes** (see `specs/decisions.md` for the full story):
+- `apps/web/next.config.js`: `transpilePackages: ['@repo/types']`.
+- `packages/types/package.json`: `"type": "module"`. Without it the ESM API crashes at startup ("does not provide an export named 'deriveDisplayStatus'"), even under `tsx` in dev; `next build` does not catch this. The function is defined directly in `index.ts` (a re-export from a sibling file failed the same way).
+- **Known deployment trap:** `apps/api` has no tsconfig and its `build` script (`tsc`) does not work, so running the API as plain `node dist/index.js` would fail on the runtime import of a `.ts` package. Dev (`tsx`) is fine. Whoever deploys the API must add a build for it (or bundle it).
+
+### Web
+
+- `VenueFilterBar` (new, `components/admin/`): a `float-input` name search (placeholder "Search venues by name...", max 100, clear button) and a city `<select>` ("All cities" plus the API's list), stacked on mobile and in one row from `md`. The status filter is still the summary-strip tiles; `StatusSummaryStrip` was not changed (it already took `counts` as a prop).
+- `useAdminVenueList(filters)`: sends the filters, returns `venues, counts, cities, isLoading, isFetching, error, refetch, reviewVenue`. `isLoading` is only the first load; afterwards the **previous list stays on screen** (dimmed, `aria-busy`) while a request runs. A request counter drops a response that arrives after a newer request was sent. `refetch` (after approve/reject) uses the **current** filters.
+- Page: plain React state (no URL sync), search debounced 250 ms, status and city apply immediately. The "Needs your attention" / "Everything else" split stays while filtering. A selected city that disappears from the data falls back to "All cities".
+- Empty states: no search/city matches shows "No venues match ..." with a **Clear filters** button instead of the two sections; with a search active the attention zone says "No pending venues match." and the list "No other venues match."; "No venues on the circuit yet." only when the database has none.
+
+### Verified / not verified
+
+Verified: `npm run check-types`, `next build`, ESLint on the changed web files, API typecheck (only the 13 old errors). **Live, against the real database with the test accounts: 62 checks passed, 0 failed** (script in the session scratchpad, not in the repo): role matrix (no/bogus token 401, comedian 403, owner 403, admin 200); response shape; counts invariants; each status, `q`, `city` and combinations checked against an oracle computed from the unfiltered list; `%`/`_` literal; address text not searchable; 150-character `q` truncated; no `address` key; TEST venues absent from `/api/venues`. Nine "TEST – " venues were created for this (pending, hidden pending, changes requested, rejected with and without a reason, hidden approved, suspended, a `100% _Wild` name, four cities) and **deleted afterwards**; the original 12 venues were not touched.
+
+**Not verified:** the new UI in a browser (debounce feel, dimming, stale-response handling in practice, mobile layout, the empty states), and the page's behavior after approve/reject with filters active.
+
+## Step 6a: Page B, read-only dossier and actions (`/admin/venues/[id]`)
+
+Step 6 is delivered in three parts: **6a** (this section) the read-only dossier plus every action that needs no new UI; **6b** suspend / unsuspend (`SuspendVenueModal`, `ConfirmByTyping`); **6c** edit mode, `PhotoUrlListEditor` and the shared validator.
+
+### Migration 026 (`026_hide_audit_and_state_checks.sql`)
+
+**Applied by the user (2026-10-18) and verified live** (see below). The header lists three read-only queries for comparing the live function bodies with the repo first (022b showed they can differ).
+
+- `venues.hidden_at`, `venues.hidden_by`. Venues hidden before 026 keep NULL; the UI says "time not recorded". Nothing is backfilled.
+- `admin_hide_venue(uuid, text, uuid DEFAULT NULL)` and `admin_unhide_venue(uuid, uuid DEFAULT NULL)` replace the 008 versions. Hide records time and admin and refuses a repeat ("Venue is already hidden"); unhide clears the fields and refuses when not hidden. The old signatures are dropped; new ones are `service_role` only (024 listed the old ones).
+- `venues_protect_moderation` is replaced with 018's body plus `hidden_at` / `hidden_by`, so an owner cannot forge them through PostgREST.
+- **Visible change to the older `/home` routes** (`POST /api/venues/:id/hide|unhide`): a repeat hide or unhide now returns `{ success: false, error }` instead of silently succeeding (hiding twice used to send the owner a second notice). They still resolve through the defaulted `p_admin_id`.
+
+### API (all under the `/api/admin` guard; address is never selected)
+
+| Route | Notes |
+|---|---|
+| `GET /api/admin/manage/venues/:id` | `AdminVenueDetail` (`@repo/types`): all venue fields except address, owner name/email, and the names behind `reviewed_by`, `hidden_by`, `suspended_by`. Non-UUID or unknown id: 404. |
+| `POST .../:id/reopen` | rejected -> pending via `admin_reopen_venue`. 409 for any other state. The venue goes to the back of the queue (`submitted_at` is reset). |
+| `POST .../:id/hide` | `{ reason }` required (trimmed, <= 500). 409 if already hidden. |
+| `POST .../:id/unhide` | 409 if not hidden. |
+
+Hide and unhide are refused with 409 for a **suspended** venue ("lift the suspension first"). That check is a read in the route, not in the RPC, so the older routes keep their behavior. Approve / reject / request-changes are the existing step 3a routes.
+
+### Web
+
+- `app/admin/venues/[id]/page.tsx` under the existing admin guard layout: header (name, status badge, city, owner), **Situation** and **Next actions** side by side from `lg`, **Profile** below; one column on mobile in that order. Loading skeleton, "Venue not found" and retry states.
+- **Situation** (`VenueSituationPanel`): display status, the current note in the italic style, and since-when / by-whom (pending shows "in the queue since"). A hide that is not the primary status shows as "Also hidden" with its own reason. It says outright that only the current note is kept (no history yet). **Flags only; counts belong to step 7.**
+- **Next actions** (`VenueNextActions`): pending: Approve / Request changes / Reject; changes requested: Approve / Reject; rejected: Move back to pending; Hide or Unhide in every state except suspended. Approved has no Suspend yet and suspended has no Unsuspend yet (6b).
+- **Profile** (`VenueProfilePanel`, read view only): name, city, description, photo URLs as text (first one labelled "Cover", no previews), Instagram, X, Maps (clickable only if they pass `safeHttpUrl`), contact email, contact phone. No Edit button until 6c.
+- `ReviewActionModal` gained three kinds, `hide` (reason required, owner-visible), `unhide` and `reopen`; the existing three are unchanged. The action helper `src/lib/adminVenueActions.ts` is shared with the list hook (which lost its duplicate).
+- Page A: the venue name in each row and review card now links to Page B. **Known limitation: Page A's filters are plain React state (step 5 decision), so coming back from a venue resets them.**
+
+### Photo hosts: audit and a known gap (flagged, nothing changed)
+
+- Planned for 6c: photo URLs are validated against an allowlist of hosts, mirrored in `next/image` `remotePatterns`: `picsum.photos`, `images.unsplash.com`, and this project's Supabase Storage host (`wfyqomxasthwdlpqttno.supabase.co`) restricted to `/storage/v1/object/public/**`. https only, at most 8, each at most 2048 characters. **Why:** `next.config.js` only allows `picsum.photos` today, and four components render `photos[0]` through `next/image`, so a URL on any other host would crash public pages for every comedian.
+- **Audit of the 12 existing venues (read-only):** 10 have photos, 10 URLs in total. Nine are on `picsum.photos` (allowed). **One is not: "Pune Comedy Club" uses `http://localhost:3000/pune-comedy-club.jpeg`** (not https, not an allowed host; the file exists in `apps/web/public`). That venue is not public, so no comedian page is affected today. In 6c only changed fields are sent, so this value is not re-validated unless someone edits photos.
+- **Known gap, read from the code and not exercised live:** the owner's `PATCH /api/venues/mine` and `/api/venues/:id` cannot save photos (not in `VENUE_EDITABLE_FIELDS`). But `venues_protect_moderation` does not cover `photos`, and the `venues_owner_update_own` / insert policies only check ownership, so an owner with their own JWT can probably write any URL to `photos` directly through PostgREST, which would break `next/image` on the public pages. It was not tested because the only public venue is the test venue and breaking it would affect the live pages. Decide whether to protect `photos` in the trigger (or validate in SQL) before the owner image feature.
+- **Single source of truth (plan for 6c, to be verified first):** put the allowlist in a plain ESM file in `packages/types` (for example `photoHosts.js` with a `.d.ts`), importable by `next.config.js` (plain Node, cannot import `.ts`), the API and the web code, with the validator next to it so the later owner flow can call the same one. If importing it from `next.config.js` fails, two copies with a comment in each pointing at the other is the fallback.
+
+### Deferred / known limitations (Step 6)
+
+- Admin edits to a live venue do not notify the owner (decided: deferred).
+- Unsaved-changes protection (6c) covers tab close or refresh and the page's own Cancel / Back links only, not clicks on the navbar or sidebar.
+
+### Verified / not verified
+
+Built and checked: `npm run check-types`, ESLint on the changed files, `next build` (lists `/admin/venues/[id]`), API typecheck (still only the 13 old errors).
+
+**Verified live (2026-10-18, test accounts, real DB, migration 026 applied): 67 checks passed, 0 failed** (script in the session scratchpad, not in the repo). Role matrix on the four new routes (no token and bogus token 401, comedian 403, owner 403); detail: 404 for a non-UUID or unknown id, no `address` key, the raw `reviewed_by` / `hidden_by` / `suspended_by` ids are not exposed, owner name and email present; hide: reason required (blank, missing and 501 characters give 400), 409 on a repeat that leaves the first reason and time untouched, allowed on a pending venue (stays pending), 409 on a suspended one, `hidden_by_name` is the acting admin; unhide: clears all four fields, 409 when not hidden or suspended; reject then reopen: pending again, earlier note kept, `submitted_at` moved forward, reopen of a pending venue 409; owner notice: exactly one on hide and none on a refused repeat; an owner JWT cannot clear or reassign `hidden_at` / `hidden_by` through PostgREST; both new functions give 42501 for the anon key, an owner login and a comedian login; the older `/home` hide route still works and its repeat is now `success:false`; the step 5 list still returns 200 with counts that add up; no TEST venue is public. Fixtures were four "TEST – 6a" venues plus a brief hide of the shared test venue; all were removed or restored (venues back to 12, the test owner's notice deleted).
+
+A test-fixture trap worth remembering: a venue inserted as `pending` with `is_active = false` is rewritten to `rejected` by the legacy sync trigger (018), so pending fixtures must keep `is_active = true`.
+
+**Not verified: the page in a browser** (layout, the modals, the Page A links, mobile), and the Situation panel's wording for venues hidden before 026 ("time not recorded").
+
 ## Handoff: state and remaining work (steps 4-8)
 
 Written at the end of the first session and refreshed at the end of the second so work can resume cold. The sections above are the record of what was built; this section is what to do next.
@@ -304,13 +400,13 @@ Written at the end of the first session and refreshed at the end of the second s
 | 4a suspend: migration 021, API, owner banner | **Built; 021 applied; API verified live with test accounts** (see "Step 4a"). Committed in `897c041`. Owner banner not yet checked in a browser. No admin UI (that is step 6). |
 | 4b part 1: protect `users.role` (migration 022) | **Applied** (user confirmed). See "Step 4b, part 1". |
 | 4b part 2: API public-path filters + migration 023 (legacy booking gate) | API built and verified against the real DB. **Migration 023 applied and verified live.** |
-| 4b part 3: 022b (`handle_new_user` whitelist), 024 (function lockdown), 025 (RLS) | **Applied by the user and verified live.** Files 022b/024/025 and this spec are not yet committed. See "Step 4b, part 3". **Step 4 is complete; resume at step 5.** |
-| 5 search and filters | Not started. |
-| 6 Page B (dossier + edit) | Not started. |
+| 4b part 3: 022b (`handle_new_user` whitelist), 024 (function lockdown), 025 (RLS) | **Applied by the user and verified live; committed in `98e3537`.** See "Step 4b, part 3". **Step 4 is complete.** |
+| 5 search and filters | **Built; API verified live (62 checks); UI not yet exercised in a browser.** See "Step 5". Uncommitted. |
+| 6 Page B (dossier + edit) | **6a built** (read-only dossier, actions, migration 026 **applied**); API verified live (67 checks), UI not yet seen in a browser; 6b suspend UI and 6c edit not started. See "Step 6a". Uncommitted. |
 | 7 stats | Not started. |
 | 8 `/home` cleanup | Not started; must be LAST. |
 
-Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `RequestsPanel.tsx`, `safeLinks.ts` and `specs/venue-dashboard.md`). Step 4a and 4b parts 1-2 are committed (`897c041`); 022b, 024, 025 and the spec updates after it are uncommitted (the user commits). Never stash, reset or check out uncommitted files (use `git diff` / `git show`, not stash).
+Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `RequestsPanel.tsx`, `safeLinks.ts` and `specs/venue-dashboard.md`). Step 4a and 4b parts 1-2 are committed (`897c041`); 022b, 024, 025 and the spec updates after it are committed (`98e3537`). Step 5 is uncommitted (the user commits). Never stash, reset or check out uncommitted files (use `git diff` / `git show`, not stash).
 
 ### Session log
 
@@ -321,9 +417,9 @@ Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `Requests
 - Step 4b: closed three security holes, all applied and tested live. (1) A client could change its own `users.role` (022). (2) A signup could choose the `admin` role (022b, found by reading the live `handle_new_user`). (3) The anon key could run 14 older SECURITY DEFINER functions (024). Public API reads and direct database reads now hide hidden and suspended venues (API filters, 025). A `bookings` trigger blocks legacy bookings at non-public venues (023).
 - Test accounts and a test venue were created in the real database (see Open items).
 - Separate request, not part of the admin project: the Favorite Venues section on the comedian `/home` page was removed (component, `GET /api/me/favorite-venues`, the shared type; no database change). Recorded in `specs/dashboard-spec.md`; two stale sentences in this spec were updated.
-- Commits: `897c041` holds 4a and 4b through 023. **Uncommitted at the end of session 2** (the user commits): migrations `022b`, `024`, `025`; the favourites removal (`index.ts`, `ComedianHomeContent.tsx`, the deleted `FavoriteVenuesSection.tsx`, `packages/types/index.ts`, `specs/dashboard-spec.md`); and this spec.
+- Commits: `897c041` holds 4a and 4b through 023. **Uncommitted at the end of session 2 (the working tree was clean at the start of session 3, so all of it has since been committed; 022b, 024, 025 are in `98e3537`):** migrations `022b`, `024`, `025`; the favourites removal (`index.ts`, `ComedianHomeContent.tsx`, the deleted `FavoriteVenuesSection.tsx`, `packages/types/index.ts`, `specs/dashboard-spec.md`); and this spec.
 
-**Next session starts at step 5.** Nothing blocks it: no pending migration, no unanswered question. Propose a plan first and wait for "go" (working rule 3). Things the step 5 plan should decide and state: where the city list comes from (`VENUE_CITIES` vs the cities present in the data); whether the status counts come from a separate counts payload or from the unfiltered set; the empty and loading states. Because of the uncommitted files above, `git diff --stat` mixes work; list the files touched for step 5 explicitly.
+**Session 3:** step 5 (search and filters) built and verified live (see "Step 5"); decisions are logged in `specs/decisions.md`. **Next is step 6 (Page B).** Propose a plan first and wait for "go" (working rule 3). `git diff --stat` for a step should include `specs/decisions.md`.
 
 ### Working rules (the user's, from this session)
 
@@ -343,7 +439,7 @@ Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `Requests
 - `apps/api` has no tsconfig, so Turbo's `check-types` skips it. Typecheck ad hoc: `cd apps/api && npx tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --esModuleInterop --skipLibCheck src/index.ts` and compare only the lines you changed: the file has old errors (the `req.params` `string | string[]` class and the pools-parser narrowing). I coerce with `String(req.params.id)` in new code.
 - The shell is zsh: unquoted `$var` does not word-split. Use `${=var}` or arrays in loops (this broke a curl probe once).
 - ESLint rejects directory arguments here; pass explicit file paths.
-- `@repo/types` exports **types only** (no runtime values) and Next has no `transpilePackages`, so a runtime export from it can break the web build. The allowed-cities list therefore lives in the API (`VENUE_CITIES` in `apps/api/src/index.ts`) and clients read it from `GET /api/venues/mine/status`.
+- `@repo/types` exports types plus **one runtime function**, `deriveDisplayStatus` (step 5). That is why the package is `"type": "module"` and `apps/web/next.config.js` has `transpilePackages: ['@repo/types']`; do not add further runtime exports without re-checking both the web build and that the API still starts (`next build` alone does not catch an API-side failure). The allowed-cities list still lives in the API (`VENUE_CITIES` in `apps/api/src/index.ts`) and clients read it from `GET /api/venues/mine/status`.
 - Core code map: API routes all in `apps/api/src/index.ts`; admin routes live below `app.use('/api/admin', requireUser, requireRole('admin'))`. Admin web: `apps/web/app/admin/` (`layout.tsx` guard, `venues/page.tsx`), components in `apps/web/src/components/admin/`, owner side in `apps/web/src/components/venue-dashboard/` (`VenueStatusSection`, `VenueDetailsModal`), helpers `src/lib/venueStatus.ts`, hooks `useAdminVenueList`, `useOwnerVenueStatus`. Migrations in `apps/api/src/db/migrations/` (018 to 020 are this project's).
 
 ### Decisions already made (do not re-ask)
@@ -384,7 +480,7 @@ Defaults approved: a show in progress counts as upcoming; one venue per owner as
 - Use the helpers `venue_can_operate(owner_id)` and `venue_is_public(venue_id)` from 018; keep the TS filters in one place rather than scattered ad hoc conditions.
 - Suggested split to keep diffs reviewable: **4a** migration 021 + API + owner banner; **4b** public-path enforcement + legacy gate + RLS (+ the suspend UI if not in 4a).
 
-### Step 5: search and filters (Page A)
+### Step 5: search and filters (Page A) (COMPLETE: built; see the "Step 5" section above for what shipped; kept as the original brief)
 
 Server-side query params on `GET /api/admin/manage/venues`: `q` (venue **name only**, case-insensitive), `status` (one of the six display statuses; remember hidden = approved + hidden and suspended wins), `city`; keep the status strip counts correct (counts over the unfiltered set, or add a counts payload). UI: a `float-input` search field with a clear button (pattern in `ManageVenuesSection`) and a city control. **Do not reuse `FilterPills`** (spot-specific, has a glow shadow). Reuse the existing `<select>` styling the profile-edit page uses (or the `float-input` select used in `VenueDetailsModal`); do not invent new input styles. Keep the mobile card layout; add loading/empty states in the established voice.
 

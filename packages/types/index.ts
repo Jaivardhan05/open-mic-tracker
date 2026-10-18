@@ -95,6 +95,71 @@ export interface AdminManagedVenue {
   updated_at: string;
 }
 
+/**
+ * Response of GET /api/admin/manage/venues/:id (Page B). No address by design.
+ * hidden_at / hidden_by_name are null for venues hidden before migration 026.
+ */
+export interface AdminVenueDetail {
+  id: string;
+  name: string;
+  city: string;
+  description: string | null;
+  photos: string[];
+  instagram_url: string | null;
+  x_url: string | null;
+  maps_url: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  owner_id: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
+  review_status: VenueReviewStatus;
+  review_reason: string | null;
+  reviewed_at: string | null;
+  reviewed_by_name: string | null;
+  submitted_at: string;
+  is_hidden: boolean;
+  hidden_reason: string | null;
+  hidden_at: string | null;
+  hidden_by_name: string | null;
+  is_suspended: boolean;
+  suspension_reason: string | null;
+  suspended_at: string | null;
+  suspended_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Response of GET /api/admin/manage/venues. */
+export interface AdminVenueListResponse {
+  /** Venues matching q, status and city, oldest submission first. */
+  venues: AdminManagedVenue[];
+  /** Per display status, over the venues matching q and city (status ignored). `all` is their sum. */
+  counts: Record<'all' | VenueDisplayStatus, number>;
+  /** Distinct cities across every venue, sorted; not narrowed by any filter. */
+  cities: string[];
+}
+
+/**
+ * The single definition of a venue's display status, used by apps/api (to
+ * filter and count) and apps/web (to render). Suspended wins; hidden is the
+ * primary status only for an approved venue; otherwise the review status.
+ *
+ * This is the one runtime export of @repo/types, so it lives in index.ts
+ * itself: a re-export from a sibling file is not visible to Node's ESM loader
+ * when the API imports this CommonJS-typed package. Next needs
+ * `transpilePackages: ['@repo/types']` (apps/web/next.config.js) to compile it.
+ */
+export function deriveDisplayStatus(venue: {
+  review_status: VenueReviewStatus;
+  is_hidden: boolean;
+  is_suspended: boolean;
+}): VenueDisplayStatus {
+  if (venue.is_suspended) return 'suspended';
+  if (venue.review_status === 'approved' && venue.is_hidden) return 'hidden';
+  return venue.review_status;
+}
+
 /** Response of GET /api/venues/mine/status: the owner's own venue state. */
 export interface OwnerVenueStatus {
   id: string;

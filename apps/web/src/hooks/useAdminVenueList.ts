@@ -1,71 +1,96 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { AdminManagedVenue } from "@repo/types";
+import type { AdminManagedVenue, AdminVenueListResponse, VenueDisplayStatus } from "@repo/types";
 
 import { authorizedFetch } from "@/lib/apiClient";
+import { runVenueAction } from "@/lib/adminVenueActions";
 
-export function useAdminVenueList() {
+export interface AdminVenueFilters {
+  q: string;
+  status: "all" | VenueDisplayStatus;
+  city: string;
+}
+
+const EMPTY_COUNTS: AdminVenueListResponse["counts"] = {
+  all: 0,
+  pending: 0,
+  changes_requested: 0,
+  approved: 0,
+  hidden: 0,
+  suspended: 0,
+  rejected: 0,
+};
+
+function buildPath(filters: AdminVenueFilters): string {
+  const params = new URLSearchParams();
+  if (filters.q.trim() !== "") params.set("q", filters.q.trim());
+  if (filters.status !== "all") params.set("status", filters.status);
+  if (filters.city !== "") params.set("city", filters.city);
+  const qs = params.toString();
+  return `/api/admin/manage/venues${qs ? `?${qs}` : ""}`;
+}
+
+// Filtering is server-side. The previous list stays on screen while a new
+// request runs (isFetching), and a response that arrives after a newer request
+// was sent is dropped so a slow early request can't overwrite a later one.
+export function useAdminVenueList(filters: AdminVenueFilters) {
   const [venues, setVenues] = useState<AdminManagedVenue[]>([]);
+  const [counts, setCounts] = useState(EMPTY_COUNTS);
+  const [cities, setCities] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState("");
 
-  const refetch = useCallback(async () => {
-    setError("");
+  const filtersRef = useRef(filters);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  const load = useCallback(async (next: AdminVenueFilters) => {
+    const id = ++requestId.current;
+    setIsFetching(true);
     try {
-      const res = await authorizedFetch("/api/admin/manage/venues");
+      const res = await authorizedFetch(buildPath(next));
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
+      if (id !== requestId.current) return;
+      if (!res.ok || !data || !Array.isArray(data.venues)) {
         setError((data && data.error) || "Couldn't load venues.");
         return;
       }
-      setVenues(Array.isArray(data) ? data : []);
+      const body = data as AdminVenueListResponse;
+      setError("");
+      setVenues(body.venues);
+      setCounts(body.counts);
+      setCities(body.cities);
     } catch (err) {
+      if (id !== requestId.current) return;
       setError(err instanceof Error ? err.message : "Couldn't load venues.");
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      await refetch();
-      if (!cancelled) {
+    } finally {
+      if (id === requestId.current) {
+        setIsFetching(false);
         setIsLoading(false);
       }
     }
+  }, []);
 
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [refetch]);
+  // Refetch with whatever filters are active right now (used after an action).
+  const refetch = useCallback(() => load(filtersRef.current), [load]);
+
+  const { q, status, city } = filters;
+  useEffect(() => {
+    void load({ q, status, city });
+  }, [load, q, status, city]);
 
   // Runs one review outcome. The caller refetches (after its exit animation).
   const reviewVenue = useCallback(
-    async (
-      venueId: string,
-      kind: "approve" | "reject" | "request_changes",
-      reason?: string
-    ): Promise<{ success: boolean; error?: string }> => {
-      const path = kind === "request_changes" ? "request-changes" : kind;
-      try {
-        const res = await authorizedFetch(`/api/admin/manage/venues/${venueId}/${path}`, {
-          method: "POST",
-          body: JSON.stringify(reason === undefined ? {} : { reason }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          return { success: false, error: data.error ?? "Action failed. Try again." };
-        }
-        return { success: true };
-      } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : "Action failed. Try again." };
-      }
-    },
+    (venueId: string, kind: "approve" | "reject" | "request_changes", reason?: string) =>
+      runVenueAction(venueId, kind, reason),
     []
   );
 
-  return { venues, isLoading, error, refetch, reviewVenue };
+  return { venues, counts, cities, isLoading, isFetching, error, refetch, reviewVenue };
 }

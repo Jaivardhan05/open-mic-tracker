@@ -1,15 +1,8 @@
+import { deriveDisplayStatus } from "@repo/types";
 import type { AdminManagedVenue, VenueDisplayStatus } from "@repo/types";
 
-// Suspended wins; hidden is the primary status only for an approved venue (a
-// hidden pending/changes-requested/rejected venue keeps its review status so
-// it never drops out of the review queue); otherwise the review status.
-export function deriveDisplayStatus(
-  venue: Pick<AdminManagedVenue, "review_status" | "is_hidden" | "is_suspended">
-): VenueDisplayStatus {
-  if (venue.is_suspended) return "suspended";
-  if (venue.review_status === "approved" && venue.is_hidden) return "hidden";
-  return venue.review_status;
-}
+// The status rule lives in @repo/types so the API and the web share one copy.
+export { deriveDisplayStatus };
 
 // Flat colors only. Chosen to stay clear of the spot-type colors (busking
 // pink, hosting yellow) and always paired with an icon + label, never color
@@ -37,7 +30,12 @@ export const STATUS_ORDER: VenueDisplayStatus[] = [
 // The admin's note that explains the venue's current display status, if any.
 // Empty or missing reasons (e.g. a legacy rejection) return null so the UI
 // shows the status alone.
-export function statusReason(venue: AdminManagedVenue): string | null {
+export function statusReason(
+  venue: Pick<
+    AdminManagedVenue,
+    "review_status" | "is_hidden" | "is_suspended" | "review_reason" | "hidden_reason" | "suspension_reason"
+  >
+): string | null {
   const status = deriveDisplayStatus(venue);
   const raw =
     status === "suspended"

@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { AdminManagedVenue } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
 import ReviewActionModal, { type ReviewActionKind } from "@/components/admin/ReviewActionModal";
 import StatusSummaryStrip, { type StatusFilter } from "@/components/admin/StatusSummaryStrip";
+import VenueFilterBar from "@/components/admin/VenueFilterBar";
 import VenueListItem, { VENUE_ROW_GRID } from "@/components/admin/VenueListItem";
 import VenueReviewCard from "@/components/admin/VenueReviewCard";
 import { useToast } from "@/context/ToastContext";
 import { useAdminVenueList } from "@/hooks/useAdminVenueList";
 import { STATUS_META, deriveDisplayStatus } from "@/lib/venueStatus";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 function SectionHeading({ children, count }: { children: React.ReactNode; count?: number }) {
   return (
@@ -52,11 +55,36 @@ function PageSkeleton() {
 }
 
 export default function AdminVenuesPage() {
-  const { venues, isLoading, error, refetch, reviewVenue } = useAdminVenueList();
-  const { showToast } = useToast();
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [city, setCity] = useState("");
+  const { venues, counts, cities, isLoading, isFetching, error, refetch, reviewVenue } = useAdminVenueList({
+    q: debouncedQ,
+    status: filter,
+    city,
+  });
+  const { showToast } = useToast();
   const [action, setAction] = useState<{ kind: ReviewActionKind; venue: AdminManagedVenue } | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [search]);
+
+  // A city that no longer exists in the data (e.g. its last venue was removed)
+  // would filter to nothing with no way to see why: fall back to all cities.
+  useEffect(() => {
+    if (!isLoading && city !== "" && cities.length > 0 && !cities.includes(city)) setCity("");
+  }, [isLoading, city, cities]);
+
+  function clearFilters() {
+    setSearch("");
+    setDebouncedQ("");
+    setCity("");
+    setFilter("all");
+  }
 
   async function handleConfirm(reason?: string): Promise<{ success: boolean; error?: string }> {
     if (!action) return { success: false, error: "Nothing to confirm." };
@@ -88,41 +116,24 @@ export default function AdminVenuesPage() {
     return result;
   }
 
-  const { counts, attention, others } = useMemo(() => {
-    const counts: Record<StatusFilter, number> = {
-      all: venues.length,
-      pending: 0,
-      changes_requested: 0,
-      approved: 0,
-      hidden: 0,
-      suspended: 0,
-      rejected: 0,
-    };
+  // The API has already applied q, city and status; this only splits the
+  // result into the review queue and everything else.
+  const { attention, others } = useMemo(() => {
     const attention: AdminManagedVenue[] = [];
     const others: AdminManagedVenue[] = [];
-
     for (const venue of venues) {
-      const status = deriveDisplayStatus(venue);
-      counts[status] += 1;
-      if (status === "pending") {
-        attention.push(venue);
-      } else {
-        others.push(venue);
-      }
+      (deriveDisplayStatus(venue) === "pending" ? attention : others).push(venue);
     }
-
     // Longest-waiting first.
     attention.sort((a, b) => new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime());
-    return { counts, attention, others };
+    return { attention, others };
   }, [venues]);
 
+  const searching = debouncedQ !== "" || city !== "";
+  const noVenuesAtAll = counts.all === 0 && !searching;
+  const noMatches = counts.all === 0 && searching;
   const showAttention = filter === "all" || filter === "pending";
-  const listed =
-    filter === "all"
-      ? others
-      : filter === "pending"
-        ? []
-        : others.filter((v) => deriveDisplayStatus(v) === filter);
+  const listed = others;
   const showList = filter !== "pending";
 
   return (
@@ -149,59 +160,95 @@ export default function AdminVenuesPage() {
         ) : (
           <>
             <div className="mt-6">
-              <StatusSummaryStrip counts={counts} value={filter} onChange={setFilter} />
+              <VenueFilterBar
+                search={search}
+                onSearchChange={setSearch}
+                city={city}
+                cities={cities}
+                onCityChange={setCity}
+              />
             </div>
 
-            {showAttention ? (
-              <div className="mt-8">
-                <SectionHeading count={attention.length}>Needs your attention</SectionHeading>
-                {attention.length === 0 ? (
-                  <EmptyNote>Nothing waiting on you. The room is quiet.</EmptyNote>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {attention.map((venue) => (
-                      <VenueReviewCard
-                        key={venue.id}
-                        venue={venue}
-                        leaving={leavingId === venue.id}
-                        onAction={(kind) => setAction({ kind, venue })}
-                      />
-                    ))}
-                  </div>
-                )}
+            <div
+              aria-busy={isFetching}
+              className={isFetching ? "opacity-60 motion-safe:transition-opacity" : "motion-safe:transition-opacity"}
+            >
+            <div className="mt-6">
+                <StatusSummaryStrip counts={counts} value={filter} onChange={setFilter} />
               </div>
-            ) : null}
 
-            {showList ? (
-              <div className="mt-8">
-                <SectionHeading count={listed.length}>
-                  {filter === "all" ? "Everything else" : STATUS_META[filter].label}
-                </SectionHeading>
-                {venues.length === 0 ? (
-                  <EmptyNote>No venues on the circuit yet.</EmptyNote>
-                ) : listed.length === 0 ? (
+              {noMatches ? (
+                <div className="mt-8">
                   <EmptyNote>
-                    {filter === "all" ? "Nothing else on the circuit yet." : "No venues in this state."}
+                    No venues match
+                    {debouncedQ !== "" ? ` \u201c${debouncedQ}\u201d` : ""}
+                    {city !== "" ? ` in ${city}` : ""}.
                   </EmptyNote>
-                ) : (
-                  <div className="glass-panel overflow-hidden rounded-2xl">
-                    <div
-                      className={`hidden border-b border-white/10 py-2 pl-5 pr-4 font-[family-name:var(--font-bebas)] text-xs uppercase tracking-[0.12em] text-zinc-500 ${VENUE_ROW_GRID}`}
-                    >
-                      <span>Venue</span>
-                      <span>Status</span>
-                      <span>Owner</span>
-                      <span className="text-right">Updated</span>
-                    </div>
-                    <ul className="divide-y divide-white/10">
-                      {listed.map((venue) => (
-                        <VenueListItem key={venue.id} venue={venue} />
-                      ))}
-                    </ul>
+                  <div className="mt-3 flex justify-center">
+                    <CtaButton type="button" onClick={clearFilters}>
+                      Clear filters
+                    </CtaButton>
                   </div>
-                )}
-              </div>
-            ) : null}
+                </div>
+              ) : null}
+
+              {!noMatches && showAttention ? (
+                <div className="mt-8">
+                  <SectionHeading count={attention.length}>Needs your attention</SectionHeading>
+                  {attention.length === 0 ? (
+                    <EmptyNote>
+                      {searching ? "No pending venues match." : "Nothing waiting on you. The room is quiet."}
+                    </EmptyNote>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {attention.map((venue) => (
+                        <VenueReviewCard
+                          key={venue.id}
+                          venue={venue}
+                          leaving={leavingId === venue.id}
+                          onAction={(kind) => setAction({ kind, venue })}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {!noMatches && showList ? (
+                <div className="mt-8">
+                  <SectionHeading count={listed.length}>
+                    {filter === "all" ? "Everything else" : STATUS_META[filter].label}
+                  </SectionHeading>
+                  {noVenuesAtAll ? (
+                    <EmptyNote>No venues on the circuit yet.</EmptyNote>
+                  ) : listed.length === 0 ? (
+                    <EmptyNote>
+                      {searching
+                        ? "No other venues match."
+                        : filter === "all"
+                          ? "Nothing else on the circuit yet."
+                          : "No venues in this state."}
+                    </EmptyNote>
+                  ) : (
+                    <div className="glass-panel overflow-hidden rounded-2xl">
+                      <div
+                        className={`hidden border-b border-white/10 py-2 pl-5 pr-4 font-[family-name:var(--font-bebas)] text-xs uppercase tracking-[0.12em] text-zinc-500 ${VENUE_ROW_GRID}`}
+                      >
+                        <span>Venue</span>
+                        <span>Status</span>
+                        <span>Owner</span>
+                        <span className="text-right">Updated</span>
+                      </div>
+                      <ul className="divide-y divide-white/10">
+                        {listed.map((venue) => (
+                          <VenueListItem key={venue.id} venue={venue} />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </>
         )}
       </section>

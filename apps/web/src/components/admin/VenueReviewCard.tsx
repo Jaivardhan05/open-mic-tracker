@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { AdminManagedVenue } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
@@ -27,7 +29,12 @@ export default function VenueReviewCard({ venue, onAction, leaving = false }: Ve
       <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: color }} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-base font-bold tracking-tight text-white">{venue.name}</p>
+          <Link
+            href={`/admin/venues/${venue.id}`}
+            className="block truncate py-1 text-base font-bold tracking-tight text-white hover:text-[#38bdf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38bdf8]"
+          >
+            {venue.name}
+          </Link>
           <p className="mt-0.5 text-sm text-zinc-400">{venue.city}</p>
         </div>
         <StatusBadge status="pending" className="shrink-0" />
