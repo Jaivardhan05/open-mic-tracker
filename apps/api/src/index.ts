@@ -561,19 +561,6 @@ app.patch('/api/venues/:id', requireUser, requireRole('venue_producer'), async (
   await applyVenueEditableUpdates(res, id, body);
 });
 
-app.post('/api/venues/:id/approve', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
-  const { id } = req.params;
-  const { data, error } = await supabaseAdmin.rpc('admin_approve_venue', { p_venue_id: id });
-
-  if (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
-
-  return res.status(200).json(data);
-});
-
 // Default-deny: every route registered under /api/admin after this line needs
 // a valid session AND the admin role, even if its own definition forgets the
 // per-route middleware. Keep new admin routes below this line.
@@ -719,7 +706,8 @@ async function runVenueReviewAction(
     | 'admin_unhide_venue'
     | 'admin_suspend_venue'
     | 'admin_unsuspend_venue'
-    | 'venue_suspension_preview',
+    | 'venue_suspension_preview'
+    | 'admin_venue_stats',
   args: Record<string, unknown>
 ) {
   const { data, error } = await supabaseAdmin.rpc(rpcName, args);
@@ -928,6 +916,19 @@ app.get('/api/admin/manage/venues/:id', async (req: AuthedRequest, res: Response
   }
 });
 
+// All-time activity for the Page B "Pulse" panel (step 7, migration 028). The
+// SQL function applies the migration 019 rules; this route only maps its
+// { success, error } result (unknown venue -> 404). Never selects address.
+app.get('/api/admin/manage/venues/:id/stats', async (req: AuthedRequest, res: Response) => {
+  const id = String(req.params.id);
+  if (!UUID_RE.test(id)) {
+    res.status(404).json({ error: 'Venue not found' });
+    return;
+  }
+
+  await runVenueReviewAction(res, 'admin_venue_stats', { p_venue_id: id });
+});
+
 // What an admin may edit (step 6c). Anything else in the body is a 400, so a
 // typo or an attempt at owner_id / moderation columns / address never silently
 // "succeeds". Works in every status, including suspended. Only the keys sent
@@ -1088,111 +1089,6 @@ app.get('/api/admin/stats', requireUser, requireRole('admin'), async (_req: Auth
   }
 
   return res.status(200).json(data);
-});
-
-app.get('/api/admin/pending-venues', requireUser, requireRole('admin'), async (_req: AuthedRequest, res: Response) => {
-  const { data, error } = await supabaseAdmin
-    .from('venues')
-    .select('id, name, address, city, owner_id, created_at, admin_approved')
-    .eq('review_status', 'pending')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
-
-  if (!data || data.length === 0) {
-    return res.status(200).json([]);
-  }
-
-  const ownerIds = data.map((v) => v.owner_id).filter(Boolean);
-
-  let ownersMap: Record<string, { name: string; email: string }> = {};
-
-  if (ownerIds.length > 0) {
-    const { data: owners } = await supabaseAdmin
-      .from('users')
-      .select('id, name, email')
-      .in('id', ownerIds);
-
-    if (owners) {
-      owners.forEach((o: { id: string; name: string; email: string }) => {
-        ownersMap[o.id] = {
-          name: o.name,
-          email: o.email,
-        };
-      });
-    }
-  }
-
-  const result = data.map((v) => ({
-    ...v,
-    ownerName: ownersMap[v.owner_id]?.name ?? 'Unknown',
-    ownerEmail: ownersMap[v.owner_id]?.email ?? '',
-  }));
-
-  return res.status(200).json(result);
-});
-
-app.post('/api/venues/:id/reject', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
-  const { id } = req.params;
-  const { data, error } = await supabaseAdmin.rpc('admin_reject_venue', { p_venue_id: id });
-
-  if (error) {
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
-
-  return res.status(200).json(data);
-});
-
-app.get('/api/admin/venues', requireUser, requireRole('admin'), async (_req: AuthedRequest, res: Response) => {
-  const { data, error } = await supabaseAdmin
-    .from('venues')
-    .select('id, name, address, city, admin_approved, is_hidden, hidden_reason')
-    .eq('is_active', true)
-    .order('name', { ascending: true });
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  res.status(200).json(data ?? []);
-});
-
-app.post('/api/venues/:id/hide', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
-  const { id } = req.params;
-  const reason = typeof req.body?.reason === 'string' ? req.body.reason : undefined;
-
-  const { data, error } = await supabaseAdmin.rpc('admin_hide_venue', {
-    p_venue_id: id,
-    p_reason: reason,
-  });
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  res.status(200).json(data);
-});
-
-app.post('/api/venues/:id/unhide', requireUser, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
-  const { id } = req.params;
-
-  const { data, error } = await supabaseAdmin.rpc('admin_unhide_venue', { p_venue_id: id });
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  res.status(200).json(data);
 });
 
 app.patch('/api/users/me', requireUser, async (req: AuthedRequest, res: Response) => {

@@ -430,6 +430,61 @@ Built and checked: `npm run check-types`, ESLint on the changed files, `next bui
 
 **Not verified:** the editor in a browser (layout, mobile, reorder feel, the discard prompts) and the owner screens after the stricter caps.
 
+## Step 7: venue stats ("Pulse") on Page B
+
+### Migration 028 (`028_admin_venue_stats.sql`)
+
+**Written but NOT yet applied: apply it in the Supabase SQL editor before the route below works** (until then the route returns 500 and the panel shows its retry state). SQL cannot run locally, so it is unrun until then. One read-only `STABLE SECURITY DEFINER` function, `admin_venue_stats(p_venue_id)`, `service_role` only. No table or column changes, nothing written. Unknown venue: `{ success: false, error: 'Venue not found' }`. A venue with no owner returns `has_owner: false` and all zeros.
+
+Activity is keyed by the owner (`venue_shows` / `spots` `venue_producer_id = venues.owner_id`; one venue per owner assumed). The legacy `shows` / `bookings` tables are not counted.
+
+### Rules (the 019 rules, without a date)
+
+- **Shows** = `venue_shows` rows ever created, and how many are `is_cancelled` (exact for all history). A show has up to 3 pool rows; pools are not counted.
+- **Requests** = `spot_requests` joined through `spots.venue_producer_id`, by current status: pending / accepted / waitlisted / cancelled (by comedian, by venue). A swap release (accepted -> pending) shows as pending.
+- **Date-free "knowable" rule (decided):** every cancellation after 019 has `cancelled_from_status` set by the trigger, so a cancelled request with it NULL was cancelled before tracking began. Those are **excluded** from the acceptance rate and from the "after accepting" split, and counted in `acceptance.excluded`. Acceptance rate = knowable requests with `accepted_at` set / knowable requests; no knowable requests shows "n/a". *Known tiny gap:* a request accepted and swapped back to pending before 019 has no `accepted_at`, so it counts as never accepted.
+- **Cancellations by venue include those caused by a suspension** (a suspend cancels requests as `cancelled_by_venue`). Shown as is with an italic note; separating them is deferred (see decisions.md).
+
+### API
+
+`GET /api/admin/manage/venues/:id/stats` under the `/api/admin` guard (via `runVenueReviewAction`): non-UUID or unknown id 404, 401/403 as for every admin route. Response type `AdminVenueStats` in `@repo/types` (types only; no new runtime export). Address is never selected.
+
+### Web
+
+- `VenuePulsePanel` (new): a full-width panel between Situation / Next actions and Profile. A large Bebas "Requests received" figure; a flat stacked bar (2px gaps, 4px rounded segments) in the Requests-panel colors accepted `#38bdf8`, pending `#facc15`, waitlisted `#a1a1aa`, plus cancelled `#f87171` (the existing rejected red); a legend naming every segment with its count, so color is never the only cue; a flat SVG acceptance ring (italic "n/a" with an empty track when nothing is knowable, with "n older cancelled requests left out" when some are excluded); shows created / cancelled; cancellations by venue / by comedian and the two "after accepting" counts (n/a note for the excluded ones). No ownerless-venue crash: it says "No owner on record" and shows zeros. Hand-written SVG, no chart library, no gradients or glow.
+- Stack order is accepted, pending, waitlisted, cancelled so gray never touches blue (the palette validator flagged that adjacency; with this order the normal-vision and color-blind separation checks pass). The validator's lightness-band and gray-chroma warnings stay because these are the app's existing, fixed status colors and gray means "neutral" on purpose.
+- `useAdminVenueStats` (new): its own fetch, loading, error and retry, so a stats failure never blanks the dossier. Page B refetches it after a suspend (the suspend changes the numbers). Other actions do not change these numbers.
+- Scope: all-time only (no date range), shown for every status.
+
+### Verified / not verified
+
+Built and checked: `npm run check-types`, ESLint on the changed web files, `next build` (lists `/admin/venues/[id]`), API typecheck (still only the 13 old errors, none near the new code). The running API returned 401 for the new route with no token and with a bogus token.
+
+**Verified live (2026-10-31, test accounts, real DB, migration 028 applied by the user): 30 checks passed, 0 failed** (script in the session scratchpad, not in the repo; an earlier run stopped on a fixture error, and a second had two wrong expected show counts in the script, not in the function). Role matrix on the new route (no token and bogus token 401, comedian 403, owner 403, admin 200; non-UUID and unknown id 404); no `address` key; a main fixture with 8 requests in every state (pending, accepted, waitlisted, cancelled by comedian from pending, cancelled by venue and by comedian from accepted, one simulated pre-019 cancellation, one swap release) gave exactly the expected counts, acceptance (7 knowable, 4 ever accepted, 1 excluded) and "after accepting" split (1 and 1), and matched an oracle recomputed straight from the tables; a swap release keeps `accepted_at`; a venue whose only request is pre-tracking shows 0 knowable / 1 excluded; an ownerless venue returns `has_owner: false` and zeros; an owner with no activity returns zeros; `admin_venue_stats` is denied (42501) over RPC for the anon key, an owner login and a comedian login; after a real suspend through the API the numbers moved as expected (shows cancelled, every active request now cancelled by venue, acceptance unchanged).
+Fixtures were four "TEST – 7" venues and three throwaway owner accounts, all deleted (venues back to 12). The script's cleanup removed the auth accounts but not their `users` rows, so 9 orphan rows from three runs were deleted by hand afterwards; 0 left.
+
+**Not verified:** the Pulse panel in a browser (layout, mobile, the bar and ring rendering, the retry state). The test admin, owner and comedian passwords were reset again for this run (random, not stored); set new ones if you need to log in as them.
+
+## Step 8: `/home` cleanup
+
+No migration. Done last, after Pages A and B existed. Admin `/home` is now an entry point to `/admin/venues`; the old inline tools are gone.
+
+### Web
+- `AdminHomeContent`: keeps the welcome header and the two stat tiles (Total Venues, Pending Approvals). **Both tiles are links to `/admin/venues`**, a "Manage venues" button sits under them, and the red pulse dot stays on a non-zero pending count. The pending list, its Approve / Reject buttons and the Manage Venues search are gone. Stats come only from `GET /api/admin/stats`; while loading or on failure the tiles show "–" instead of a misleading `0`.
+- Deleted (nothing else imported them): `ManageVenuesSection`, `HideVenueDialog`, `VenueActionSheet`, `useAdminVenues`.
+- Not touched: `AdminProfile` (it still uses `/api/admin/stats`), the shared Sidebar, the `/manage/` routes and Pages A / B.
+- Address no longer appears on `/home` (the old pending cards showed it).
+
+### API: routes removed
+`GET /api/admin/pending-venues`, `GET /api/admin/venues`, `POST /api/venues/:id/approve`, `POST /api/venues/:id/reject`, and (the user's decision) `POST /api/venues/:id/hide` and `/unhide`. Before removing the last two, the whole repo, specs, scripts and tests were searched: the only caller was `useAdminVenues`. Their replacements are the `/api/admin/manage/venues/:id/...` routes. This **closes the known gap** where `/home` could reject a venue without a reason (the replacement requires one). The RPCs and `p_admin_id` defaults from 018 and 026 stay as they are. `GET /api/admin/stats` stays.
+
+### Verified / not verified
+Built and checked: `npm run check-types`, ESLint on the rewritten file, `next build`, API typecheck (still only the 13 old errors), and a repo-wide search showing no remaining reference to a removed file or route.
+
+**Verified live (2026-10-31, test accounts, real DB): 24 checks passed, 0 failed** (script in the session scratchpad, not in the repo). Each removed route returns 404 for the admin and the removed `/api/admin/*` routes return 401 with no token; `/api/admin/stats` is 401 / 403 / 403 / 200 across none, comedian, owner, admin; the `/manage/` list is still 200; on "TEST – 8" fixtures hide, a repeat hide (409), unhide, approve, reject without a reason (400) and reject with a reason all behave through the `/manage/` routes, and the pending count moved by exactly the expected amount; no fixture ever appeared on the public list. Fixtures were three ownerless venues, deleted (venues back to 12).
+
+**Not verified: `/home` in a browser** (tile layout and mobile, link targets, the "Manage venues" button, the "–" state).
+
 ## Handoff: state and remaining work (steps 4-8)
 
 Written at the end of the first session and refreshed at the end of the second so work can resume cold. The sections above are the record of what was built; this section is what to do next.
@@ -448,10 +503,10 @@ Written at the end of the first session and refreshed at the end of the second s
 | 4b part 1: protect `users.role` (migration 022) | **Applied** (user confirmed). See "Step 4b, part 1". |
 | 4b part 2: API public-path filters + migration 023 (legacy booking gate) | API built and verified against the real DB. **Migration 023 applied and verified live.** |
 | 4b part 3: 022b (`handle_new_user` whitelist), 024 (function lockdown), 025 (RLS) | **Applied by the user and verified live; committed in `98e3537`.** See "Step 4b, part 3". **Step 4 is complete.** |
-| 5 search and filters | **Built; API verified live (62 checks); UI not yet exercised in a browser.** See "Step 5". Uncommitted. |
-| 6 Page B (dossier + edit) | **6a, 6b and 6c built.** 6b: 027 applied, UI checked by the user, live API checks passed. 6c: live API checks passed, editor UI not yet seen in a browser. **6a built** (read-only dossier, actions, migration 026 **applied**); API verified live (67 checks), UI not yet seen in a browser; 6b suspend UI and 6c edit not started. See "Step 6a". Uncommitted. |
-| 7 stats | Not started. |
-| 8 `/home` cleanup | Not started; must be LAST. |
+| 5 search and filters | **Built, committed; API verified live (62 checks); UI reviewed by the user.** See "Step 5". |
+| 6 Page B (dossier + edit) | **6a, 6b and 6c built and committed** (`d49aa4e`, `184c470`). 6a: 026 applied, 67 live checks. 6b: 027 applied, UI checked by the user. 6c: 94 live checks (with 6b); the editor UI is not yet seen in a browser by the user. |
+| 7 stats | **Built; migration 028 written, NOT yet applied; live checks and browser check pending.** See "Step 7". |
+| 8 `/home` cleanup | **Built; old routes and components removed; 24 live checks passed; `/home` not yet seen in a browser.** See "Step 8". |
 
 Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `RequestsPanel.tsx`, `safeLinks.ts` and `specs/venue-dashboard.md`). Step 4a and 4b parts 1-2 are committed (`897c041`); 022b, 024, 025 and the spec updates after it are committed (`98e3537`). Step 5 is uncommitted (the user commits). Never stash, reset or check out uncommitted files (use `git diff` / `git show`, not stash).
 
@@ -474,7 +529,7 @@ Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `Requests
 2. Before every Bash command give a one-line explanation of what it does and why (CLAUDE.md convention).
 3. **Plan first, wait for approval** before any non-trivial new step; call out anything that deviates from the agreed plan (e.g. 019 as a trigger instead of rewriting four functions; the spot gate as triggers).
 4. DB changes are **additive and backward compatible**; keep localStorage keys, existing DB values and identifiers. Migrations are applied manually by the user in the Supabase SQL editor (nothing can run Postgres locally, so SQL is unrun until the user applies it; say so every time).
-5. Tests: `npm run check-types`, ESLint on changed files, plus a curl role matrix (no token, comedian, venue owner, admin) against every admin endpoint. **Test accounts now exist** (a test admin, venue owner and comedian plus an approved test venue, created in session 2; see the Open items below). Use the test admin for the admin half of the matrix and the others for the 403 half. Their credentials live outside the repo (never put them in a file that git can see). Report honestly what was and was not verified.
+5. Tests: `npm run check-types`, ESLint on changed files, plus a curl role matrix (no token, comedian, venue owner, admin) against every admin endpoint. **The test accounts used during this project were deleted on 2026-10-31** (see the Open items below); a future test run must create new ones with the service role, with a "TEST – " prefix, and delete them afterwards. Credentials never go in a file that git can see. Report honestly what was and was not verified.
 6. Design: dark glassmorphism using the global `.glass-panel` (the `/support` page is the blur/opacity reference); cyan `#38BDF8`; Bebas Neue headings and Cormorant Garamond italic voice (`font-[family-name:var(--font-cormorant)] italic`); **flat solid colors only: no gradients, no glow**; SVG icons only, no emojis; mobile-first; modals built on `ModalShell` (the Requests-modal chrome); buttons are `CtaButton`, inputs are `float-field`/`float-input` (no new button or input styles); no new dependencies or animation libraries. Status is always icon + label + color.
 7. **No "verified" feature** anywhere (no flag, column or badge beyond the existing `verified` column that approve already set).
 8. **Address is out of scope**: no editing, display, search or new logic anywhere, including admin edit and every new endpoint (do not `select` it in new code).
@@ -538,11 +593,11 @@ Server-side query params on `GET /api/admin/manage/venues`: `q` (venue **name on
 - **Suspend UI (moved here from step 4):** step 6 builds it, since 4a ships only the API. A `SuspendVenueModal` on `ModalShell` and a `ConfirmByTyping` component (a `float-input` that must equal the venue name before the danger `CtaButton` enables). The modal shows a "what will happen" block with live counts from `GET .../suspension-preview`, the plain statement that unsuspending will not restore anything, and a required reason (<= 500). Unsuspend is a plain confirm. The hook gains `getSuspensionPreview`, `suspendVenue` and `unsuspendVenue` against the three 4a routes. The Next actions panel launches them (approved -> Suspend; suspended -> Unsuspend).
 - Reuse `StatusBadge`, `ReasonNote`, `ModalShell`, `ReviewActionModal`, `CtaButton`, `float-field`.
 
-### Step 7: venue stats on Page B
+### Step 7: venue stats on Page B (BUILT: see the "Step 7" section above for what shipped, including the date-free rule that replaced the date cutoff; kept as the original brief)
 
 `GET /api/admin/manage/venues/:id/stats` and a distinctive "pulse" panel (not four identical boxes): a large Bebas "requests received" figure, a flat stacked bar of outcomes (pending / accepted / waitlisted / cancelled) in the Requests-panel status colors (pending `#facc15`, accepted `#38bdf8`, waitlisted `#a1a1aa`), the acceptance rate as a flat SVG ring, plus spots created and cancellations (by venue / by comedian / after acceptance). Data: spots created = count of `venue_shows` for `venues.owner_id` (a show has up to 3 pool rows; show the number of shows, label it); requests received = `spot_requests` joined through `spots.venue_producer_id`; cancelled shows = `venue_shows.is_cancelled` (exact for all history). Acceptance rate and "cancelled after acceptance" follow the 019 rules in the Step 1b section; show a graceful italic "n/a" with a note ("recorded from <migration date>", and "n older requests excluded") rather than a proxy. Venues with a null `owner_id` show zeros/"no owner". The legacy `shows` table is not part of these stats.
 
-### Step 8: `/home` cleanup (last, only after A and B are reviewed)
+### Step 8: `/home` cleanup (BUILT: see the "Step 8" section above; the old hide/unhide routes were retired too, which this brief did not list; kept as the original brief)
 
 Replace the pending-approvals list and `ManageVenuesSection` in `AdminHomeContent` with a count tile linking to `/admin/venues` (pending count from `GET /api/admin/stats`, which now counts `review_status = 'pending'`). Then retire what nothing uses any more: `useAdminVenues`, `ManageVenuesSection`, `HideVenueDialog`, `VenueActionSheet`, `GET /api/admin/venues`, `GET /api/admin/pending-venues`, and the old unreasoned `POST /api/venues/:id/approve|reject` (this closes the known gap where `/home` can reject without a reason). Update `specs/admin-dashboard-spec.md` to point at this spec. Leave `AdminProfile` and the shared Sidebar alone.
 
@@ -551,7 +606,7 @@ Replace the pending-approvals list and `ManageVenuesSection` in `AdminHomeConten
 - ~~Older `SECURITY DEFINER` functions are not restricted~~ **Fixed by 024** (14 functions). Future functions get `EXECUTE` for PUBLIC by default, so each new migration must revoke explicitly (018, 021 do).
 - `POST /api/bookings/:id/confirm` (a test helper) is unauthenticated. Out of scope; flagged.
 - The signup trigger `handle_new_user` is still not in the repo as a base file; its current definition lives in `022b_handle_new_user_role_whitelist.sql`. The whitelist is verified live.
-- **Test accounts exist in the real DB** (test admin, owner, comedian, and the approved, public venue "ZZ Claude Test Venue" with leftover shows/spots/a booking). Use the test admin for all admin testing (see memory `test-accounts`). They must be deleted when the project's testing is finished; until then the test venue appears in the real public venue list.
+- **Test data removed (2026-10-31, at the user's request).** Deleted from the real DB: the test admin, owner and comedian (auth users and `users` rows), the venue "ZZ Claude Test Venue" with its 4 shows, 4 spot pools, 2 requests, 1 legacy show, 2 bookings and 2 notices. Afterwards: 11 venues, 19 users, the only admin is the user's own account. Side effect: any `reviewed_by` / `hidden_by` / `suspended_by` that pointed at the test admin is now empty (the FK sets null), so the Situation panel shows no "by" name for those. The earlier "ZZ" venue was one of the two public venues, so the public list now has one venue less.
 - Test states still not covered: rejected with and without reason, changes-requested, a second city, a venue with accepted/waitlisted requests (including the same comedian on two pools of one show) for the suspend test. Create them with the service role when step 5/6 needs them.
 - Pending shows already created by pending venues: the count was never queried (it needs DB access). The query is in the conversation notes: join `venues` (unapproved) to `venue_shows`/`spots` on `owner_id = venue_producer_id`. Report the number if the user supplies it.
 - Whether the owner-side "Fix and resubmit" and the admin flows behave end to end is **unverified** until the user tests with real accounts.

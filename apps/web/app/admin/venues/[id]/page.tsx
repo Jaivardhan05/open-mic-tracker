@@ -10,11 +10,13 @@ import StatusBadge from "@/components/admin/StatusBadge";
 import SuspendVenueModal from "@/components/admin/SuspendVenueModal";
 import VenueNextActions from "@/components/admin/VenueNextActions";
 import VenueProfilePanel from "@/components/admin/VenueProfilePanel";
+import VenuePulsePanel from "@/components/admin/VenuePulsePanel";
 import VenueSituationPanel from "@/components/admin/VenueSituationPanel";
 import { IconChevronLeft } from "@/components/icons/NavIcons";
 import { useToast } from "@/context/ToastContext";
 import { useAdminVenue } from "@/hooks/useAdminVenue";
 import type { AdminVenueChanges } from "@/hooks/useAdminVenue";
+import { useAdminVenueStats } from "@/hooks/useAdminVenueStats";
 import { runVenueAction, type VenueActionKind } from "@/lib/adminVenueActions";
 import { deriveDisplayStatus } from "@/lib/venueStatus";
 
@@ -61,6 +63,7 @@ export default function AdminVenuePage() {
   const venueId = String(params.id);
   const { venue, isLoading, notFound, error, refetch, getSuspensionPreview, suspendVenue, updateVenue } =
     useAdminVenue(venueId);
+  const { stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useAdminVenueStats(venueId);
   const { showToast } = useToast();
   const [action, setAction] = useState<VenueActionKind | "suspend" | null>(null);
   // True while the Profile editor holds unsaved edits.
@@ -90,6 +93,8 @@ export default function AdminVenuePage() {
       } cancelled.`
     );
     void refetch();
+    // The suspend just cancelled shows and requests, so the Pulse numbers moved.
+    void refetchStats();
     return result;
   }
 
@@ -165,6 +170,10 @@ export default function AdminVenuePage() {
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <VenueSituationPanel venue={venue} />
               <VenueNextActions venue={venue} onAction={setAction} />
+            </div>
+
+            <div className="mt-4">
+              <VenuePulsePanel stats={stats} isLoading={statsLoading} error={statsError} onRetry={() => void refetchStats()} />
             </div>
 
             <div className="mt-4">

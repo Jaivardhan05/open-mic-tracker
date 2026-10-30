@@ -132,6 +132,29 @@ export interface AdminVenueDetail {
   allowed_cities: string[];
 }
 
+/**
+ * Response of GET /api/admin/manage/venues/:id/stats (all-time, migration 028).
+ * `shows` counts venue_shows (a show has up to 3 spot pools); `requests` are
+ * spot requests. `acceptance.excluded` and the "after acceptance" split follow
+ * the migration 019 rules: requests cancelled before tracking began are
+ * excluded, not guessed. Cancellations by venue include suspension-caused ones.
+ */
+export interface AdminVenueStats {
+  success: true;
+  has_owner: boolean;
+  shows: { created: number; cancelled: number };
+  requests: {
+    total: number;
+    pending: number;
+    accepted: number;
+    waitlisted: number;
+    cancelled_by_comedian: number;
+    cancelled_by_venue: number;
+  };
+  acceptance: { knowable: number; ever_accepted: number; excluded: number };
+  cancelled_after_acceptance: { by_venue: number; by_comedian: number };
+}
+
 /** Response of GET /api/admin/manage/venues. */
 export interface AdminVenueListResponse {
   /** Venues matching q, status and city, oldest submission first. */

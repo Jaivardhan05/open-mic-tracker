@@ -1,6 +1,6 @@
 # Admin Dashboard — Spec
 
-**Status:** Implemented
+**Status:** Implemented, then partly superseded (2026-10-31). The inline Pending Approvals list, the Manage Venues search and hide dialog on admin `/home`, and the routes `GET /api/admin/venues`, `GET /api/admin/pending-venues` and `POST /api/venues/:id/approve|reject|hide|unhide` (§4, §6.2) were **removed**; venue review, hide / unhide, suspend and edit now live on `/admin/venues` and `/admin/venues/[id]`, with the `/api/admin/manage/venues/...` routes. See `specs/admin-venue-management.md` (Step 8). What remains of this spec: the hide data model (§2), the owner notices (§3, §6.4), and `/home` as the admin entry point (two stat tiles linking to `/admin/venues`). The `/api/admin/stats`, `…/approve` and `…/reject` "unauthenticated" remark in §4 is out of date too: they were locked in Step 0.
 **Scope:** `/admin-dashboard` removal, admin `/home`, venue moderation (hide), venue producer notices
 **Out of scope:** hard delete ("Remove Venue"), comedian `/profile` / `/profile/edit`, fan-card animation, venue producer's own show-management flows
 
