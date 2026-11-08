@@ -133,6 +133,17 @@ export function PoolLabel({ color, children }: { color: string; children: React.
   );
 }
 
+// Shown under the hosting price in AddShowForm/EditShowForm. Hosting is billed
+// like every other spot and the comedian pays it (specs/payments-weekly-billing.md,
+// decision D7), so the owner must not read the amount as a fee paid TO the host.
+export function HostingPriceNote() {
+  return (
+    <p className="text-xs text-zinc-500">
+      The host (the comedian) pays this price, like any other spot. Choose Free if hosting is unpaid.
+    </p>
+  );
+}
+
 // Free/Amount price control, shared across all three pool sections in
 // AddShowForm/EditShowForm (previously forked per-form as a single price
 // field before the 3-pool split — see specs/venue-dashboard.md §9.4).

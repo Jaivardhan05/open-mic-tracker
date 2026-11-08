@@ -37,7 +37,7 @@ open-mic-tracker/
 			src/ - shared client-side components, auth context, and API helpers
 	packages/ - shared workspace packages
 		eslint-config/ - shared ESLint presets
-		types/ - shared TypeScript entities for venues and shows
+		types/ - shared TypeScript entities for venues and shows, plus the venue display-status rule and the photo-host validator
 		typescript-config/ - shared tsconfig bases
 		ui/ - shared React UI primitives
 	package.json - workspace scripts and package manager metadata
@@ -86,7 +86,7 @@ npm install
 
 3. Create environment files for the web and API apps with the variables listed above.
 
-4. Apply the database schema in `apps/api/src/db` in this order: `schema.sql`, `functions.sql`, `rls.sql`, then `seed.sql` if you want seeded Delhi data.
+4. Apply the database schema in `apps/api/src/db` in this order: `schema.sql`, `functions.sql`, `rls.sql`, then `seed.sql` if you want seeded Delhi data. Then apply every file in `apps/api/src/db/migrations/` in numeric order (`001` to `028`; `017a`/`017b` and `022b` sort after their number). The base files above are not kept in sync with later changes, so the migrations are required, and they are run by hand in the Supabase SQL editor.
 
 5. Start the development stack.
 
@@ -100,28 +100,27 @@ The root `dev` script runs `turbo run dev`, which starts `apps/web` on `http://l
 
 The frontend is a Next.js App Router app under `apps/web/app` and talks to the backend over HTTP using `NEXT_PUBLIC_API_URL`. The home and venues pages fetch search results and venue detail data from the Express API, while individual forms also use the Supabase JavaScript client directly for auth and profile updates.
 
-Auth is implemented in `apps/web/src/lib/auth.ts` and `apps/web/src/context/AuthContext.tsx`. Supabase Auth is used for comedian and venue producer sign-up and sign-in, but the current user is mirrored into local storage as `openmic_user` for client-side routing and role checks. Admin access is a hard-coded email/password bypass in the frontend auth helper, not a Supabase role flow.
+Auth is implemented in `apps/web/src/lib/auth.ts` and `apps/web/src/context/AuthContext.tsx`. Supabase Auth is used for comedian and venue producer sign-up and sign-in, but the current user is mirrored into local storage as `openmic_user` for client-side routing and role checks. Admins sign in through Supabase Auth like everyone else and are recognised by `users.role = 'admin'`. The role cannot be set by a client or at signup: an admin is created by promoting an existing account with the service role or the SQL editor. The admin pages (`/admin/...`) ask the API (`GET /api/admin/me`) whether the session is an admin instead of trusting local storage.
 
 The backend in `apps/api/src/index.ts` is an Express server that reads from Supabase with the anon client for public data and the service-role client for admin actions. It exposes health, venue, show, and admin moderation endpoints, and uses Supabase RPC functions for venue approval and platform stats.
 
 The database layer is plain PostgreSQL schema files in `apps/api/src/db`, not an ORM. `schema.sql` defines the tables and enums, `functions.sql` defines `SECURITY DEFINER` RPC helpers, and `rls.sql` applies row-level security policies.
 
-Role-based access is enforced in two places: the frontend routes redirect users based on the stored role, and Supabase RLS limits what authenticated users can read or mutate. The codebase distinguishes comedian, venue producer, and admin routes, but the admin dashboard still relies on frontend checks plus service-role API calls.
+Role-based access is enforced in two places: the frontend routes redirect users based on the stored role, and Supabase RLS limits what authenticated users can read or mutate. The codebase distinguishes comedian, venue producer, and admin routes. Every `/api/admin/*` route requires a valid session and the admin role on the server (a default-deny guard), and the database functions that change venue state are executable by the service role only.
 
 ## User Roles
 
-Comedians are routed to `/home` and `/profile`, where they search venues, inspect show availability, and edit their profile. Venue producers are routed to `/venue-dashboard` and can manage venue-related profile data, while their venues are held pending approval until an admin approves them. Admin users are routed to `/admin-dashboard` and `/profile` with admin controls, pending-venue moderation, and platform stats surfaced through the API.
+Comedians are routed to `/home` and `/profile`, where they search venues, inspect show availability, and edit their profile. Venue producers also land on `/home`, which shows their venue dashboard (shows, spot requests, notices from the admin, and the status of their venue review); a new venue is held in review until an admin approves it, and it cannot add shows until then. Admin users land on `/home`, which shows two counts (total and pending venues) that open venue management at `/admin/venues`.
 
 ## Key Features (Implemented)
 
 - Role-aware sign-up and login for comedians and venue producers.
-- Hard-coded admin login path for local/admin access.
 - Local-storage-backed session persistence for the currently active user.
 - Venue search and listing pages backed by the Express API and Supabase.
 - Venue detail fetches that include upcoming shows for a selected venue.
 - Profile view and profile edit flows for all three roles.
 - Venue producer onboarding that creates a venue in pending approval state.
-- Admin moderation endpoints for approving or rejecting venues.
+- Admin venue management (`/admin/venues` and `/admin/venues/[id]`): a filterable venue list with status counts; approve, request changes, reject and reopen with a reason the owner can read; hide and unhide; suspend (cancels upcoming shows and requests, with a preview and a typed confirmation) and lift a suspension; edit a venue's name, city, description, photo URLs and contact links; and a per-venue "Pulse" panel (requests received and their outcomes, acceptance rate, shows and cancellations). Owners see their venue's review or suspension state, can fix and resubmit when changes are requested, and receive a notice when hidden or suspended. See `specs/admin-venue-management.md`.
 - Supabase RLS policies for public venue/show reads and per-user profile/bookings access.
 - Seed data for Delhi venues and upcoming shows.
 
@@ -155,7 +154,11 @@ Comedians are routed to `/home` and `/profile`, where they search venues, inspec
 | photos | Text array, defaults to empty array. |
 | description | Optional text. |
 | verified | Boolean, defaults to false. |
-| admin_approved | Boolean, defaults to false. |
+| admin_approved | Boolean, defaults to false. Always equal to `review_status = 'approved'` (enforced by a CHECK). |
+| review_status / review_reason | `pending`, `approved`, `changes_requested` or `rejected`, and the admin's note (migration 018). |
+| reviewed_at / reviewed_by / submitted_at | Last review action, who did it, and when the venue entered the queue. |
+| is_hidden / hidden_reason / hidden_at / hidden_by | Hidden venues are removed from public listings (migrations 008, 026). |
+| is_suspended / suspension_reason / suspended_at / suspended_by | Suspension flag, independent of review status (migrations 018, 021). |
 | is_active | Boolean, defaults to true. |
 | created_at / updated_at | Timestamp fields with trigger maintenance. |
 

@@ -14,6 +14,7 @@ import type { AuthUser } from "@/lib/auth";
 
 import AddShowForm from "./AddShowForm";
 import CancelShowDialog from "./CancelShowDialog";
+import CancellationWindowSection from "./CancellationWindowSection";
 import EditShowForm from "./EditShowForm";
 import RequestsPanel from "./RequestsPanel";
 import VenueDetailsModal, { type VenueDetailsMode } from "./VenueDetailsModal";
@@ -31,7 +32,7 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
   const [requestsSpotId, setRequestsSpotId] = useState<string | null>(null);
   const [editShowId, setEditShowId] = useState<string | null>(null);
   const [cancelShowId, setCancelShowId] = useState<string | null>(null);
-  const { status, refetch: refetchStatus, saveDetails, resubmit } = useOwnerVenueStatus();
+  const { status, refetch: refetchStatus, saveDetails, resubmit, saveCancelCutoff } = useOwnerVenueStatus();
   const { updateUser } = useAuth();
   const { showToast } = useToast();
   const [detailsMode, setDetailsMode] = useState<VenueDetailsMode | null>(null);
@@ -61,6 +62,12 @@ export default function VenueProducerDashboard({ user }: VenueProducerDashboardP
       </section>
 
       <VenueStatusSection status={status} onEditDetails={setDetailsMode} />
+
+      <CancellationWindowSection
+        status={status}
+        onSave={saveCancelCutoff}
+        onSaved={() => showToast("Cancellation window saved.")}
+      />
 
       <section className="mt-6 px-4 md:px-6 text-center md:text-left">
         <CtaButton type="button" disabled={addDisabled} onClick={() => setShowAddForm(true)}>

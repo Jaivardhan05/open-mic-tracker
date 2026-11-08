@@ -6,7 +6,15 @@ import type { NewShowInput } from "@/hooks/useVenueShows";
 import CtaButton from "@/components/CtaButton";
 import { IconClose } from "@/components/icons/NavIcons";
 
-import { DateTimeField, NumberField, PoolLabel, PriceField, SpotFormModal, ToggleCta } from "./SpotFormShared";
+import {
+  DateTimeField,
+  HostingPriceNote,
+  NumberField,
+  PoolLabel,
+  PriceField,
+  SpotFormModal,
+  ToggleCta,
+} from "./SpotFormShared";
 
 interface AddShowFormProps {
   onSubmit: (input: NewShowInput) => Promise<{ success: boolean; error?: string }>;
@@ -158,13 +166,16 @@ export default function AddShowForm({ onSubmit, onClose }: AddShowFormProps) {
             </ToggleCta>
           </div>
           {hosting ? (
-            <PriceField
-              idPrefix="add-show-hosting"
-              isFree={hostingIsFree}
-              price={hostingPrice}
-              setIsFree={setHostingIsFree}
-              setPrice={setHostingPrice}
-            />
+            <>
+              <PriceField
+                idPrefix="add-show-hosting"
+                isFree={hostingIsFree}
+                price={hostingPrice}
+                setIsFree={setHostingIsFree}
+                setPrice={setHostingPrice}
+              />
+              <HostingPriceNote />
+            </>
           ) : null}
         </div>
 

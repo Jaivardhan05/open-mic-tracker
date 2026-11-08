@@ -66,3 +66,39 @@ could insert a `spot_requests` row directly via PostgREST, bypassing
 Related: also review whether `UPDATE`/`DELETE` privileges are granted to
 `authenticated` on this table (no policy permits them today, so RLS should
 deny, but confirm against the live grants).
+
+## Verified live, 2026-11-08 (during payments Step 1, diff 1a)
+
+With a comedian login and the anon key, `POST /rest/v1/spot_requests` with
+`status: 'accepted'` **succeeded**: the issue is live. A direct `UPDATE` as the
+comedian affected 0 rows (no update policy), so that half is closed. Migration
+029 does not make the hole worse (forged price and cutoff columns are
+overwritten by the trigger, and an insert for a show that has already ended is
+refused), but a comedian can still accept themselves into a spot without the
+owner, and the resulting accepted request would be billable once billing
+exists. **Fix it before any real money flows** (option 1 above is still the
+recommendation); it is its own task, not part of 029. The test row was a
+`TEST – ` fixture and was deleted.
+
+## Fix written, 2026-11-08 (not yet applied)
+
+`apps/api/src/db/migrations/029b_close_spot_requests_direct_writes.sql` is
+option 1: it drops `spot_requests_insert_own` and revokes every table privilege
+on `spot_requests` from `PUBLIC, anon, authenticated`, then grants `SELECT` back
+to `authenticated` so the two read policies keep working. It aborts if the end
+state is not exactly that. Checked first: the web app never reads or writes the
+table through the Supabase client, the API only uses the service-role client
+for it, and every function that writes it is SECURITY DEFINER. Offline test on
+PGlite with real roles and RLS: 11 checks, 0 failed. After the user applies it,
+repeat the live check above (the comedian insert must now be denied) and the
+apply / accept / cancel flows through the API.
+
+## Applied and verified live, 2026-11-08: closed
+
+The user applied `029b_close_spot_requests_direct_writes.sql`. Live check with a
+comedian login through PostgREST: insert (accepted or pending), update and
+delete are all denied or affect nothing, and no row was created. Reads still
+work as intended (own rows, owner's rows for their spots, nothing for anon or
+another comedian). Apply, accept, waitlist promotion, cancel, venue-cancel,
+`update_show`, `cancel_show` and suspend/unsuspend all still work. 25 checks,
+0 failed; the fixtures were deleted. Status of this follow-up: **closed**.

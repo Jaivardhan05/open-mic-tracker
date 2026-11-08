@@ -262,7 +262,7 @@ app.get('/api/venues/:id', async (req: Request, res: Response) => {
   const { data: venueRow, error: venueError } = await publicVenueFilters(
     supabase
       .from('venues')
-      .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id')
+      .select('id, name, address, city, photos, description, instagram_url, x_url, maps_url, contact_email, contact_phone, cancel_cutoff_hours, owner_id')
       .eq('id', id)
   ).maybeSingle();
 
@@ -460,7 +460,7 @@ async function applyVenueEditableUpdates(res: Response, venueId: string, body: R
 }
 
 const OWNER_VENUE_STATUS_SELECT =
-  'id, name, city, description, review_status, review_reason, reviewed_at, submitted_at, admin_approved, is_active, is_suspended, suspension_reason, suspended_at';
+  'id, name, city, description, review_status, review_reason, reviewed_at, submitted_at, admin_approved, is_active, is_suspended, suspension_reason, suspended_at, cancel_cutoff_hours';
 
 // The owner's own venue state for their dashboard: where it stands in review,
 // the admin's note, and what they may do next. Does not expose hide state.
@@ -508,6 +508,69 @@ app.post('/api/venues/mine/resubmit', requireUser, requireRole('venue_producer')
   }
 
   res.status(200).json({ success: true });
+});
+
+// Cancellation window (migration 029): how many whole hours before a show
+// starts a comedian may still cancel an ACCEPTED spot. Chosen by the owner,
+// 0 to 12 (12 is the default and the maximum). The value is copied onto each
+// request when it is accepted, so changing it never affects a spot that is
+// already accepted. Allowed in every venue state. The database CHECK is the
+// backstop; this validates first so the owner gets a clear message. Must stay
+// registered before /api/venues/:id for the same reason as the routes around it.
+const CANCEL_CUTOFF_MIN_HOURS = 0;
+const CANCEL_CUTOFF_MAX_HOURS = 12;
+
+app.patch('/api/venues/mine/cancel-cutoff', requireUser, requireRole('venue_producer'), async (req: AuthedRequest, res: Response) => {
+  const userId = req.userId as string;
+  const value = ((req.body ?? {}) as Record<string, unknown>).cancel_cutoff_hours;
+
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < CANCEL_CUTOFF_MIN_HOURS ||
+    value > CANCEL_CUTOFF_MAX_HOURS
+  ) {
+    res.status(400).json({
+      error: `cancel_cutoff_hours must be a whole number from ${CANCEL_CUTOFF_MIN_HOURS} to ${CANCEL_CUTOFF_MAX_HOURS}`,
+    });
+    return;
+  }
+
+  const { data: venueRow, error: venueError } = await supabaseAdmin
+    .from('venues')
+    .select('id')
+    .eq('owner_id', userId)
+    .maybeSingle();
+
+  if (venueError) {
+    res.status(500).json({ error: venueError.message });
+    return;
+  }
+
+  if (!venueRow) {
+    res.status(404).json({ error: 'No venue found for this account' });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('venues')
+    .update({ cancel_cutoff_hours: value })
+    .eq('id', venueRow.id)
+    .select('cancel_cutoff_hours')
+    .maybeSingle();
+
+  if (error) {
+    // 23514 = check_violation (the 0..12 CHECK from migration 029).
+    res.status(error.code === '23514' ? 400 : 500).json({ error: error.message });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({ error: 'No venue found for this account' });
+    return;
+  }
+
+  res.status(200).json({ success: true, cancel_cutoff_hours: data.cancel_cutoff_hours });
 });
 
 // Lets a venue producer update their own venue's social/contact links
@@ -847,7 +910,7 @@ app.post('/api/admin/manage/venues/:id/unsuspend', async (req: AuthedRequest, re
 // ---------------------------------------------------------------------------
 
 const ADMIN_VENUE_DETAIL_SELECT =
-  'id, name, city, description, photos, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id, review_status, review_reason, reviewed_at, reviewed_by, submitted_at, is_hidden, hidden_reason, hidden_at, hidden_by, is_suspended, suspension_reason, suspended_at, suspended_by, created_at, updated_at';
+  'id, name, city, description, photos, instagram_url, x_url, maps_url, contact_email, contact_phone, owner_id, review_status, review_reason, reviewed_at, reviewed_by, submitted_at, is_hidden, hidden_reason, hidden_at, hidden_by, is_suspended, suspension_reason, suspended_at, suspended_by, created_at, updated_at, cancel_cutoff_hours';
 
 type AdminVenueDetailResult = { status: 200; body: AdminVenueDetail } | { status: 404 | 500; error: string };
 
@@ -1296,21 +1359,40 @@ const SPOT_SELECT =
 
 async function venuesByProducerIds(
   producerIds: string[]
-): Promise<Record<string, { id: string; name: string }>> {
+): Promise<Record<string, { id: string; name: string; cancel_cutoff_hours: number }>> {
   if (producerIds.length === 0) {
     return {};
   }
 
   const { data } = await supabaseAdmin
     .from('venues')
-    .select('id, owner_id, name')
+    .select('id, owner_id, name, cancel_cutoff_hours')
     .in('owner_id', producerIds);
 
-  const map: Record<string, { id: string; name: string }> = {};
-  (data ?? []).forEach((v: { id: string; owner_id: string; name: string }) => {
-    map[v.owner_id] = { id: v.id, name: v.name };
+  const map: Record<string, { id: string; name: string; cancel_cutoff_hours: number }> = {};
+  (data ?? []).forEach((v: { id: string; owner_id: string; name: string; cancel_cutoff_hours: number }) => {
+    map[v.owner_id] = { id: v.id, name: v.name, cancel_cutoff_hours: v.cancel_cutoff_hours };
   });
   return map;
+}
+
+// The instant an accepted spot stops being cancellable by the comedian:
+// show start (date + start_time, India time, which has no daylight saving so a
+// fixed +05:30 is exact) minus the cutoff locked at acceptance (migration 029).
+// Mirrors comedian_cancel_spot_request. Null when either part is unknown.
+function cancelByIso(spot: Record<string, unknown> | null | undefined, cutoffHours: number | null): string | null {
+  if (!spot || cutoffHours === null || cutoffHours === undefined) {
+    return null;
+  }
+  const { date, start_time: startTime } = spot;
+  if (typeof date !== 'string' || typeof startTime !== 'string') {
+    return null;
+  }
+  const startMs = Date.parse(`${date}T${startTime.slice(0, 8)}+05:30`);
+  if (Number.isNaN(startMs)) {
+    return null;
+  }
+  return new Date(startMs - cutoffHours * 3600 * 1000).toISOString();
 }
 
 app.get('/api/spots', async (_req: Request, res: Response) => {
@@ -1830,7 +1912,7 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
 
   const { data: requests, error } = await supabaseAdmin
     .from('spot_requests')
-    .select(`id, spot_id, show_id, comedian_id, status, venue_message, edit_notice, edit_notice_at, requested_at, decided_at, spots:spot_id(${SPOT_SELECT})`)
+    .select(`id, spot_id, show_id, comedian_id, status, venue_message, edit_notice, edit_notice_at, requested_at, decided_at, price_paise_at_accept, cancel_cutoff_hours_at_accept, spots:spot_id(${SPOT_SELECT})`)
     .eq('comedian_id', userId)
     .or(`status.neq.cancelled_by_venue,decided_at.gt.${cancelledVisibilityCutoff}`)
     .order('requested_at', { ascending: false });
@@ -1851,6 +1933,8 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
     edit_notice_at: string | null;
     requested_at: string;
     decided_at: string | null;
+    price_paise_at_accept: number | null;
+    cancel_cutoff_hours_at_accept: number | null;
     spots: Record<string, unknown> & { venue_producer_id: string };
   };
 
@@ -1880,6 +1964,15 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
     edit_notice_at: r.edit_notice_at,
     requested_at: r.requested_at,
     decided_at: r.decided_at,
+    // Terms locked when the request was accepted (migration 029). Both are
+    // null for every other status. The price is in paise (0 = free, null on an
+    // accepted row = an invalid price that billing will not charge).
+    price_paise_at_accept: r.status === 'accepted' ? r.price_paise_at_accept : null,
+    cancel_cutoff_hours_at_accept: r.status === 'accepted' ? r.cancel_cutoff_hours_at_accept : null,
+    cancel_by: r.status === 'accepted' ? cancelByIso(r.spots, r.cancel_cutoff_hours_at_accept) : null,
+    // The venue's cutoff right now: what will be locked if a pending or
+    // waitlisted request is accepted today.
+    venue_cancel_cutoff_hours: venues[r.spots?.venue_producer_id]?.cancel_cutoff_hours ?? null,
     spot: r.spots,
     venue_id: venues[r.spots?.venue_producer_id]?.id ?? null,
     venue_name: venues[r.spots?.venue_producer_id]?.name ?? 'Venue',

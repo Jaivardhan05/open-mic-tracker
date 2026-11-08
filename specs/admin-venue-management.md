@@ -4,7 +4,13 @@
 
 Delivered in small steps; each step appends its section below.
 
-> **Resuming in a new session? Read "Handoff: state and remaining work (steps 4-8)" at the bottom of this file first.** It holds the decisions, working rules and the detailed plan for what is left.
+> **Status: complete (steps 0 to 8, migrations 018 to 028, all applied; committed in `aaa600c`).** The test data used during development was deleted on 2026-10-31. The user confirmed `/home` and the Pulse panel in a browser; the 6c editor and mobile layouts were not explicitly confirmed. For anything further, read "Deferred and known gaps" below, then "Working rules" and "Environment notes" in the record section at the bottom. The older "Handoff" section there is a historical record, not a to-do list.
+
+## Deferred and known gaps (at completion)
+
+**Deferred by decision:** an audit log (so the suspension reason is erased on unsuspend and only the current review note is kept); owner notice when an admin edits a live venue; photo uploads (URL-only for now) and owner photo editing; a cancellation-reason column (to separate suspension cancellations from the owner's own in the Pulse figures); a date range for Pulse; URL-synced filters on Page A (filters reset when returning from Page B); intercepting navbar/sidebar clicks for the unsaved-changes warning.
+
+**Known gaps, not fixed:** the owner can probably write any photo URL directly through PostgREST (`venues_protect_moderation` omits `photos`), which could break `next/image` on public pages; "Pune Comedy Club" has a photo on `http://localhost:3000` (not public); `apps/api` has no working production build (`tsc` build does not produce a runnable `dist`; dev under `tsx` works); `spot_requests_insert_own` RLS is too permissive (`specs/spot-requests-rls-insert-followup.md`); `POST /api/bookings/:id/confirm` is unauthenticated (test helper); `AdminProfile` still shows the old two-state venue badge; the rollback of a failed 027 notice insert and a suspend racing a just-created show were never exercised; one venue per owner is assumed.
 
 ## Step 0: lock the unauthenticated admin endpoints
 
@@ -485,9 +491,9 @@ Built and checked: `npm run check-types`, ESLint on the rewritten file, `next bu
 
 **Not verified: `/home` in a browser** (tile layout and mobile, link targets, the "Manage venues" button, the "–" state).
 
-## Handoff: state and remaining work (steps 4-8)
+## Record: project state, working rules and original briefs (written during steps 4-8)
 
-Written at the end of the first session and refreshed at the end of the second so work can resume cold. The sections above are the record of what was built; this section is what to do next.
+Historical. It was written to let work resume cold between sessions; everything in it has since been built (see the Step sections above, which are authoritative where they differ from an old brief below). The "Working rules", "Environment notes" and "Decisions already made" subsections are still the best summary of how this feature was built.
 
 ### Where things stand
 
@@ -521,7 +527,11 @@ Steps 0 to 3b are committed (`ac8a809`, which also swept in the user's `Requests
 - Separate request, not part of the admin project: the Favorite Venues section on the comedian `/home` page was removed (component, `GET /api/me/favorite-venues`, the shared type; no database change). Recorded in `specs/dashboard-spec.md`; two stale sentences in this spec were updated.
 - Commits: `897c041` holds 4a and 4b through 023. **Uncommitted at the end of session 2 (the working tree was clean at the start of session 3, so all of it has since been committed; 022b, 024, 025 are in `98e3537`):** migrations `022b`, `024`, `025`; the favourites removal (`index.ts`, `ComedianHomeContent.tsx`, the deleted `FavoriteVenuesSection.tsx`, `packages/types/index.ts`, `specs/dashboard-spec.md`); and this spec.
 
-**Session 3:** step 5 (search and filters) built and verified live (see "Step 5"); decisions are logged in `specs/decisions.md`. **Next is step 6 (Page B).** Propose a plan first and wait for "go" (working rule 3). `git diff --stat` for a step should include `specs/decisions.md`.
+**Session 3:** step 5 (search and filters) built and verified live (see "Step 5"); decisions are logged in `specs/decisions.md`.
+
+**Session 4 (2026-10-18 to 2026-10-19):** step 6 in three diffs: 6a read-only Page B and migration 026, 6b suspend UI and migration 027, 6c admin edit and the shared photo validator.
+
+**Session 5 (2026-10-30 to 2026-10-31):** step 7 (Pulse stats, migration 028) and step 8 (`/home` cleanup, old routes retired), both verified live; then the final cleanup: all test accounts and the test venue deleted from the real database, the two handoff files removed, and `CLAUDE.md` / `README.md` refreshed.
 
 ### Working rules (the user's, from this session)
 
@@ -586,7 +596,7 @@ Defaults approved: a show in progress counts as upcoming; one venue per owner as
 
 Server-side query params on `GET /api/admin/manage/venues`: `q` (venue **name only**, case-insensitive), `status` (one of the six display statuses; remember hidden = approved + hidden and suspended wins), `city`; keep the status strip counts correct (counts over the unfiltered set, or add a counts payload). UI: a `float-input` search field with a clear button (pattern in `ManageVenuesSection`) and a city control. **Do not reuse `FilterPills`** (spot-specific, has a glow shadow). Reuse the existing `<select>` styling the profile-edit page uses (or the `float-input` select used in `VenueDetailsModal`); do not invent new input styles. Keep the mobile card layout; add loading/empty states in the established voice.
 
-### Step 6: Page B `/admin/venues/[id]` (the "dossier")
+### Step 6: Page B `/admin/venues/[id]` (the "dossier") (BUILT as 6a, 6b and 6c: see those sections; where this brief differs, they win, e.g. the suspend confirmation is typing the word "Suspend", not the venue name, and the unsuspend button reads "Lift suspension"; kept as the original brief)
 
 - **API:** `GET /api/admin/manage/venues/:id` (all venue fields **except address**, owner info, the three reasons with who/when via `reviewed_by`/`suspended_by` names); `PATCH /api/admin/manage/venues/:id` with the whitelist above, same validation as the owner path plus photos (https only, max 8, <= 2048 chars each; reuse one shared validator for owner and admin), city must be in `VENUE_CITIES` or unchanged; atomic and field-whitelisted, never touching `owner_id`, ids or moderation columns; `POST .../reopen` (rejected -> pending via `admin_reopen_venue`); approve/reject for a changes-requested venue via the existing endpoints; hide/unhide: reuse `POST /api/venues/:id/hide|unhide` (admin-guarded) or add manage-prefixed wrappers, keeping their behavior unchanged. Every action takes `p_admin_id` (audit log later plugs in with one INSERT per function; do not build the audit log now).
 - **Web:** `app/admin/venues/[id]/page.tsx` under the existing guard layout. Dossier feel, not a form: (1) header (name in Bebas, city, owner, status badge); (2) a **Situation** panel (current status + its reason in the italic note + since when/by whom, plus hidden/suspended flags and counts); (3) a state-aware **Next actions** panel: pending -> Approve / Request changes / Reject; changes_requested -> Approve / Reject (waiting on owner); rejected -> Move back to pending; approved -> Hide or Unhide / Suspend; suspended -> Unsuspend; (4) **Profile** panel read view with an Edit toggle switching fields in place (name, city, description, photo URL list via a new `PhotoUrlListEditor`, Instagram, X, Maps, contact email, phone), Save/Cancel and an unsaved-changes warning; (5) the stats panel (step 7). Mobile: single column in that order. Link Page A rows and review cards to Page B (they are not linked yet). No address anywhere. Reasons history is only the current reasons until the audit-log task exists; say so in the UI copy/spec rather than inventing a timeline.

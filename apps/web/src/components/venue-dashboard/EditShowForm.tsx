@@ -9,7 +9,15 @@ import CtaButton from "@/components/CtaButton";
 import { IconClose } from "@/components/icons/NavIcons";
 import { useToast } from "@/context/ToastContext";
 
-import { DateTimeField, NumberField, PoolLabel, PriceField, SpotFormModal, ToggleCta } from "./SpotFormShared";
+import {
+  DateTimeField,
+  HostingPriceNote,
+  NumberField,
+  PoolLabel,
+  PriceField,
+  SpotFormModal,
+  ToggleCta,
+} from "./SpotFormShared";
 
 interface EditShowFormProps {
   show: VenueShow;
@@ -157,13 +165,16 @@ export default function EditShowForm({ show, onSubmit, onClose }: EditShowFormPr
             </ToggleCta>
           </div>
           {hosting ? (
-            <PriceField
-              idPrefix="edit-show-hosting"
-              isFree={hostingIsFree}
-              price={hostingPrice}
-              setIsFree={setHostingIsFree}
-              setPrice={setHostingPrice}
-            />
+            <>
+              <PriceField
+                idPrefix="edit-show-hosting"
+                isFree={hostingIsFree}
+                price={hostingPrice}
+                setIsFree={setHostingIsFree}
+                setPrice={setHostingPrice}
+              />
+              <HostingPriceNote />
+            </>
           ) : null}
         </div>
 

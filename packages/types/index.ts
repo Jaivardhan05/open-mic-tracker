@@ -10,6 +10,8 @@ export interface Venue {
   maps_url?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
+  /** Whole hours (0 to 12) before a show starts up to which an accepted spot may be cancelled. Only on GET /api/venues/:id. */
+  cancel_cutoff_hours?: number;
 }
 
 export interface Show {
@@ -128,6 +130,8 @@ export interface AdminVenueDetail {
   suspended_by_name: string | null;
   created_at: string;
   updated_at: string;
+  /** Hours before a show starts up to which a comedian may cancel an accepted spot (0 to 12, migration 029). Read-only here. */
+  cancel_cutoff_hours: number;
   /** Cities the edit form offers (a venue's own city is always accepted unchanged). */
   allowed_cities: string[];
 }
@@ -198,6 +202,8 @@ export interface OwnerVenueStatus {
   is_suspended: boolean;
   suspension_reason: string | null;
   suspended_at: string | null;
+  /** Whole hours (0 to 12) before a show starts up to which a comedian may cancel an accepted spot. Copied onto each request at accept. */
+  cancel_cutoff_hours: number;
   /** Approved, active and not suspended: may add shows and take requests. */
   can_operate: boolean;
   /** Pending or changes requested: name, city and description are editable. */
@@ -267,6 +273,17 @@ export interface SpotRequest {
   blocked_by_spot_type?: PoolType | null;
   requested_at: string;
   decided_at: string | null;
+  /**
+   * Terms locked when the request was accepted (migration 029); null for every
+   * other status. Price is in paise (0 = free; null on an accepted request =
+   * invalid price, not billed). Only on GET /api/spot-requests/mine.
+   */
+  price_paise_at_accept?: number | null;
+  cancel_cutoff_hours_at_accept?: number | null;
+  /** ISO instant after which the comedian can no longer cancel this accepted spot; null unless accepted. */
+  cancel_by?: string | null;
+  /** The venue's cutoff right now: what would be locked if this request were accepted today. */
+  venue_cancel_cutoff_hours?: number | null;
   spot?: Spot;
   venue_id?: string | null;
   venue_name?: string;

@@ -79,5 +79,31 @@ export function useOwnerVenueStatus() {
     }
   }, []);
 
-  return { status, isLoading, refetch, saveDetails, resubmit };
+  // Sets the cancellation window (whole hours, 0 to 12). The server validates
+  // it again; on success the status is reloaded so the section shows the
+  // stored value, not the one typed.
+  const saveCancelCutoff = useCallback(
+    async (hours: number): Promise<ActionResult> => {
+      try {
+        const res = await authorizedFetch("/api/venues/mine/cancel-cutoff", {
+          method: "PATCH",
+          body: JSON.stringify({ cancel_cutoff_hours: hours }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { success: false, error: data.error ?? "Couldn't save the cancellation window." };
+        }
+        await refetch();
+        return { success: true };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : "Couldn't save the cancellation window.",
+        };
+      }
+    },
+    [refetch]
+  );
+
+  return { status, isLoading, refetch, saveDetails, resubmit, saveCancelCutoff };
 }

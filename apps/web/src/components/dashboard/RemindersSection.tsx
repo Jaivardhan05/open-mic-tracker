@@ -94,6 +94,9 @@ export default function RemindersSection({
                 }
                 venueMessage={request.venue_message}
                 editNotice={request.edit_notice}
+                lockedPricePaise={request.price_paise_at_accept ?? null}
+                cancelBy={request.cancel_by ?? null}
+                venueCancelCutoffHours={request.venue_cancel_cutoff_hours ?? null}
                 onCancel={onCancelSpotRequest ? () => handleCancelSpotRequest(request.id) : undefined}
                 isCancelling={pendingActionId === request.id}
               />

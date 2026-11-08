@@ -14,6 +14,7 @@ import { useAuth } from '../../../src/context/AuthContext';
 import { SpotlightCard } from '../../../src/components/venues/SpotlightCard';
 import { VenueSocialLinks } from '../../../src/components/venues/VenueSocialLinks';
 import { useMySpotRequests } from '../../../src/hooks/useMySpotRequests';
+import { describeCutoff, shortCutoff } from '../../../src/lib/cancelWindow';
 import { formatDateOrdinal } from '../../../src/lib/formatDate';
 import { formatTime12h } from '../../../src/lib/formatTime';
 
@@ -171,6 +172,15 @@ export default function VenueDetailPage() {
               <h2 className="text-lg font-bold text-white mb-4">Open Spots</h2>
               {applyError ? <p className="mb-4 text-sm text-red-400">{applyError}</p> : null}
 
+              {spots.length > 0 && typeof venue.cancel_cutoff_hours === 'number' ? (
+                <p className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs leading-relaxed text-zinc-400">
+                  <span className="font-semibold text-zinc-200">Cancelling:</span> once this venue accepts you,
+                  you can cancel {describeCutoff(venue.cancel_cutoff_hours)}. After that the spot can&apos;t be
+                  cancelled here and you&apos;d have to contact the venue. The window is fixed at the moment
+                  you&apos;re accepted. Requests that are still waiting can be cancelled any time.
+                </p>
+              ) : null}
+
               {spots.length === 0 ? (
                 <p className="text-zinc-500 text-sm">No open spots at this venue.</p>
               ) : (
@@ -194,6 +204,11 @@ export default function VenueDetailPage() {
                           {formatTime12h(spot.start_time)} – {formatTime12h(spot.end_time)}
                         </p>
                         <p className="text-zinc-500 text-xs">{formatDateOrdinal(spot.date)}</p>
+                        {typeof venue.cancel_cutoff_hours === 'number' ? (
+                          <p className="mt-1 text-zinc-500 text-[11px]">
+                            Once accepted, cancel {shortCutoff(venue.cancel_cutoff_hours)}
+                          </p>
+                        ) : null}
 
                         <div className="mt-3 flex items-center justify-between">
                           <span className="text-white text-sm font-bold">

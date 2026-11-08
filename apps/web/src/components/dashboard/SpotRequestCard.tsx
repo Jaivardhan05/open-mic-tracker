@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { PoolType, SpotRequestStatus } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
+import { describeCutoff, formatIstInstant, formatPaise, isCancelClosed } from "@/lib/cancelWindow";
 
 interface SpotRequestCardProps {
   venueName: string;
@@ -17,6 +19,12 @@ interface SpotRequestCardProps {
   editNotice?: string | null;
   onCancel?: () => void;
   isCancelling?: boolean;
+  /** Accepted only: the price locked when the request was accepted, in paise (0 = free, null = nothing to show). */
+  lockedPricePaise?: number | null;
+  /** Accepted only: ISO instant after which the comedian can no longer cancel. */
+  cancelBy?: string | null;
+  /** Pending or waitlisted: the venue's cutoff right now, i.e. what will apply if accepted. */
+  venueCancelCutoffHours?: number | null;
 }
 
 const STATUS_LABEL: Partial<Record<SpotRequestStatus, string>> = {
@@ -68,10 +76,28 @@ export default function SpotRequestCard({
   editNotice,
   onCancel,
   isCancelling = false,
+  lockedPricePaise = null,
+  cancelBy = null,
+  venueCancelCutoffHours = null,
 }: SpotRequestCardProps) {
   const router = useRouter();
+
+  // A clock that ticks, so "cancellation closed" appears by itself while the
+  // page stays open. Only the display depends on it: the server decides.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (status !== "accepted" || !cancelBy) return;
+    const timer = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [status, cancelBy]);
+
+  const cancelClosed = status === "accepted" && isCancelClosed(cancelBy, nowMs);
+  const lockedPrice = status === "accepted" ? formatPaise(lockedPricePaise) : null;
+  const cancelByLabel = status === "accepted" ? formatIstInstant(cancelBy) : "";
   const canCancel =
-    (status === "pending" || status === "accepted" || status === "waitlisted") && Boolean(onCancel);
+    (status === "pending" || status === "accepted" || status === "waitlisted") &&
+    Boolean(onCancel) &&
+    !cancelClosed;
 
   function handleViewVenue() {
     if (venueId) {
@@ -103,6 +129,27 @@ export default function SpotRequestCard({
 
         {venueMessage ? <p className="text-xs text-zinc-400">Note: {venueMessage}</p> : null}
         {editNotice ? <p className="text-xs text-[#38bdf8]">{editNotice}</p> : null}
+
+        {lockedPrice ? (
+          <p className="text-xs text-zinc-300">
+            Your price: <span className="font-semibold text-white">{lockedPrice}</span>
+            <span className="text-zinc-500"> · fixed when you were accepted</span>
+          </p>
+        ) : null}
+
+        {status === "accepted" && cancelByLabel ? (
+          <p className={`text-xs ${cancelClosed ? "text-amber-300" : "text-zinc-400"}`}>
+            {cancelClosed
+              ? "Cancellation is closed for this spot. Please contact the venue."
+              : `You can cancel until ${cancelByLabel} (India time).`}
+          </p>
+        ) : null}
+
+        {(status === "pending" || status === "waitlisted") && venueCancelCutoffHours !== null ? (
+          <p className="text-xs text-zinc-500">
+            If accepted, you can cancel {describeCutoff(venueCancelCutoffHours)}.
+          </p>
+        ) : null}
 
         <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
           {/* min-h-[44px] gives each button a ≥44px touch target without

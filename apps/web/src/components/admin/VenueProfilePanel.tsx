@@ -6,6 +6,7 @@ import type { AdminVenueDetail } from "@repo/types";
 
 import CtaButton from "@/components/CtaButton";
 import type { AdminVenueChanges } from "@/hooks/useAdminVenue";
+import { describeCutoff } from "@/lib/cancelWindow";
 import { safeHttpUrl, safeMailto } from "@/lib/safeLinks";
 
 import VenueProfileEditor from "./VenueProfileEditor";
@@ -142,6 +143,10 @@ export default function VenueProfilePanel({ venue, onSave, onDirtyChange }: Venu
           )}
         </Field>
         <Field label="Contact phone">{venue.contact_phone?.trim() ? venue.contact_phone : <NotSet />}</Field>
+        <Field label="Cancellation window">
+          Comedians can cancel an accepted spot {describeCutoff(venue.cancel_cutoff_hours)}{" "}
+          <span className="text-zinc-500">(set by the owner)</span>
+        </Field>
       </dl>
       )}
     </section>
