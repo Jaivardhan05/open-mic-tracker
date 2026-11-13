@@ -11,6 +11,9 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+# Any other env file is ignored too; only the committed templates are allowed
+.env.*
+!.env.example
 
 # Testing
 coverage

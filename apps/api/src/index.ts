@@ -7,6 +7,7 @@ import { deriveDisplayStatus } from '@repo/types';
 import { validatePhotoUrls } from '@repo/types/photoHosts.js';
 import type { AdminVenueDetail, AdminVenueListResponse, VenueDisplayStatus } from '@repo/types';
 import { supabase, supabaseAdmin } from './lib/supabase.js';
+import { runBillingStartupCheck } from './billing/startup.js';
 
 interface AuthedRequest extends Request {
   userId?: string;
@@ -1980,6 +1981,9 @@ app.get('/api/spot-requests/mine', requireUser, requireRole('comedian'), async (
 
   res.status(200).json(result);
 });
+
+// Billing config check (exits only when billing is on and NODE_ENV=production; see billing/startup.ts)
+await runBillingStartupCheck();
 
 app.listen(PORT, () => {
   console.log('OpenMic API running at http://localhost:' + PORT);

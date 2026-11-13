@@ -52,7 +52,7 @@ Mostly types, but it has **two runtime exports** and is `"type": "module"` (the 
 Entry point is `src/index.ts`. Routes are defined inline there (not in a separate router directory). Key areas:
 
 - `src/lib/supabase.ts` – Exports `supabase` (anon client) and `supabaseAdmin` (service-role client)
-- `src/db/` – base SQL applied manually to Supabase: `schema.sql` → `functions.sql` → `rls.sql` → `seed.sql`. These base files are **not** kept in sync with later changes: the live schema is those files plus every file in `src/db/migrations/` (`001`…`028`, run in order by hand in the Supabase SQL editor; SQL cannot run locally, so a migration is unrun until the user applies it).
+- `src/db/` – base SQL applied manually to Supabase: `schema.sql` → `functions.sql` → `rls.sql` → `seed.sql`. These base files are **not** kept in sync with later changes: the live schema is those files plus every file in `src/db/migrations/` (`001`…`030`, including `029b`, run in order by hand in the Supabase SQL editor; SQL cannot run locally, so a migration is unrun until the user applies it).
 - Admin routes live below `app.use('/api/admin', requireUser, requireRole('admin'))` (default-deny). Put new admin routes under it. Venue state changes go through `SECURITY DEFINER` RPCs called with `supabaseAdmin`; **every new function must `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` and `GRANT` to `service_role`** (new functions are executable by everyone by default).
 - `apps/api` has no tsconfig, so `npm run check-types` skips it. Typecheck ad hoc: `cd apps/api && npx tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --esModuleInterop --skipLibCheck src/index.ts` (expect the 13 old errors only). Its `build` script does not produce a working `dist`, so only dev (`tsx`) is supported; a production deployment needs a build step first.
 
@@ -109,6 +109,13 @@ Tailwind CSS v4 with PostCSS. Four Google Fonts are loaded as CSS variables in `
 | `NEXT_PUBLIC_SUPABASE_URL` | web | Supabase URL for browser client |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | Supabase anon key for browser client |
 | `NEXT_PUBLIC_API_URL` | web | API base URL (default `http://localhost:8080`) |
+| `RAZORPAY_KEY_ID` | api | Razorpay API key id (`rzp_test_…` in test mode, `rzp_live_…` in live) |
+| `RAZORPAY_KEY_SECRET` | api | Secret of that key pair, used to call the Razorpay API |
+| `RAZORPAY_WEBHOOK_SECRET` | api | Secret that verifies Razorpay webhook signatures (the string set in the dashboard webhook form) |
+| `RAZORPAY_MODE` | api | `test` or `live`; must agree with the key id prefix |
+| `BILLING_CRON_SECRET` | api | Shared secret for the internal billing reconcile call (needed from Step 10) |
+
+The real values of these variables live in the untracked env files (`apps/api/.env`, `apps/web/.env.local`) and must never be printed, logged or committed; `apps/api/.env.example` and `apps/web/.env.example` hold names and placeholders only. Razorpay variables are API-only, never `NEXT_PUBLIC_*`.
 
 ## Conventions
 - Before running any bash/terminal command, give a one-line explanation of what that specific command does and why, so the user knows what's running and can judge if it's needed.

@@ -289,3 +289,236 @@ export interface SpotRequest {
   venue_name?: string;
   comedian_name?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Billing (migration 030). TYPES ONLY: this package has exactly one runtime
+// export for the API (deriveDisplayStatus) and must not gain another here.
+// All money is integer paise; timestamps are ISO strings. These mirror the
+// database rows; later steps decide which fields each API route returns.
+// ---------------------------------------------------------------------------
+
+export type BillStatus = 'draft' | 'sent' | 'paid' | 'paid_offline' | 'waived' | 'void' | 'refunded';
+
+/** Which Razorpay mode a bill, payment or event belongs to. */
+export type BillingMode = 'test' | 'live';
+
+export type DuesPolicy = 'lenient' | 'strict';
+
+export type BillPaymentMode = 'online' | 'offline';
+
+export type BillDisputeOutcome = 'rejected' | 'reissued' | 'waived';
+
+export type PaymentAttemptStatus = 'created' | 'captured' | 'expired' | 'cancelled';
+
+export type PaymentReconcileFlag = 'bill_not_payable' | 'duplicate_payment' | 'amount_mismatch';
+
+export type BillingAuditAction =
+  | 'payment_captured'
+  | 'payment_refunded'
+  | 'payment_flagged'
+  | 'bill_cleared_offline'
+  | 'bill_waived'
+  | 'bill_reopened'
+  | 'bill_voided';
+
+export type BillingActorRole = 'comedian' | 'owner' | 'admin' | 'system' | 'razorpay';
+
+export type WebhookEventStatus = 'received' | 'processed' | 'failed' | 'ignored';
+
+/** `billing_settings`: the single row of global defaults (admin only). */
+export interface BillingSettings {
+  billing_enabled: boolean;
+  billing_start_date: string | null;
+  dues_policy_default: DuesPolicy;
+  due_days: number;
+  commission_bps: number;
+  fee_share_bps: number;
+  auto_send_after_hours: number;
+  max_spot_price_paise: number;
+  auto_send_cap_paise: number;
+  min_online_amount_paise: number;
+  dispute_pause_days: number;
+  reminder_max: number;
+  webhook_payload_retention_days: number;
+  notification_retention_days: number;
+  /** null = never archive. */
+  audit_archive_after_months: number | null;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+/** `venue_billing_settings`: per-venue switches. A venue has no row until an admin creates one. */
+export interface VenueBillingSettings {
+  venue_id: string;
+  enabled: boolean;
+  /** Owner's choice ('strict' = switch on, 'lenient' = off); null = inherit the global default. */
+  dues_policy: DuesPolicy | null;
+  /** Set = locked; the owner sees it read-only. */
+  dues_policy_admin_override: DuesPolicy | null;
+  auto_send: boolean;
+  due_days: number | null;
+  commission_bps_override: number | null;
+  /** Pay-button eligibility while Route is not used. */
+  online_payments_enabled: boolean;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export interface Bill {
+  id: string;
+  /** Human reference like "B-000123"; not an invoice number. */
+  bill_number: string;
+  venue_id: string;
+  venue_owner_id: string;
+  comedian_id: string;
+  venue_name: string;
+  comedian_name: string;
+  /** The Monday (IST) of the billing week, as YYYY-MM-DD. */
+  week_start: string;
+  status: BillStatus;
+  mode: BillingMode;
+  amount_due_paise: number;
+  /** Frozen when the bill is sent; zero while a draft. */
+  commission_bps: number;
+  fee_share_bps: number;
+  commission_paise: number;
+  fee_share_paise: number;
+  venue_net_paise: number;
+  payment_mode: BillPaymentMode | null;
+  due_at: string | null;
+  generated_at: string;
+  auto_send_at: string | null;
+  sent_at: string | null;
+  /** null on a sent bill = sent by the system (auto-send). */
+  sent_by: string | null;
+  paid_at: string | null;
+  cleared_at: string | null;
+  cleared_by: string | null;
+  clear_reason: string | null;
+  clear_reference: string | null;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string | null;
+  supersedes_bill_id: string | null;
+  disputed_at: string | null;
+  dispute_reason: string | null;
+  dispute_resolved_at: string | null;
+  dispute_outcome: BillDisputeOutcome | null;
+  last_reminded_at: string | null;
+  reminder_count: number;
+  /** A line's request or show changed after the line was created. */
+  needs_review: boolean;
+  is_demo: boolean;
+  updated_at: string;
+}
+
+export interface BillLine {
+  id: string;
+  bill_id: string;
+  request_id: string;
+  show_id: string;
+  venue_name: string;
+  show_date: string;
+  start_time: string;
+  end_time: string;
+  spot_type: PoolType;
+  label: string;
+  /** 0 for a free spot. */
+  amount_paise: number;
+  active: boolean;
+  removed_at: string | null;
+  /** null on an inactive line = released by the system. */
+  removed_by: string | null;
+  removed_reason: string | null;
+  source_changed_at: string | null;
+  created_at: string;
+}
+
+/** `billing_payments`: one row per payment attempt (a Razorpay Payment Link). */
+export interface BillingPayment {
+  id: string;
+  bill_id: string;
+  comedian_id: string;
+  mode: BillingMode;
+  /** Sent to Razorpay as reference_id (at most 40 characters, unique). */
+  reference_id: string;
+  /** null until the link has been created at Razorpay. */
+  razorpay_payment_link_id: string | null;
+  short_url: string | null;
+  expires_at: string;
+  amount_paise: number;
+  status: PaymentAttemptStatus;
+  razorpay_payment_id: string | null;
+  razorpay_order_id: string | null;
+  method: string | null;
+  /** What Razorpay actually captured (differs from amount_paise on amount_mismatch). */
+  captured_amount_paise: number | null;
+  fee_paise: number | null;
+  tax_paise: number | null;
+  captured_at: string | null;
+  reconcile_flag: PaymentReconcileFlag | null;
+  reconcile_resolved_at: string | null;
+  reconcile_resolved_by: string | null;
+  reconcile_note: string | null;
+  refund_id: string | null;
+  /** Free text until the refund test has shown Razorpay's real values. */
+  refund_status: string | null;
+  refunded_paise: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** `billing_events`: the append-only audit trail (fixed columns, no free-form metadata). */
+export interface BillingAuditEvent {
+  id: number;
+  created_at: string;
+  action: BillingAuditAction;
+  bill_id: string | null;
+  bill_number: string | null;
+  from_status: string | null;
+  to_status: string | null;
+  amount_paise: number | null;
+  week_start: string | null;
+  comedian_id: string | null;
+  comedian_name: string | null;
+  venue_id: string | null;
+  venue_name: string | null;
+  venue_owner_id: string | null;
+  actor_id: string | null;
+  actor_role: BillingActorRole | null;
+  actor_name: string | null;
+  reason: string | null;
+  reference: string | null;
+  payment_id: string | null;
+  razorpay_payment_id: string | null;
+  method: string | null;
+  mode: BillingMode | null;
+  fee_paise: number | null;
+  is_demo: boolean;
+}
+
+export interface BillingException {
+  id: string;
+  venue_id: string;
+  comedian_id: string;
+  reason: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  revoked_by: string | null;
+}
+
+/** `notifications`: in-app notices for comedians and owners. */
+export interface BillingNotification {
+  id: string;
+  user_id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  bill_id: string | null;
+  dedupe_key: string | null;
+  created_at: string;
+  read_at: string | null;
+}
