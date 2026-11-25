@@ -25,6 +25,15 @@ export function isDeployed(env: Env): boolean {
   return env.NODE_ENV === 'production';
 }
 
+/**
+ * The Razorpay gateway is PAUSED. Billing start-up checks run only when BILLING_GATEWAY is exactly
+ * "razorpay"; unset or any other value means off (no database read, no log lines, start-up is never
+ * blocked). Reviving the gateway = setting this variable, plus the Razorpay variables below.
+ */
+export function isGatewayEnabled(env: Env): boolean {
+  return env.BILLING_GATEWAY === 'razorpay';
+}
+
 function isBlank(v: string | undefined): boolean {
   return v === undefined || v.trim() === '';
 }

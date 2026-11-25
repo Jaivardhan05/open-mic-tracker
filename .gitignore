@@ -39,3 +39,20 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Private documents: specs/ is its own PRIVATE git repo (cloned into this folder), never part of this one
+/specs/
+
+# Local-only tooling and anything that could hold real payment data. Never commit real UPI IDs,
+# QR images or payment screenshots; test data uses fake handles and is generated at run time.
+.claude/settings.local.json
+.mcp.json
+ngrok.yml
+*.jsonl
+scratch/
+local-private/
+upi-test-data/
+**/screenshots/
+*screenshot*
+*-qr.*
+*.qr.png

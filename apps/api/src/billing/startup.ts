@@ -8,7 +8,7 @@
 // - Messages name variables, never values. Nothing secret is logged.
 
 import { supabaseAdmin } from '../lib/supabase.js';
-import { buildStartupReport, type Env } from './config.js';
+import { buildStartupReport, isGatewayEnabled, type Env } from './config.js';
 
 // PostgREST "table not in schema cache" and Postgres "undefined_table".
 const MISSING_TABLE_CODES = new Set(['PGRST205', '42P01']);
@@ -29,6 +29,10 @@ async function readBillingEnabled(): Promise<boolean | 'unknown'> {
 }
 
 export async function runBillingStartupCheck(env: Env = process.env): Promise<void> {
+  // The gateway is paused: unless BILLING_GATEWAY=razorpay, do nothing at all (no database read,
+  // no log lines), so a missing Razorpay config or a slow database can never stop the API starting.
+  if (!isGatewayEnabled(env)) return;
+
   const billingEnabled = await readBillingEnabled();
   const report = buildStartupReport(env, billingEnabled);
 

@@ -89,7 +89,7 @@ A venue has a review status (`pending | approved | changes_requested | rejected`
 
 ### Specs and decisions
 
-`specs/` holds one spec per feature. The admin venue work is `specs/admin-venue-management.md` (a section per step, what was verified and what was not) and `specs/decisions.md` (short decision log; add a few lines per decision). Update the spec in the same change as the code.
+`specs/` holds one spec per feature, but it is its **own private git repo**, cloned into this folder and ignored by this (public) repo. The admin venue work is `specs/admin-venue-management.md` (a section per step, what was verified and what was not) and `specs/decisions.md` (short decision log; add a few lines per decision). Update the spec in the same change as the code, as a separate commit in the private repo (`git -C specs ...`; show `git -C specs diff --stat` next to the code diff). This repo is public: commit messages, code comments and this file must carry no business detail (rates, plans, traction numbers).
 
 ### Styling
 
@@ -109,11 +109,12 @@ Tailwind CSS v4 with PostCSS. Four Google Fonts are loaded as CSS variables in `
 | `NEXT_PUBLIC_SUPABASE_URL` | web | Supabase URL for browser client |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | web | Supabase anon key for browser client |
 | `NEXT_PUBLIC_API_URL` | web | API base URL (default `http://localhost:8080`) |
-| `RAZORPAY_KEY_ID` | api | Razorpay API key id (`rzp_test_…` in test mode, `rzp_live_…` in live) |
-| `RAZORPAY_KEY_SECRET` | api | Secret of that key pair, used to call the Razorpay API |
-| `RAZORPAY_WEBHOOK_SECRET` | api | Secret that verifies Razorpay webhook signatures (the string set in the dashboard webhook form) |
-| `RAZORPAY_MODE` | api | `test` or `live`; must agree with the key id prefix |
-| `BILLING_CRON_SECRET` | api | Shared secret for the internal billing reconcile call (needed from Step 10) |
+| `BILLING_GATEWAY` | api | Payment gateway switch. The Razorpay gateway is **PAUSED**: unset or `none` = the billing start-up check does nothing; `razorpay` re-enables it |
+| `RAZORPAY_KEY_ID` | api | (paused) Razorpay API key id (`rzp_test_…` in test mode, `rzp_live_…` in live) |
+| `RAZORPAY_KEY_SECRET` | api | (paused) Secret of that key pair, used to call the Razorpay API |
+| `RAZORPAY_WEBHOOK_SECRET` | api | (paused) Secret that verifies Razorpay webhook signatures (the string set in the dashboard webhook form) |
+| `RAZORPAY_MODE` | api | (paused) `test` or `live`; must agree with the key id prefix |
+| `BILLING_CRON_SECRET` | api | (paused) Shared secret for the internal billing reconcile call |
 
 The real values of these variables live in the untracked env files (`apps/api/.env`, `apps/web/.env.local`) and must never be printed, logged or committed; `apps/api/.env.example` and `apps/web/.env.example` hold names and placeholders only. Razorpay variables are API-only, never `NEXT_PUBLIC_*`.
 
